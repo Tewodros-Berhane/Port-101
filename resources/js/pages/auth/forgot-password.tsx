@@ -42,6 +42,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     autoComplete="off"
                                     autoFocus
                                     placeholder="email@example.com"
+                                    required
                                 />
 
                                 <InputError message={errors.email} />
