@@ -25,46 +25,48 @@ export default function Register() {
                 {({ processing, errors }) => (
                     <>
                         <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label
-                                    htmlFor="name"
-                                    className="text-slate-700"
-                                >
-                                    Name
-                                </Label>
-                                <Input
-                                    id="name"
-                                    type="text"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="name"
-                                    name="name"
-                                    placeholder="Full name"
-                                />
-                                <InputError
-                                    message={errors.name}
-                                    className="mt-2"
-                                />
-                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label
+                                        htmlFor="name"
+                                        className="text-slate-700"
+                                    >
+                                        Name
+                                    </Label>
+                                    <Input
+                                        id="name"
+                                        type="text"
+                                        required
+                                        autoFocus
+                                        tabIndex={1}
+                                        autoComplete="name"
+                                        name="name"
+                                        placeholder="Full name"
+                                    />
+                                    <InputError
+                                        message={errors.name}
+                                        className="mt-2"
+                                    />
+                                </div>
 
-                            <div className="grid gap-2">
-                                <Label
-                                    htmlFor="company_name"
-                                    className="text-slate-700"
-                                >
-                                    Company name
-                                </Label>
-                                <Input
-                                    id="company_name"
-                                    type="text"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="organization"
-                                    name="company_name"
-                                    placeholder="Company name"
-                                />
-                                <InputError message={errors.company_name} />
+                                <div className="grid gap-2">
+                                    <Label
+                                        htmlFor="company_name"
+                                        className="text-slate-700"
+                                    >
+                                        Company name
+                                    </Label>
+                                    <Input
+                                        id="company_name"
+                                        type="text"
+                                        required
+                                        tabIndex={2}
+                                        autoComplete="organization"
+                                        name="company_name"
+                                        placeholder="Company name"
+                                    />
+                                    <InputError message={errors.company_name} />
+                                </div>
                             </div>
 
                             <div className="grid gap-2">
