@@ -115,3 +115,16 @@ Define a consistent, light-theme design system for all authentication pages so t
 1. Update `resources/js/layouts/auth/*` to reflect the new light theme.
 2. Update `resources/js/pages/auth/login.tsx` to the new layout.
 3. Apply the same layout to remaining auth pages in sequence.
+
+## Applied Changes (So Far)
+
+### Auth Layout
+
+- Switched auth background to `#f7f7f4`.
+- Updated the auth card to a white surface with a slate border and soft shadow.
+- Added Port-101 branding (icon + name) in the auth header.
+
+### Login Page
+
+- Updated labels and helper links to match the light theme.
+- Styled the primary button with a dark background and a visible hover shadow.
