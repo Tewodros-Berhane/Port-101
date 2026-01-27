@@ -1,7 +1,7 @@
-import AppLogoIcon from '@/components/app-logo-icon';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 import { Link } from '@inertiajs/react';
+import { Boxes } from 'lucide-react';
 
 export default function AuthSimpleLayout({
     children,
@@ -18,8 +18,11 @@ export default function AuthSimpleLayout({
                             className="flex flex-col items-center gap-2 font-medium text-slate-900"
                         >
                             <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md">
-                                <AppLogoIcon className="size-6 fill-current" />
+                                <Boxes className="size-5" />
                             </div>
+                            <span className="text-sm font-semibold">
+                                Port-101
+                            </span>
                             <span className="sr-only">{title}</span>
                         </Link>
 
