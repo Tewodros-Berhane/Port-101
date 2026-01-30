@@ -3,6 +3,7 @@
 use App\Http\Controllers\Core\CompanySwitchController;
 use App\Http\Controllers\Core\CurrenciesController;
 use App\Http\Controllers\Core\PartnersController;
+use App\Http\Controllers\Core\PriceListsController;
 use App\Http\Controllers\Core\ProductsController;
 use App\Http\Controllers\Core\TaxesController;
 use App\Http\Controllers\Core\UomsController;
@@ -36,6 +37,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::resource('currencies', CurrenciesController::class)
             ->except(['show']);
         Route::resource('uoms', UomsController::class)
+            ->except(['show']);
+        Route::resource('price-lists', PriceListsController::class)
             ->except(['show']);
     });
 });
