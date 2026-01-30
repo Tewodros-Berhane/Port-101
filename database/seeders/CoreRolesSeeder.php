@@ -55,9 +55,64 @@ class CoreRolesSeeder extends Seeder
                 'group' => 'core',
             ],
             [
-                'name' => 'Manage Master Data',
-                'slug' => 'core.master_data.manage',
-                'group' => 'core',
+                'name' => 'View Partners',
+                'slug' => 'core.partners.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Partners',
+                'slug' => 'core.partners.manage',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'View Products',
+                'slug' => 'core.products.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Products',
+                'slug' => 'core.products.manage',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'View Taxes',
+                'slug' => 'core.taxes.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Taxes',
+                'slug' => 'core.taxes.manage',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'View Currencies',
+                'slug' => 'core.currencies.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Currencies',
+                'slug' => 'core.currencies.manage',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'View Units of Measure',
+                'slug' => 'core.uoms.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Units of Measure',
+                'slug' => 'core.uoms.manage',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'View Price Lists',
+                'slug' => 'core.price_lists.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Price Lists',
+                'slug' => 'core.price_lists.manage',
+                'group' => 'master_data',
             ],
         ];
 
