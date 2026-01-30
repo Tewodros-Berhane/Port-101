@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Core\Company\Models\Company;
 use App\Core\Company\Models\CompanyUser;
+use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -64,6 +65,32 @@ class User extends Authenticatable
         ];
     }
 
+    private function isMasterDataPermission(string $permission): bool
+    {
+        $prefixes = [
+            'core.partners',
+            'core.products',
+            'core.taxes',
+            'core.currencies',
+            'core.uoms',
+            'core.price_lists',
+        ];
+
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with($permission, $prefix.'.')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isMasterDataManagePermission(string $permission): bool
+    {
+        return $this->isMasterDataPermission($permission)
+            && str_ends_with($permission, '.manage');
+    }
+
     public function companies(): BelongsToMany
     {
         return $this->belongsToMany(Company::class, 'company_users')
@@ -102,7 +129,11 @@ class User extends Authenticatable
     public function permissionsForCompany(?Company $company = null): array
     {
         if ($this->is_super_admin) {
-            return ['*'];
+            return Permission::query()
+                ->pluck('slug')
+                ->reject(fn ($slug) => $this->isMasterDataManagePermission($slug))
+                ->values()
+                ->all();
         }
 
         $role = $this->roleForCompany($company);
@@ -117,7 +148,7 @@ class User extends Authenticatable
     public function hasPermission(string $permission, ?Company $company = null): bool
     {
         if ($this->is_super_admin) {
-            return true;
+            return in_array($permission, $this->permissionsForCompany($company), true);
         }
 
         return in_array($permission, $this->permissionsForCompany($company), true);
