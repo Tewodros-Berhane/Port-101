@@ -3,6 +3,7 @@
 use App\Http\Controllers\Core\CompanySwitchController;
 use App\Http\Controllers\Core\PartnersController;
 use App\Http\Controllers\Core\ProductsController;
+use App\Http\Controllers\Core\TaxesController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -27,6 +28,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::resource('partners', PartnersController::class)
             ->except(['show']);
         Route::resource('products', ProductsController::class)
+            ->except(['show']);
+        Route::resource('taxes', TaxesController::class)
             ->except(['show']);
     });
 });
