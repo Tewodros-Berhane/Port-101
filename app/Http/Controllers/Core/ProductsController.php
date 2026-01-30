@@ -1,0 +1,105 @@
+<?php
+
+namespace App\Http\Controllers\Core;
+
+use App\Core\MasterData\Models\Product;
+use App\Core\MasterData\Models\Tax;
+use App\Core\MasterData\Models\Uom;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Core\ProductStoreRequest;
+use App\Http\Requests\Core\ProductUpdateRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ProductsController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $products = Product::query()
+            ->with(['uom', 'defaultTax'])
+            ->orderBy('name')
+            ->paginate(20)
+            ->withQueryString();
+
+        return Inertia::render('core/products/index', [
+            'products' => $products->through(function (Product $product) {
+                return [
+                    'id' => $product->id,
+                    'sku' => $product->sku,
+                    'name' => $product->name,
+                    'type' => $product->type,
+                    'uom' => $product->uom?->name,
+                    'tax' => $product->defaultTax?->name,
+                    'is_active' => $product->is_active,
+                ];
+            }),
+        ]);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('core/products/create', [
+            'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
+            'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function store(ProductStoreRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $product = Product::create([
+            ...$request->validated(),
+            'company_id' => $user?->current_company_id,
+            'created_by' => $user?->id,
+            'updated_by' => $user?->id,
+        ]);
+
+        return redirect()
+            ->route('core.products.edit', $product)
+            ->with('success', 'Product created.');
+    }
+
+    public function edit(Product $product): Response
+    {
+        return Inertia::render('core/products/edit', [
+            'product' => [
+                'id' => $product->id,
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'type' => $product->type,
+                'uom_id' => $product->uom_id,
+                'default_tax_id' => $product->default_tax_id,
+                'description' => $product->description,
+                'is_active' => $product->is_active,
+            ],
+            'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
+            'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function update(ProductUpdateRequest $request, Product $product): RedirectResponse
+    {
+        $user = $request->user();
+
+        $product->update([
+            ...$request->validated(),
+            'updated_by' => $user?->id,
+        ]);
+
+        return redirect()
+            ->route('core.products.edit', $product)
+            ->with('success', 'Product updated.');
+    }
+
+    public function destroy(Request $request, Product $product): RedirectResponse
+    {
+        $product->delete();
+
+        return redirect()
+            ->route('core.products.index')
+            ->with('success', 'Product removed.');
+    }
+}
