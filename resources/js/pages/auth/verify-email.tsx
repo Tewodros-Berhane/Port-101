@@ -10,10 +10,10 @@ import { Form, Head } from '@inertiajs/react';
 export default function VerifyEmail({ status }: { status?: string }) {
     return (
         <AuthLayout
-            title="Verify your email"
-            description="Check your inbox to activate your account."
+            title="Verify email"
+            description="Please verify your email address by clicking on the link we just emailed to you."
         >
-            <Head title="Verify your email" />
+            <Head title="Email verification" />
 
             {status === 'verification-link-sent' && (
                 <div className="mb-4 text-center text-sm font-medium text-green-600">
@@ -25,17 +25,14 @@ export default function VerifyEmail({ status }: { status?: string }) {
             <Form {...send.form()} className="space-y-6 text-center">
                 {({ processing }) => (
                     <>
-                        <Button
-                            disabled={processing}
-                            className="bg-slate-900 text-white shadow-sm transition-shadow hover:bg-slate-900 hover:shadow-lg hover:shadow-slate-900/15"
-                        >
+                        <Button disabled={processing} variant="secondary">
                             {processing && <Spinner />}
                             Resend verification email
                         </Button>
 
                         <TextLink
                             href={logout()}
-                            className="mx-auto block text-sm font-semibold text-slate-900"
+                            className="mx-auto block text-sm"
                         >
                             Log out
                         </TextLink>

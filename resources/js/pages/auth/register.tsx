@@ -12,8 +12,8 @@ import { Form, Head } from '@inertiajs/react';
 export default function Register() {
     return (
         <AuthLayout
-            title="Create your Port-101 workspace"
-            description="Start with a company name and invite your team later."
+            title="Create an account"
+            description="Enter your details below to create your account"
         >
             <Head title="Register" />
             <Form
@@ -25,57 +25,42 @@ export default function Register() {
                 {({ processing, errors }) => (
                     <>
                         <div className="grid gap-6">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="grid gap-2">
-                                    <Label
-                                        htmlFor="name"
-                                        className="text-slate-700"
-                                    >
-                                        Name
-                                    </Label>
-                                    <Input
-                                        id="name"
-                                        type="text"
-                                        required
-                                        autoFocus
-                                        tabIndex={1}
-                                        autoComplete="name"
-                                        name="name"
-                                        placeholder="Full name"
-                                    />
-                                    <InputError
-                                        message={errors.name}
-                                        className="mt-2"
-                                    />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label
-                                        htmlFor="company_name"
-                                        className="text-slate-700"
-                                    >
-                                        Company name
-                                    </Label>
-                                    <Input
-                                        id="company_name"
-                                        type="text"
-                                        required
-                                        tabIndex={2}
-                                        autoComplete="organization"
-                                        name="company_name"
-                                        placeholder="Company name"
-                                    />
-                                    <InputError message={errors.company_name} />
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Name</Label>
+                                <Input
+                                    id="name"
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    tabIndex={1}
+                                    autoComplete="name"
+                                    name="name"
+                                    placeholder="Full name"
+                                />
+                                <InputError
+                                    message={errors.name}
+                                    className="mt-2"
+                                />
                             </div>
 
                             <div className="grid gap-2">
-                                <Label
-                                    htmlFor="email"
-                                    className="text-slate-700"
-                                >
-                                    Email address
+                                <Label htmlFor="company_name">
+                                    Company name
                                 </Label>
+                                <Input
+                                    id="company_name"
+                                    type="text"
+                                    required
+                                    tabIndex={2}
+                                    autoComplete="organization"
+                                    name="company_name"
+                                    placeholder="Company name"
+                                />
+                                <InputError message={errors.company_name} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email address</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -89,12 +74,7 @@ export default function Register() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label
-                                    htmlFor="password"
-                                    className="text-slate-700"
-                                >
-                                    Password
-                                </Label>
+                                <Label htmlFor="password">Password</Label>
                                 <Input
                                     id="password"
                                     type="password"
@@ -108,10 +88,7 @@ export default function Register() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label
-                                    htmlFor="password_confirmation"
-                                    className="text-slate-700"
-                                >
+                                <Label htmlFor="password_confirmation">
                                     Confirm password
                                 </Label>
                                 <Input
@@ -130,7 +107,7 @@ export default function Register() {
 
                             <Button
                                 type="submit"
-                                className="mt-2 w-full bg-slate-900 text-white shadow-sm transition-shadow hover:bg-slate-900 hover:shadow-lg hover:shadow-slate-900/15"
+                                className="mt-2 w-full"
                                 tabIndex={6}
                                 data-test="register-user-button"
                             >
@@ -139,13 +116,9 @@ export default function Register() {
                             </Button>
                         </div>
 
-                        <div className="text-center text-sm text-slate-600">
+                        <div className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}
-                            <TextLink
-                                href={login()}
-                                tabIndex={7}
-                                className="font-semibold text-slate-900"
-                            >
+                            <TextLink href={login()} tabIndex={7}>
                                 Log in
                             </TextLink>
                         </div>

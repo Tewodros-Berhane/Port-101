@@ -15,10 +15,10 @@ type Props = {
 export default function ResetPassword({ token, email }: Props) {
     return (
         <AuthLayout
-            title="Set a new password"
-            description="Choose a strong password for your workspace."
+            title="Reset password"
+            description="Please enter your new password below"
         >
-            <Head title="Set a new password" />
+            <Head title="Reset password" />
 
             <Form
                 {...update.form()}
@@ -28,9 +28,7 @@ export default function ResetPassword({ token, email }: Props) {
                 {({ processing, errors }) => (
                     <div className="grid gap-6">
                         <div className="grid gap-2">
-                            <Label htmlFor="email" className="text-slate-700">
-                                Email
-                            </Label>
+                            <Label htmlFor="email">Email</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -47,12 +45,7 @@ export default function ResetPassword({ token, email }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label
-                                htmlFor="password"
-                                className="text-slate-700"
-                            >
-                                Password
-                            </Label>
+                            <Label htmlFor="password">Password</Label>
                             <Input
                                 id="password"
                                 type="password"
@@ -66,10 +59,7 @@ export default function ResetPassword({ token, email }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label
-                                htmlFor="password_confirmation"
-                                className="text-slate-700"
-                            >
+                            <Label htmlFor="password_confirmation">
                                 Confirm password
                             </Label>
                             <Input
@@ -88,7 +78,7 @@ export default function ResetPassword({ token, email }: Props) {
 
                         <Button
                             type="submit"
-                            className="mt-4 w-full bg-slate-900 text-white shadow-sm transition-shadow hover:bg-slate-900 hover:shadow-lg hover:shadow-slate-900/15"
+                            className="mt-4 w-full"
                             disabled={processing}
                             data-test="reset-password-button"
                         >

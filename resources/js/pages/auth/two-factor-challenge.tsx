@@ -50,7 +50,7 @@ export default function TwoFactorChallenge() {
             title={authConfigContent.title}
             description={authConfigContent.description}
         >
-            <Head title="Two-factor verification" />
+            <Head title="Two-Factor Authentication" />
 
             <div className="space-y-6">
                 <Form
@@ -104,17 +104,17 @@ export default function TwoFactorChallenge() {
 
                             <Button
                                 type="submit"
-                                className="w-full bg-slate-900 text-white shadow-sm transition-shadow hover:bg-slate-900 hover:shadow-lg hover:shadow-slate-900/15"
+                                className="w-full"
                                 disabled={processing}
                             >
                                 Continue
                             </Button>
 
-                            <div className="text-center text-sm text-slate-600">
+                            <div className="text-center text-sm text-muted-foreground">
                                 <span>or you can </span>
                                 <button
                                     type="button"
-                                    className="cursor-pointer font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-slate-500"
+                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                                     onClick={() =>
                                         toggleRecoveryMode(clearErrors)
                                     }

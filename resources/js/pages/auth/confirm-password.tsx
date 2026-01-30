@@ -11,20 +11,15 @@ export default function ConfirmPassword() {
     return (
         <AuthLayout
             title="Confirm your password"
-            description="Required for sensitive actions."
+            description="This is a secure area of the application. Please confirm your password before continuing."
         >
-            <Head title="Confirm your password" />
+            <Head title="Confirm password" />
 
             <Form {...store.form()} resetOnSuccess={['password']}>
                 {({ processing, errors }) => (
                     <div className="space-y-6">
                         <div className="grid gap-2">
-                            <Label
-                                htmlFor="password"
-                                className="text-slate-700"
-                            >
-                                Password
-                            </Label>
+                            <Label htmlFor="password">Password</Label>
                             <Input
                                 id="password"
                                 type="password"
@@ -39,7 +34,7 @@ export default function ConfirmPassword() {
 
                         <div className="flex items-center">
                             <Button
-                                className="w-full bg-slate-900 text-white shadow-sm transition-shadow hover:bg-slate-900 hover:shadow-lg hover:shadow-slate-900/15"
+                                className="w-full"
                                 disabled={processing}
                                 data-test="confirm-password-button"
                             >
