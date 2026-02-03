@@ -12,8 +12,8 @@
 - Access rules: super admin is view-only for master data; company owners (is_owner) bypass and get full access.
 - Tests: feature test covering master data policy behavior for super admin view-only and owner bypass.
 - Master data UI gating: `.view` controls nav/list visibility, `.manage` controls create/edit/delete actions.
+- Route-level permission tests for master data endpoints (403/200 flows).
 
 ## Not Yet Implemented
 
 - Audit log module and events.
-- Route-level permission tests for master data endpoints (403/200 flows).
