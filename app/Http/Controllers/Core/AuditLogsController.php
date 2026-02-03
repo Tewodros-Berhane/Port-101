@@ -18,8 +18,8 @@ class AuditLogsController extends Controller
     {
         $this->authorize('viewAny', AuditLog::class);
 
-        $filters = $this->filtersFromRequest($request);
-        $logs = $this->filteredLogs($request)
+        $filters = $this->normalizedFilters($this->validatedFilters($request));
+        $logs = $this->filteredLogs($filters)
             ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
@@ -97,7 +97,8 @@ class AuditLogsController extends Controller
             $format = 'csv';
         }
 
-        $logs = $this->filteredLogs($request)
+        $filters = $this->validatedFilters($request);
+        $logs = $this->filteredLogs($filters)
             ->orderByDesc('created_at')
             ->get();
 
@@ -162,15 +163,15 @@ class AuditLogsController extends Controller
             ->with('success', 'Audit log entry removed.');
     }
 
-    private function filteredLogs(Request $request): Builder
+    private function filteredLogs(array $filters): Builder
     {
         $query = AuditLog::query()->with('actor:id,name');
 
-        $action = $request->input('action');
-        $recordType = $request->input('record_type');
-        $actorId = $request->input('actor_id');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        $action = $filters['action'] ?? null;
+        $recordType = $filters['record_type'] ?? null;
+        $actorId = $filters['actor_id'] ?? null;
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
 
         if ($action) {
             $query->where('action', $action);
@@ -214,14 +215,25 @@ class AuditLogsController extends Controller
         }
     }
 
-    private function filtersFromRequest(Request $request): array
+    private function validatedFilters(Request $request): array
+    {
+        return $request->validate([
+            'action' => ['nullable', 'string', 'max:32'],
+            'record_type' => ['nullable', 'string', 'max:255'],
+            'actor_id' => ['nullable', 'uuid', 'exists:users,id'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+    }
+
+    private function normalizedFilters(array $filters): array
     {
         return [
-            'action' => $request->input('action'),
-            'record_type' => $request->input('record_type'),
-            'actor_id' => $request->input('actor_id'),
-            'start_date' => $request->input('start_date'),
-            'end_date' => $request->input('end_date'),
+            'action' => $filters['action'] ?? null,
+            'record_type' => $filters['record_type'] ?? null,
+            'actor_id' => $filters['actor_id'] ?? null,
+            'start_date' => $filters['start_date'] ?? null,
+            'end_date' => $filters['end_date'] ?? null,
         ];
     }
 }
