@@ -1,43 +1,44 @@
 <?php
 
-namespace App\Core\MasterData\Models;
+namespace App\Core\Audit\Models;
 
 use App\Core\Company\Models\Company;
-use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class Uom extends Model
+class AuditLog extends Model
 {
     use HasFactory;
     use HasUuids;
-    use SoftDeletes;
     use CompanyScoped;
-    use Auditable;
 
     public $incrementing = false;
 
     protected $keyType = 'string';
 
+    public const UPDATED_AT = null;
+
     protected $fillable = [
         'company_id',
-        'name',
-        'symbol',
-        'is_active',
-        'created_by',
-        'updated_by',
+        'user_id',
+        'auditable_type',
+        'auditable_id',
+        'action',
+        'changes',
+        'metadata',
+        'created_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
+            'changes' => 'array',
+            'metadata' => 'array',
         ];
     }
 
@@ -46,18 +47,13 @@ class Uom extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function products(): HasMany
+    public function actor(): BelongsTo
     {
-        return $this->hasMany(Product::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function createdBy(): BelongsTo
+    public function auditable(): MorphTo
     {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updatedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
+        return $this->morphTo();
     }
 }

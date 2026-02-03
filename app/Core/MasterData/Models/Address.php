@@ -3,6 +3,7 @@
 namespace App\Core\MasterData\Models;
 
 use App\Core\Company\Models\Company;
+use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -17,6 +18,7 @@ class Address extends Model
     use HasUuids;
     use SoftDeletes;
     use CompanyScoped;
+    use Auditable;
 
     public $incrementing = false;
 

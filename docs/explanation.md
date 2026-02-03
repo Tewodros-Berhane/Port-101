@@ -164,3 +164,21 @@ Key flows:
 - Start with a simple navigation structure that can grow with new modules.
 - Keep role-based dashboards focused on the most common tasks.
 - Always expose company context and user role clearly in the UI.
+
+## Audit Log Module and Event Hooks
+
+The audit log module is a system record of who did what, to which record, and when. It is designed for traceability, troubleshooting, and compliance without changing the core workflows.
+
+What it stores per entry:
+
+- Company and actor: `company_id` plus the user who performed the action (when available).
+- Target record: `auditable_type` and `auditable_id` so any model can be tracked.
+- Action: created, updated, deleted (and restored when applicable).
+- Changes: a before/after snapshot of the fields that changed (system fields are excluded).
+- Context: request metadata like IP address and user agent when available.
+
+Event hooks are the automatic triggers that create audit entries. They listen to model lifecycle events (created, updated, deleted, restored) and write the audit record consistently so we do not have to remember to log each controller action manually.
+
+Current scope:
+
+- Master data models: partners, contacts, addresses, products, taxes, currencies, units, and price lists.

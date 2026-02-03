@@ -13,7 +13,8 @@
 - Tests: feature test covering master data policy behavior for super admin view-only and owner bypass.
 - Master data UI gating: `.view` controls nav/list visibility, `.manage` controls create/edit/delete actions.
 - Route-level permission tests for master data endpoints (403/200 flows).
+- Audit log storage and event hooks for master data create/update/delete.
 
 ## Not Yet Implemented
 
-- Audit log module and events.
+- Audit log UI, filters, and export.
