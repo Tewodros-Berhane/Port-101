@@ -65,6 +65,16 @@ class CoreRolesSeeder extends Seeder
                 'group' => 'master_data',
             ],
             [
+                'name' => 'View Contacts',
+                'slug' => 'core.contacts.view',
+                'group' => 'master_data',
+            ],
+            [
+                'name' => 'Manage Contacts',
+                'slug' => 'core.contacts.manage',
+                'group' => 'master_data',
+            ],
+            [
                 'name' => 'View Products',
                 'slug' => 'core.products.view',
                 'group' => 'master_data',

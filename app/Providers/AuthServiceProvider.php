@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Core\Company\Models\Company;
+use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Currency;
 use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\PriceList;
@@ -12,6 +13,7 @@ use App\Core\MasterData\Models\Uom;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Policies\CompanyPolicy;
+use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
 use App\Policies\PartnerPolicy;
 use App\Policies\PermissionPolicy;
@@ -33,6 +35,7 @@ class AuthServiceProvider extends ServiceProvider
         Company::class => CompanyPolicy::class,
         Role::class => RolePolicy::class,
         Permission::class => PermissionPolicy::class,
+        Contact::class => ContactPolicy::class,
         Partner::class => PartnerPolicy::class,
         Product::class => ProductPolicy::class,
         Tax::class => TaxPolicy::class,

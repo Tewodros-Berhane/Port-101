@@ -69,6 +69,7 @@ class User extends Authenticatable
     {
         $prefixes = [
             'core.partners',
+            'core.contacts',
             'core.products',
             'core.taxes',
             'core.currencies',
