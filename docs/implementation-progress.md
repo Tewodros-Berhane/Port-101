@@ -14,7 +14,8 @@
 - Master data UI gating: `.view` controls nav/list visibility, `.manage` controls create/edit/delete actions.
 - Route-level permission tests for master data endpoints (403/200 flows).
 - Audit log storage and event hooks for master data create/update/delete.
+- Audit log permissions, policy, and list page.
 
 ## Not Yet Implemented
 
-- Audit log UI, filters, and export.
+- Audit log UI filters, exports, and delete actions.

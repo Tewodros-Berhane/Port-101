@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Core\Company\Models\Company;
+use App\Core\Audit\Models\AuditLog;
 use App\Core\MasterData\Models\Address;
 use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Currency;
@@ -14,6 +15,7 @@ use App\Core\MasterData\Models\Uom;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Policies\CompanyPolicy;
+use App\Policies\AuditLogPolicy;
 use App\Policies\AddressPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
@@ -35,6 +37,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         Company::class => CompanyPolicy::class,
+        AuditLog::class => AuditLogPolicy::class,
         Role::class => RolePolicy::class,
         Permission::class => PermissionPolicy::class,
         Address::class => AddressPolicy::class,

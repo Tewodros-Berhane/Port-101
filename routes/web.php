@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Core\AuditLogsController;
 use App\Http\Controllers\Core\CompanySwitchController;
 use App\Http\Controllers\Core\AddressesController;
 use App\Http\Controllers\Core\ContactsController;
@@ -30,6 +31,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     })->name('dashboard');
 
     Route::prefix('core')->name('core.')->group(function () {
+        Route::get('audit-logs', [AuditLogsController::class, 'index'])
+            ->name('audit-logs.index');
         Route::resource('partners', PartnersController::class)
             ->except(['show']);
         Route::resource('addresses', AddressesController::class)

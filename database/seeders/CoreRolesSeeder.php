@@ -55,6 +55,16 @@ class CoreRolesSeeder extends Seeder
                 'group' => 'core',
             ],
             [
+                'name' => 'View Audit Logs',
+                'slug' => 'core.audit_logs.view',
+                'group' => 'core',
+            ],
+            [
+                'name' => 'Manage Audit Logs',
+                'slug' => 'core.audit_logs.manage',
+                'group' => 'core',
+            ],
+            [
                 'name' => 'View Partners',
                 'slug' => 'core.partners.view',
                 'group' => 'master_data',

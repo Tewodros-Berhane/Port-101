@@ -67,6 +67,14 @@ const masterDataNavItems: NavItem[] = [
     },
 ];
 
+const governanceNavItems: NavItem[] = [
+    {
+        title: 'Audit Logs',
+        href: '/core/audit-logs',
+        permission: 'core.audit_logs.view',
+    },
+];
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -98,6 +106,7 @@ export function AppSidebar() {
             <SidebarContent>
                 <NavMain items={mainNavItems} label="Platform" />
                 <NavMain items={masterDataNavItems} label="Master Data" />
+                <NavMain items={governanceNavItems} label="Governance" />
             </SidebarContent>
 
             <SidebarFooter>
