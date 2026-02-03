@@ -6,6 +6,7 @@ use App\Core\Audit\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -148,6 +149,17 @@ class AuditLogsController extends Controller
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function destroy(AuditLog $auditLog): RedirectResponse
+    {
+        $this->authorize('delete', $auditLog);
+
+        $auditLog->delete();
+
+        return redirect()
+            ->route('core.audit-logs.index')
+            ->with('success', 'Audit log entry removed.');
     }
 
     private function filteredLogs(Request $request): Builder

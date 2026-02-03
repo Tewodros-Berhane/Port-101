@@ -21,4 +21,9 @@ class AuditLogPolicy
     {
         return $user->hasPermission('core.audit_logs.manage');
     }
+
+    public function delete(User $user, AuditLog $auditLog): bool
+    {
+        return $user->hasPermission('core.audit_logs.manage');
+    }
 }

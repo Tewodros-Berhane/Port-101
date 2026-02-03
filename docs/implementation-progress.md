@@ -16,7 +16,8 @@
 - Audit log storage and event hooks for master data create/update/delete.
 - Audit log permissions, policy, and list page.
 - Audit log filters and export actions.
+- Audit log delete actions.
 
 ## Not Yet Implemented
 
-- Audit log delete actions.
+- Audit log retention rules.

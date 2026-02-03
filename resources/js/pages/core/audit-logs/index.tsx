@@ -104,6 +104,7 @@ export default function AuditLogsIndex({
         start_date: filters.start_date ?? '',
         end_date: filters.end_date ?? '',
     });
+    const deleteForm = useForm({});
 
     const exportQuery = buildQueryString(form.data);
     const exportBaseUrl = '/core/audit-logs/export';
@@ -113,6 +114,14 @@ export default function AuditLogsIndex({
     const exportJsonUrl = exportQuery
         ? `${exportBaseUrl}?${exportQuery}&format=json`
         : `${exportBaseUrl}?format=json`;
+
+    const handleDelete = (logId: string) => {
+        if (!confirm('Delete this audit log entry?')) {
+            return;
+        }
+
+        deleteForm.delete(`/core/audit-logs/${logId}`);
+    };
 
     return (
         <AppLayout
@@ -281,6 +290,11 @@ export default function AuditLogsIndex({
                                     <th className="px-4 py-3 font-medium">
                                         Changes
                                     </th>
+                                    {canManage && (
+                                        <th className="px-4 py-3 text-right font-medium">
+                                            Actions
+                                        </th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -288,7 +302,7 @@ export default function AuditLogsIndex({
                                     <tr>
                                         <td
                                             className="px-4 py-8 text-center text-muted-foreground"
-                                            colSpan={5}
+                                            colSpan={canManage ? 6 : 5}
                                         >
                                             No audit entries yet.
                                         </td>
@@ -317,6 +331,22 @@ export default function AuditLogsIndex({
                                         <td className="px-4 py-3">
                                             {formatChanges(log.change_keys)}
                                         </td>
+                                        {canManage && (
+                                            <td className="px-4 py-3 text-right">
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    onClick={() =>
+                                                        handleDelete(log.id)
+                                                    }
+                                                    disabled={
+                                                        deleteForm.processing
+                                                    }
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

@@ -35,6 +35,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             ->name('audit-logs.index');
         Route::get('audit-logs/export', [AuditLogsController::class, 'export'])
             ->name('audit-logs.export');
+        Route::delete('audit-logs/{auditLog}', [AuditLogsController::class, 'destroy'])
+            ->name('audit-logs.destroy');
         Route::resource('partners', PartnersController::class)
             ->except(['show']);
         Route::resource('addresses', AddressesController::class)
