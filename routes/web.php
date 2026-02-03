@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Core\CompanySwitchController;
+use App\Http\Controllers\Core\AddressesController;
 use App\Http\Controllers\Core\ContactsController;
 use App\Http\Controllers\Core\CurrenciesController;
 use App\Http\Controllers\Core\PartnersController;
@@ -30,6 +31,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
     Route::prefix('core')->name('core.')->group(function () {
         Route::resource('partners', PartnersController::class)
+            ->except(['show']);
+        Route::resource('addresses', AddressesController::class)
             ->except(['show']);
         Route::resource('contacts', ContactsController::class)
             ->except(['show']);

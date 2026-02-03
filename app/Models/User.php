@@ -70,6 +70,7 @@ class User extends Authenticatable
         $prefixes = [
             'core.partners',
             'core.contacts',
+            'core.addresses',
             'core.products',
             'core.taxes',
             'core.currencies',
