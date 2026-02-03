@@ -33,6 +33,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::prefix('core')->name('core.')->group(function () {
         Route::get('audit-logs', [AuditLogsController::class, 'index'])
             ->name('audit-logs.index');
+        Route::get('audit-logs/export', [AuditLogsController::class, 'export'])
+            ->name('audit-logs.export');
         Route::resource('partners', PartnersController::class)
             ->except(['show']);
         Route::resource('addresses', AddressesController::class)

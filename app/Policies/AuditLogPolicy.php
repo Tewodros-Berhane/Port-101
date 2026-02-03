@@ -16,4 +16,9 @@ class AuditLogPolicy
     {
         return $user->hasPermission('core.audit_logs.view');
     }
+
+    public function export(User $user): bool
+    {
+        return $user->hasPermission('core.audit_logs.manage');
+    }
 }

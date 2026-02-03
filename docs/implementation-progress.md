@@ -15,7 +15,8 @@
 - Route-level permission tests for master data endpoints (403/200 flows).
 - Audit log storage and event hooks for master data create/update/delete.
 - Audit log permissions, policy, and list page.
+- Audit log filters and export actions.
 
 ## Not Yet Implemented
 
-- Audit log UI filters, exports, and delete actions.
+- Audit log delete actions.
