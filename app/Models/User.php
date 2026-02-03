@@ -91,6 +91,20 @@ class User extends Authenticatable
             && str_ends_with($permission, '.manage');
     }
 
+    private function isOwnerForCompany(?Company $company = null): bool
+    {
+        $companyId = $company?->id ?? $this->current_company_id;
+
+        if (! $companyId) {
+            return false;
+        }
+
+        return $this->memberships()
+            ->where('company_id', $companyId)
+            ->where('is_owner', true)
+            ->exists();
+    }
+
     public function companies(): BelongsToMany
     {
         return $this->belongsToMany(Company::class, 'company_users')
@@ -132,6 +146,13 @@ class User extends Authenticatable
             return Permission::query()
                 ->pluck('slug')
                 ->reject(fn ($slug) => $this->isMasterDataManagePermission($slug))
+                ->values()
+                ->all();
+        }
+
+        if ($this->isOwnerForCompany($company)) {
+            return Permission::query()
+                ->pluck('slug')
                 ->values()
                 ->all();
         }
