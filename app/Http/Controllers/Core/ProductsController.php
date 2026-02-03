@@ -17,6 +17,8 @@ class ProductsController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Product::class);
+
         $products = Product::query()
             ->with(['uom', 'defaultTax'])
             ->orderBy('name')
@@ -40,6 +42,8 @@ class ProductsController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', Product::class);
+
         return Inertia::render('core/products/create', [
             'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
             'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
@@ -48,6 +52,8 @@ class ProductsController extends Controller
 
     public function store(ProductStoreRequest $request): RedirectResponse
     {
+        $this->authorize('create', Product::class);
+
         $user = $request->user();
 
         $product = Product::create([
@@ -64,6 +70,8 @@ class ProductsController extends Controller
 
     public function edit(Product $product): Response
     {
+        $this->authorize('update', $product);
+
         return Inertia::render('core/products/edit', [
             'product' => [
                 'id' => $product->id,
@@ -82,6 +90,8 @@ class ProductsController extends Controller
 
     public function update(ProductUpdateRequest $request, Product $product): RedirectResponse
     {
+        $this->authorize('update', $product);
+
         $user = $request->user();
 
         $product->update([
@@ -96,6 +106,8 @@ class ProductsController extends Controller
 
     public function destroy(Request $request, Product $product): RedirectResponse
     {
+        $this->authorize('delete', $product);
+
         $product->delete();
 
         return redirect()

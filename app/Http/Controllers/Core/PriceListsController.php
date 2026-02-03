@@ -16,6 +16,8 @@ class PriceListsController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', PriceList::class);
+
         $priceLists = PriceList::query()
             ->with('currency')
             ->orderBy('name')
@@ -36,6 +38,8 @@ class PriceListsController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', PriceList::class);
+
         return Inertia::render('core/price-lists/create', [
             'currencies' => Currency::query()->orderBy('code')->get(['id', 'code', 'name']),
         ]);
@@ -43,6 +47,8 @@ class PriceListsController extends Controller
 
     public function store(PriceListStoreRequest $request): RedirectResponse
     {
+        $this->authorize('create', PriceList::class);
+
         $user = $request->user();
 
         $priceList = PriceList::create([
@@ -59,6 +65,8 @@ class PriceListsController extends Controller
 
     public function edit(PriceList $priceList): Response
     {
+        $this->authorize('update', $priceList);
+
         return Inertia::render('core/price-lists/edit', [
             'priceList' => [
                 'id' => $priceList->id,
@@ -72,6 +80,8 @@ class PriceListsController extends Controller
 
     public function update(PriceListUpdateRequest $request, PriceList $priceList): RedirectResponse
     {
+        $this->authorize('update', $priceList);
+
         $user = $request->user();
 
         $priceList->update([
@@ -86,6 +96,8 @@ class PriceListsController extends Controller
 
     public function destroy(Request $request, PriceList $priceList): RedirectResponse
     {
+        $this->authorize('delete', $priceList);
+
         $priceList->delete();
 
         return redirect()

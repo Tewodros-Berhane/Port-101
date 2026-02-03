@@ -15,6 +15,8 @@ class UomsController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Uom::class);
+
         $uoms = Uom::query()
             ->orderBy('name')
             ->paginate(20)
@@ -34,11 +36,15 @@ class UomsController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', Uom::class);
+
         return Inertia::render('core/uoms/create');
     }
 
     public function store(UomStoreRequest $request): RedirectResponse
     {
+        $this->authorize('create', Uom::class);
+
         $user = $request->user();
 
         $uom = Uom::create([
@@ -55,6 +61,8 @@ class UomsController extends Controller
 
     public function edit(Uom $uom): Response
     {
+        $this->authorize('update', $uom);
+
         return Inertia::render('core/uoms/edit', [
             'uom' => [
                 'id' => $uom->id,
@@ -67,6 +75,8 @@ class UomsController extends Controller
 
     public function update(UomUpdateRequest $request, Uom $uom): RedirectResponse
     {
+        $this->authorize('update', $uom);
+
         $user = $request->user();
 
         $uom->update([
@@ -81,6 +91,8 @@ class UomsController extends Controller
 
     public function destroy(Request $request, Uom $uom): RedirectResponse
     {
+        $this->authorize('delete', $uom);
+
         $uom->delete();
 
         return redirect()

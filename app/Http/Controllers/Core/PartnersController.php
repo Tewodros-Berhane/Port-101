@@ -15,6 +15,8 @@ class PartnersController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Partner::class);
+
         $partners = Partner::query()
             ->orderBy('name')
             ->paginate(20)
@@ -37,11 +39,15 @@ class PartnersController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', Partner::class);
+
         return Inertia::render('core/partners/create');
     }
 
     public function store(PartnerStoreRequest $request): RedirectResponse
     {
+        $this->authorize('create', Partner::class);
+
         $user = $request->user();
 
         $partner = Partner::create([
@@ -58,6 +64,8 @@ class PartnersController extends Controller
 
     public function edit(Partner $partner): Response
     {
+        $this->authorize('update', $partner);
+
         return Inertia::render('core/partners/edit', [
             'partner' => [
                 'id' => $partner->id,
@@ -73,6 +81,8 @@ class PartnersController extends Controller
 
     public function update(PartnerUpdateRequest $request, Partner $partner): RedirectResponse
     {
+        $this->authorize('update', $partner);
+
         $user = $request->user();
 
         $partner->update([
@@ -87,6 +97,8 @@ class PartnersController extends Controller
 
     public function destroy(Request $request, Partner $partner): RedirectResponse
     {
+        $this->authorize('delete', $partner);
+
         $partner->delete();
 
         return redirect()

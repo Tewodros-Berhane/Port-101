@@ -15,6 +15,8 @@ class CurrenciesController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Currency::class);
+
         $currencies = Currency::query()
             ->orderBy('code')
             ->paginate(20)
@@ -36,11 +38,15 @@ class CurrenciesController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', Currency::class);
+
         return Inertia::render('core/currencies/create');
     }
 
     public function store(CurrencyStoreRequest $request): RedirectResponse
     {
+        $this->authorize('create', Currency::class);
+
         $user = $request->user();
 
         $currency = Currency::create([
@@ -57,6 +63,8 @@ class CurrenciesController extends Controller
 
     public function edit(Currency $currency): Response
     {
+        $this->authorize('update', $currency);
+
         return Inertia::render('core/currencies/edit', [
             'currency' => [
                 'id' => $currency->id,
@@ -71,6 +79,8 @@ class CurrenciesController extends Controller
 
     public function update(CurrencyUpdateRequest $request, Currency $currency): RedirectResponse
     {
+        $this->authorize('update', $currency);
+
         $user = $request->user();
 
         $currency->update([
@@ -85,6 +95,8 @@ class CurrenciesController extends Controller
 
     public function destroy(Request $request, Currency $currency): RedirectResponse
     {
+        $this->authorize('delete', $currency);
+
         $currency->delete();
 
         return redirect()

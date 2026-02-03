@@ -15,6 +15,8 @@ class TaxesController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Tax::class);
+
         $taxes = Tax::query()
             ->orderBy('name')
             ->paginate(20)
@@ -35,11 +37,15 @@ class TaxesController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', Tax::class);
+
         return Inertia::render('core/taxes/create');
     }
 
     public function store(TaxStoreRequest $request): RedirectResponse
     {
+        $this->authorize('create', Tax::class);
+
         $user = $request->user();
 
         $tax = Tax::create([
@@ -56,6 +62,8 @@ class TaxesController extends Controller
 
     public function edit(Tax $tax): Response
     {
+        $this->authorize('update', $tax);
+
         return Inertia::render('core/taxes/edit', [
             'tax' => [
                 'id' => $tax->id,
@@ -69,6 +77,8 @@ class TaxesController extends Controller
 
     public function update(TaxUpdateRequest $request, Tax $tax): RedirectResponse
     {
+        $this->authorize('update', $tax);
+
         $user = $request->user();
 
         $tax->update([
@@ -83,6 +93,8 @@ class TaxesController extends Controller
 
     public function destroy(Request $request, Tax $tax): RedirectResponse
     {
+        $this->authorize('delete', $tax);
+
         $tax->delete();
 
         return redirect()
