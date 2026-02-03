@@ -111,7 +111,9 @@ function makeAddress(Company $company, User $user, array $overrides = []): Addre
     ], $overrides));
 }
 
-dataset('masterDataResources', [
+dataset('masterDataResources', array_map(
+    static fn (array $resource) => [$resource],
+    [
     'partners' => [
         'view' => 'core.partners.view',
         'manage' => 'core.partners.manage',
@@ -384,7 +386,8 @@ dataset('masterDataResources', [
             'is_active' => false,
         ],
     ],
-]);
+    ]
+));
 
 test('master data index allows users with view permission', function (array $resource) {
     [$user] = createCompanyUserWithPermissions([$resource['view']]);
