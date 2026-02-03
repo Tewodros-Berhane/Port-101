@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -19,6 +20,8 @@ type Props = {
 };
 
 export default function TaxEdit({ tax }: Props) {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.taxes.manage');
     const form = useForm({
         name: tax.name ?? '',
         type: tax.type ?? 'percent',
@@ -110,19 +113,21 @@ export default function TaxEdit({ tax }: Props) {
                     <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Save changes
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() => form.delete(`/core/taxes/${tax.id}`)}
-                        disabled={form.processing}
-                    >
-                        Delete
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Save changes
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => form.delete(`/core/taxes/${tax.id}`)}
+                            disabled={form.processing}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

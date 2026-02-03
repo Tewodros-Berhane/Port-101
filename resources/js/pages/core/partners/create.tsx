@@ -3,10 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function PartnerCreate() {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.partners.manage');
     const form = useForm({
         name: '',
         code: '',
@@ -122,11 +125,13 @@ export default function PartnerCreate() {
                     <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Create partner
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Create partner
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

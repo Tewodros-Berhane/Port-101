@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -17,6 +18,8 @@ type Props = {
 };
 
 export default function AddressCreate({ partners }: Props) {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.addresses.manage');
     const form = useForm({
         partner_id: '',
         type: 'billing',
@@ -181,11 +184,13 @@ export default function AddressCreate({ partners }: Props) {
                     <Label htmlFor="is_primary">Primary address</Label>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Create address
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Create address
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

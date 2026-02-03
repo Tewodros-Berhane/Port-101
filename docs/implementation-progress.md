@@ -11,9 +11,9 @@
 - Authorization wiring: policies for Partner/Contact/Address/Product/Tax/Currency/Uom/PriceList; AuthServiceProvider registers them; controllers call `$this->authorize()` for CRUD actions; base Controller uses AuthorizesRequests.
 - Access rules: super admin is view-only for master data; company owners (is_owner) bypass and get full access.
 - Tests: feature test covering master data policy behavior for super admin view-only and owner bypass.
+- Master data UI gating: `.view` controls nav/list visibility, `.manage` controls create/edit/delete actions.
 
 ## Not Yet Implemented
 
-- Master data UI gating (nav visibility by `.view`, create/edit/delete by `.manage`).
 - Audit log module and events.
 - Route-level permission tests for master data endpoints (403/200 flows).

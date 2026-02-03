@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -20,6 +21,8 @@ type Props = {
 };
 
 export default function CurrencyEdit({ currency }: Props) {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.currencies.manage');
     const form = useForm({
         code: currency.code ?? '',
         name: currency.name ?? '',
@@ -131,21 +134,23 @@ export default function CurrencyEdit({ currency }: Props) {
                     <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Save changes
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() =>
-                            form.delete(`/core/currencies/${currency.id}`)
-                        }
-                        disabled={form.processing}
-                    >
-                        Delete
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Save changes
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() =>
+                                form.delete(`/core/currencies/${currency.id}`)
+                            }
+                            disabled={form.processing}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

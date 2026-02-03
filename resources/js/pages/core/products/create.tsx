@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -17,6 +18,8 @@ type Props = {
 };
 
 export default function ProductCreate({ uoms, taxes }: Props) {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.products.manage');
     const form = useForm({
         sku: '',
         name: '',
@@ -160,11 +163,13 @@ export default function ProductCreate({ uoms, taxes }: Props) {
                     <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Create product
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Create product
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

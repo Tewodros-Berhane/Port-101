@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -28,6 +29,8 @@ type Props = {
 };
 
 export default function ContactEdit({ contact, partners }: Props) {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.contacts.manage');
     const form = useForm({
         partner_id: contact.partner_id ?? '',
         name: contact.name ?? '',
@@ -151,21 +154,23 @@ export default function ContactEdit({ contact, partners }: Props) {
                     <Label htmlFor="is_primary">Primary contact</Label>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Save changes
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() =>
-                            form.delete(`/core/contacts/${contact.id}`)
-                        }
-                        disabled={form.processing}
-                    >
-                        Delete
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Save changes
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() =>
+                                form.delete(`/core/contacts/${contact.id}`)
+                            }
+                            disabled={form.processing}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

@@ -24,6 +24,49 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+const masterDataNavItems: NavItem[] = [
+    {
+        title: 'Partners',
+        href: '/core/partners',
+        permission: 'core.partners.view',
+    },
+    {
+        title: 'Contacts',
+        href: '/core/contacts',
+        permission: 'core.contacts.view',
+    },
+    {
+        title: 'Addresses',
+        href: '/core/addresses',
+        permission: 'core.addresses.view',
+    },
+    {
+        title: 'Products',
+        href: '/core/products',
+        permission: 'core.products.view',
+    },
+    {
+        title: 'Taxes',
+        href: '/core/taxes',
+        permission: 'core.taxes.view',
+    },
+    {
+        title: 'Currencies',
+        href: '/core/currencies',
+        permission: 'core.currencies.view',
+    },
+    {
+        title: 'Units',
+        href: '/core/uoms',
+        permission: 'core.uoms.view',
+    },
+    {
+        title: 'Price Lists',
+        href: '/core/price-lists',
+        permission: 'core.price_lists.view',
+    },
+];
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -53,7 +96,8 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={mainNavItems} label="Platform" />
+                <NavMain items={masterDataNavItems} label="Master Data" />
             </SidebarContent>
 
             <SidebarFooter>

@@ -3,10 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function CurrencyCreate() {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.currencies.manage');
     const form = useForm({
         code: '',
         name: '',
@@ -115,11 +118,13 @@ export default function CurrencyCreate() {
                     <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Create currency
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Create currency
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );

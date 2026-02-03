@@ -3,10 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function UomCreate() {
+    const { hasPermission } = usePermissions();
+    const canManage = hasPermission('core.uoms.manage');
     const form = useForm({
         name: '',
         symbol: '',
@@ -77,11 +80,13 @@ export default function UomCreate() {
                     <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Create unit
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex items-center gap-3">
+                        <Button type="submit" disabled={form.processing}>
+                            Create unit
+                        </Button>
+                    </div>
+                )}
             </form>
         </AppLayout>
     );
