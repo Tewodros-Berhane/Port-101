@@ -21,6 +21,7 @@
 - Platform mode seeding: DatabaseSeeder creates a super admin only (no default company).
 - Superadmin access middleware and platform dashboard.
 - Platform company registry list, create flow, and detail page.
+- Platform admin user management (platform admins/support accounts).
 
 ## Not Yet Implemented
 
@@ -35,7 +36,6 @@
 
 ## Next Steps (Superadmin)
 
-- Platform admin user management (platform admins/support accounts).
 - Registration/invite management (issue invites, disable public registration).
 
 ## Next Steps (Owner + Modules)

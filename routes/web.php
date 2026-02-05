@@ -12,6 +12,7 @@ use App\Http\Controllers\Core\TaxesController;
 use App\Http\Controllers\Core\UomsController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
+use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -63,6 +64,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name(
         ->name('dashboard');
     Route::resource('companies', PlatformCompaniesController::class)
         ->only(['index', 'create', 'store', 'show', 'update']);
+    Route::resource('admin-users', PlatformAdminUsersController::class)
+        ->only(['index', 'create', 'store']);
 });
 
 require __DIR__.'/settings.php';
