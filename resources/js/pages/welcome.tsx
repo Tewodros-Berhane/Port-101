@@ -1,4 +1,6 @@
-import { dashboard, login, register } from '@/routes';
+import { login, register } from '@/routes';
+import { dashboard as companyDashboard } from '@/routes/company';
+import { dashboard as platformDashboard } from '@/routes/platform';
 import type { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
@@ -293,6 +295,10 @@ export default function Welcome({
 }) {
     const { auth } = usePage<SharedData>().props;
     const isAuthenticated = Boolean(auth.user);
+    const isSuperAdmin = Boolean(auth.user?.is_super_admin);
+    const dashboardHref = isSuperAdmin
+        ? platformDashboard()
+        : companyDashboard();
     const [isScrolled, setIsScrolled] = useState(false);
     const [activeTab, setActiveTab] = useState(demoTabs[0].id);
 
@@ -351,7 +357,7 @@ export default function Welcome({
                         <div className="flex items-center gap-3">
                             {isAuthenticated ? (
                                 <Link
-                                    href={dashboard()}
+                                    href={dashboardHref}
                                     className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400"
                                 >
                                     Open dashboard
@@ -411,7 +417,7 @@ export default function Welcome({
                             <div className="flex flex-wrap items-center gap-4">
                                 {isAuthenticated ? (
                                     <Link
-                                        href={dashboard()}
+                                        href={dashboardHref}
                                         className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-slate-800"
                                     >
                                         Go to dashboard
