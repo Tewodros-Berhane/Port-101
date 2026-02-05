@@ -18,7 +18,27 @@
 - Audit log filters and export actions.
 - Audit log delete actions.
 - Audit log filter/export tests.
+- Platform mode seeding: DatabaseSeeder creates a super admin only (no default company).
 
 ## Not Yet Implemented
 
 - Audit log retention rules.
+
+## TODO (Platform Mode)
+
+- Enforce invite-only internal registration (disable self-serve signups for staff roles).
+- Add platform admin company registry + create company flow with owner assignment.
+- Prevent non-platform admins from creating companies.
+- Add invite flow for company owners/admins to create users inside their company.
+
+## Next Steps
+
+- Company settings pages (profile, fiscal year, currency defaults).
+- Users & roles management pages with RBAC assignment UI.
+- Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
+- Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
+- Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
+- Accounting lite: invoices and payments flow.
+- Purchasing slice: vendors, RFQs, purchase orders, receipts.
+- Approvals queue + notifications entry points.
+- Reports entry points for financial and operational views.

@@ -2,12 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Core\Company\Models\Company;
-use App\Core\RBAC\Models\Role;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -18,31 +15,20 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(CoreRolesSeeder::class);
 
-        $user = User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $email = 'superadmin@port101.test';
+        $user = User::query()->where('email', $email)->first();
 
-        $companyName = 'Test Company';
-        $company = Company::create([
-            'name' => $companyName,
-            'slug' => Str::slug($companyName),
-            'timezone' => config('app.timezone', 'UTC'),
-            'owner_id' => $user->id,
-        ]);
+        if (! $user) {
+            $user = User::factory()->create([
+                'name' => 'Super Admin',
+                'email' => $email,
+            ]);
+        }
 
-        $ownerRole = Role::query()
-            ->whereNull('company_id')
-            ->where('slug', 'owner')
-            ->first();
-
-        $company->users()->attach($user->id, [
-            'role_id' => $ownerRole?->id,
-            'is_owner' => true,
-        ]);
-
-        $user->forceFill([
-            'current_company_id' => $company->id,
-        ])->save();
+        if (! $user->is_super_admin) {
+            $user->forceFill([
+                'is_super_admin' => true,
+            ])->save();
+        }
     }
 }
