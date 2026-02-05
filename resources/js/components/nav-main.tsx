@@ -28,9 +28,9 @@ export function NavMain({
     }
 
     return (
-        <SidebarGroup className="px-2 py-0">
+        <SidebarGroup className="mt-4 px-2 py-0 first:mt-0">
             <SidebarGroupLabel>{label}</SidebarGroupLabel>
-            <SidebarMenu>
+            <SidebarMenu className="pl-2">
                 {visibleItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
