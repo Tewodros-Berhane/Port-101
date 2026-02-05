@@ -80,6 +80,10 @@ const platformAdminNavItems: NavItem[] = [
         title: 'Platform Dashboard',
         href: '/platform/dashboard',
     },
+    {
+        title: 'Companies',
+        href: '/platform/companies',
+    },
 ];
 
 const footerNavItems: NavItem[] = [
