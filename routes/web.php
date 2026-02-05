@@ -15,6 +15,7 @@ use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesContro
 use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
@@ -30,9 +31,19 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'company'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+    Route::get('dashboard', function (Request $request) {
+        $user = $request->user();
+
+        if ($user && $user->is_super_admin) {
+            return redirect()->route('platform.dashboard');
+        }
+
+        return redirect()->route('company.dashboard');
     })->name('dashboard');
+
+    Route::get('company/dashboard', function () {
+        return Inertia::render('company/dashboard');
+    })->name('company.dashboard');
 
     Route::prefix('core')->name('core.')->group(function () {
         Route::get('audit-logs', [AuditLogsController::class, 'index'])

@@ -10,16 +10,15 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
 import type { NavItem, SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
+const companyNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
-        href: dashboard(),
+        title: 'Company Dashboard',
+        href: '/company/dashboard',
         icon: LayoutGrid,
     },
 ];
@@ -110,6 +109,9 @@ const footerNavItems: NavItem[] = [
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
     const isSuperAdmin = Boolean(auth?.user?.is_super_admin);
+    const homeHref = isSuperAdmin
+        ? '/platform/dashboard'
+        : '/company/dashboard';
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -117,7 +119,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={homeHref} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -126,7 +128,9 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} label="Platform" />
+                {!isSuperAdmin && (
+                    <NavMain items={companyNavItems} label="Company" />
+                )}
                 {isSuperAdmin && (
                     <NavMain
                         items={platformAdminNavItems}
