@@ -22,6 +22,7 @@
 - Superadmin access middleware and platform dashboard.
 - Platform company registry list, create flow, and detail page.
 - Platform admin user management (platform admins/support accounts).
+- Platform invite management (issue invites, list, revoke).
 
 ## Not Yet Implemented
 
@@ -36,7 +37,7 @@
 
 ## Next Steps (Superadmin)
 
-- Registration/invite management (issue invites, disable public registration).
+- Disable public registration (enforce invite-only internal signups).
 
 ## Next Steps (Owner + Modules)
 

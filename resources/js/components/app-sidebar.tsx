@@ -88,6 +88,10 @@ const platformAdminNavItems: NavItem[] = [
         title: 'Platform Admins',
         href: '/platform/admin-users',
     },
+    {
+        title: 'Invites',
+        href: '/platform/invites',
+    },
 ];
 
 const footerNavItems: NavItem[] = [

@@ -13,6 +13,7 @@ use App\Http\Controllers\Core\UomsController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
 use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
+use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -66,6 +67,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name(
         ->only(['index', 'create', 'store', 'show', 'update']);
     Route::resource('admin-users', PlatformAdminUsersController::class)
         ->only(['index', 'create', 'store']);
+    Route::resource('invites', PlatformInvitesController::class)
+        ->only(['index', 'create', 'store', 'destroy']);
 });
 
 require __DIR__.'/settings.php';
