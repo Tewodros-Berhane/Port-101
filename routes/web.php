@@ -10,6 +10,7 @@ use App\Http\Controllers\Core\PriceListsController;
 use App\Http\Controllers\Core\ProductsController;
 use App\Http\Controllers\Core\TaxesController;
 use App\Http\Controllers\Core\UomsController;
+use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -54,6 +55,11 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::resource('price-lists', PriceListsController::class)
             ->except(['show']);
     });
+});
+
+Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name('platform.')->group(function () {
+    Route::get('dashboard', [PlatformDashboardController::class, 'index'])
+        ->name('dashboard');
 });
 
 require __DIR__.'/settings.php';

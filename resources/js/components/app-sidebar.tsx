@@ -11,8 +11,8 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
+import type { NavItem, SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
 import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -75,6 +75,13 @@ const governanceNavItems: NavItem[] = [
     },
 ];
 
+const platformAdminNavItems: NavItem[] = [
+    {
+        title: 'Platform Dashboard',
+        href: '/platform/dashboard',
+    },
+];
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -89,6 +96,9 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage<SharedData>().props;
+    const isSuperAdmin = Boolean(auth?.user?.is_super_admin);
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -105,6 +115,12 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} label="Platform" />
+                {isSuperAdmin && (
+                    <NavMain
+                        items={platformAdminNavItems}
+                        label="Platform Admin"
+                    />
+                )}
                 <NavMain items={masterDataNavItems} label="Master Data" />
                 <NavMain items={governanceNavItems} label="Governance" />
             </SidebarContent>

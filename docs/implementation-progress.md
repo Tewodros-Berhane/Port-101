@@ -19,6 +19,7 @@
 - Audit log delete actions.
 - Audit log filter/export tests.
 - Platform mode seeding: DatabaseSeeder creates a super admin only (no default company).
+- Superadmin access middleware and platform dashboard.
 
 ## Not Yet Implemented
 
@@ -31,7 +32,16 @@
 - Prevent non-platform admins from creating companies.
 - Add invite flow for company owners/admins to create users inside their company.
 
-## Next Steps
+## Next Steps (Superadmin)
+
+- Platform dashboard (company counts, active companies, recent activity).
+- Company registry list (search/filter, status, owner).
+- Company create flow (assign owner, default timezone/currency).
+- Company detail page (profile, ownership, members, status toggles).
+- Platform admin user management (platform admins/support accounts).
+- Registration/invite management (issue invites, disable public registration).
+
+## Next Steps (Owner + Modules)
 
 - Company settings pages (profile, fiscal year, currency defaults).
 - Users & roles management pages with RBAC assignment UI.
