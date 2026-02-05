@@ -165,6 +165,35 @@ Key flows:
 - Keep role-based dashboards focused on the most common tasks.
 - Always expose company context and user role clearly in the UI.
 
+## Ownership Model Options
+
+The system can be used in two distinct ways, and the choice affects whether a super admin role is needed.
+
+### 1) Platform-Owned (SaaS)
+
+- The platform operator owns the app and provisions companies.
+- Super admins exist for platform support, compliance, and cross-company oversight.
+- Company owners still manage their own company data, users, and roles.
+
+### 2) Company-Owned (Self-Managed)
+
+- Each company owns its own instance and manages everything internally.
+- Super admin is unnecessary and can be disabled.
+- The first user creates the company and becomes the owner.
+
+## Choosing Between the Two
+
+Use a deployment-level setting to decide the mode for an instance.
+
+- `APP_OWNERSHIP_MODE=platform`
+    - Enables super-admin-only screens (company registry, support access).
+    - Company creation can be restricted to platform admins.
+- `APP_OWNERSHIP_MODE=company`
+    - Disables/hides platform admin UI and super admin flows.
+    - Company creation is self-serve; first user becomes owner.
+
+This keeps both models available without changing core workflows. The same permissions model applies, but super admin capabilities are only active in platform mode.
+
 ## Audit Log Module and Event Hooks
 
 The audit log module is a system record of who did what, to which record, and when. It is designed for traceability, troubleshooting, and compliance without changing the core workflows.
