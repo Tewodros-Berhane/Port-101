@@ -32,6 +32,7 @@ export default function TaxEdit({ tax }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Taxes', href: '/core/taxes' },
                 { title: tax.name, href: `/core/taxes/${tax.id}/edit` },
             ]}

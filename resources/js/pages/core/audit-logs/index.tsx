@@ -125,7 +125,10 @@ export default function AuditLogsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Audit Logs', href: '/core/audit-logs' }]}
+            breadcrumbs={[
+                { title: 'Governance', href: '/core/audit-logs' },
+                { title: 'Audit Logs', href: '/core/audit-logs' },
+            ]}
         >
             <Head title="Audit Logs" />
 

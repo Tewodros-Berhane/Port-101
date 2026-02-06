@@ -45,6 +45,7 @@ export default function ProductEdit({ product, uoms, taxes }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Products', href: '/core/products' },
                 {
                     title: product.name,

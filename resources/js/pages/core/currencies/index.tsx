@@ -26,7 +26,10 @@ export default function CurrenciesIndex({ currencies }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Currencies', href: '/core/currencies' }]}
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Currencies', href: '/core/currencies' },
+            ]}
         >
             <Head title="Currencies" />
 

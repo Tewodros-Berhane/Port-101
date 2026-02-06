@@ -20,6 +20,7 @@ export default function TaxCreate() {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Taxes', href: '/core/taxes' },
                 { title: 'Create', href: '/core/taxes/create' },
             ]}

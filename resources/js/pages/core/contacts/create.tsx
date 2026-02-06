@@ -32,6 +32,7 @@ export default function ContactCreate({ partners }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Contacts', href: '/core/contacts' },
                 { title: 'Create', href: '/core/contacts/create' },
             ]}

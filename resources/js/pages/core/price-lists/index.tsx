@@ -24,7 +24,10 @@ export default function PriceListsIndex({ priceLists }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Price Lists', href: '/core/price-lists' }]}
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Price Lists', href: '/core/price-lists' },
+            ]}
         >
             <Head title="Price Lists" />
 

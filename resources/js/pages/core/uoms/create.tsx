@@ -19,6 +19,7 @@ export default function UomCreate() {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Units', href: '/core/uoms' },
                 { title: 'Create', href: '/core/uoms/create' },
             ]}

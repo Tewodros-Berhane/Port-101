@@ -21,6 +21,7 @@ export default function CurrencyCreate() {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Currencies', href: '/core/currencies' },
                 { title: 'Create', href: '/core/currencies/create' },
             ]}

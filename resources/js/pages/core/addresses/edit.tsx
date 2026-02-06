@@ -49,6 +49,7 @@ export default function AddressEdit({ address, partners }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Addresses', href: '/core/addresses' },
                 {
                     title: address.line1,

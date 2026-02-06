@@ -28,7 +28,10 @@ export default function AddressesIndex({ addresses }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Addresses', href: '/core/addresses' }]}
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Addresses', href: '/core/addresses' },
+            ]}
         >
             <Head title="Addresses" />
 

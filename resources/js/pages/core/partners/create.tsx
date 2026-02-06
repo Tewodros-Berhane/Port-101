@@ -22,6 +22,7 @@ export default function PartnerCreate() {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Partners', href: '/core/partners' },
                 { title: 'Create', href: '/core/partners/create' },
             ]}

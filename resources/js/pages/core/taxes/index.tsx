@@ -24,7 +24,12 @@ export default function TaxesIndex({ taxes }: Props) {
     const canManage = hasPermission('core.taxes.manage');
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Taxes', href: '/core/taxes' }]}>
+        <AppLayout
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Taxes', href: '/core/taxes' },
+            ]}
+        >
             <Head title="Taxes" />
 
             <div className="flex items-center justify-between">

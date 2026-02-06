@@ -27,7 +27,10 @@ export default function PartnersIndex({ partners }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Partners', href: '/core/partners' }]}
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Partners', href: '/core/partners' },
+            ]}
         >
             <Head title="Partners" />
 

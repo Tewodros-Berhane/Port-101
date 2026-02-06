@@ -23,7 +23,12 @@ export default function UomsIndex({ uoms }: Props) {
     const canManage = hasPermission('core.uoms.manage');
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Units', href: '/core/uoms' }]}>
+        <AppLayout
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Units', href: '/core/uoms' },
+            ]}
+        >
             <Head title="Units" />
 
             <div className="flex items-center justify-between">

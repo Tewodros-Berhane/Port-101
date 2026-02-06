@@ -30,6 +30,7 @@ export default function UomEdit({ uom }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Units', href: '/core/uoms' },
                 { title: uom.name, href: `/core/uoms/${uom.id}/edit` },
             ]}

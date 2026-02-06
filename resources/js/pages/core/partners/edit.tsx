@@ -36,6 +36,7 @@ export default function PartnerEdit({ partner }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Partners', href: '/core/partners' },
                 {
                     title: partner.name,

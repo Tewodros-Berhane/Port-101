@@ -29,6 +29,7 @@ export default function PriceListCreate({ currencies }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Price Lists', href: '/core/price-lists' },
                 { title: 'Create', href: '/core/price-lists/create' },
             ]}

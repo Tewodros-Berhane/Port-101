@@ -43,6 +43,7 @@ export default function ContactEdit({ contact, partners }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Contacts', href: '/core/contacts' },
                 {
                     title: contact.name,

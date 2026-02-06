@@ -33,6 +33,7 @@ export default function ProductCreate({ uoms, taxes }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Products', href: '/core/products' },
                 { title: 'Create', href: '/core/products/create' },
             ]}

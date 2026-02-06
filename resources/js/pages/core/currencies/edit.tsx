@@ -34,6 +34,7 @@ export default function CurrencyEdit({ currency }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
                 { title: 'Currencies', href: '/core/currencies' },
                 {
                     title: currency.code,

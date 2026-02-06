@@ -27,7 +27,10 @@ export default function ProductsIndex({ products }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Products', href: '/core/products' }]}
+            breadcrumbs={[
+                { title: 'Master Data', href: '/core/partners' },
+                { title: 'Products', href: '/core/products' },
+            ]}
         >
             <Head title="Products" />
 
