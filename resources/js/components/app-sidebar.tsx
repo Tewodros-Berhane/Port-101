@@ -12,7 +12,22 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavItem, SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import {
+    BookOpen,
+    Building2,
+    ClipboardList,
+    Folder,
+    LayoutGrid,
+    LifeBuoy,
+    ListChecks,
+    Mail,
+    Package,
+    Scale,
+    ShieldCheck,
+    Tag,
+    UserCog,
+    Users,
+} from 'lucide-react';
 import AppLogo from './app-logo';
 
 const companyNavItems: NavItem[] = [
@@ -28,41 +43,49 @@ const masterDataNavItems: NavItem[] = [
         title: 'Partners',
         href: '/core/partners',
         permission: 'core.partners.view',
+        icon: Users,
     },
     {
         title: 'Contacts',
         href: '/core/contacts',
         permission: 'core.contacts.view',
+        icon: UserCog,
     },
     {
         title: 'Addresses',
         href: '/core/addresses',
         permission: 'core.addresses.view',
+        icon: Building2,
     },
     {
         title: 'Products',
         href: '/core/products',
         permission: 'core.products.view',
+        icon: Package,
     },
     {
         title: 'Taxes',
         href: '/core/taxes',
         permission: 'core.taxes.view',
+        icon: Scale,
     },
     {
         title: 'Currencies',
         href: '/core/currencies',
         permission: 'core.currencies.view',
+        icon: Tag,
     },
     {
         title: 'Units',
         href: '/core/uoms',
         permission: 'core.uoms.view',
+        icon: ListChecks,
     },
     {
         title: 'Price Lists',
         href: '/core/price-lists',
         permission: 'core.price_lists.view',
+        icon: ClipboardList,
     },
 ];
 
@@ -71,6 +94,7 @@ const governanceNavItems: NavItem[] = [
         title: 'Audit Logs',
         href: '/core/audit-logs',
         permission: 'core.audit_logs.view',
+        icon: ShieldCheck,
     },
 ];
 
@@ -78,18 +102,22 @@ const platformAdminNavItems: NavItem[] = [
     {
         title: 'Platform Dashboard',
         href: '/platform/dashboard',
+        icon: LayoutGrid,
     },
     {
         title: 'Companies',
         href: '/platform/companies',
+        icon: Building2,
     },
     {
         title: 'Platform Admins',
         href: '/platform/admin-users',
+        icon: ShieldCheck,
     },
     {
         title: 'Invites',
         href: '/platform/invites',
+        icon: Mail,
     },
 ];
 
@@ -103,6 +131,11 @@ const footerNavItems: NavItem[] = [
         title: 'Documentation',
         href: 'https://laravel.com/docs/starter-kits#react',
         icon: BookOpen,
+    },
+    {
+        title: 'Support',
+        href: 'https://port101.help',
+        icon: LifeBuoy,
     },
 ];
 
