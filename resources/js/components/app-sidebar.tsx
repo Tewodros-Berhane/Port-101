@@ -13,12 +13,9 @@ import {
 import type { NavItem, SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
     Building2,
     ClipboardList,
-    Folder,
     LayoutGrid,
-    LifeBuoy,
     ListChecks,
     Mail,
     Package,
@@ -121,23 +118,7 @@ const platformAdminNavItems: NavItem[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-    {
-        title: 'Support',
-        href: 'https://port101.help',
-        icon: LifeBuoy,
-    },
-];
+const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
@@ -175,7 +156,9 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                {footerNavItems.length > 0 && (
+                    <NavFooter items={footerNavItems} className="mt-auto" />
+                )}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>
