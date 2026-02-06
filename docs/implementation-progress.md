@@ -23,21 +23,31 @@
 - Platform company registry list, create flow, and detail page.
 - Platform admin user management (platform admins/support accounts).
 - Platform invite management (issue invites, list, revoke).
+- Invite-only direction applied: public registration disabled and register links removed.
+- Role-based dashboard routing: superadmin -> `/platform/dashboard`, company users -> `/company/dashboard`.
+- Sidebar/navigation cleanup: role-aware links, section spacing/icons, starter links removed.
+- Breadcrumb hierarchy added for Master Data and Governance pages.
+- Branding alignment: Port-101 logo/name unified across sidebar, header, and auth layouts.
+- Light mode border visibility improved with stronger border tokens.
 
 ## Not Yet Implemented
 
 - Audit log retention rules.
+- Invite acceptance flow (`/invites/{token}`) to complete invite-only onboarding.
+- Invite-driven user provisioning for company owner/member roles.
 
 ## TODO (Platform Mode)
 
-- Enforce invite-only internal registration (disable self-serve signups for staff roles).
-- Add platform admin company registry + create company flow with owner assignment.
-- Prevent non-platform admins from creating companies.
-- Add invite flow for company owners/admins to create users inside their company.
+- Add invite acceptance flow and token validation (pending/expired/accepted states).
+- Convert accepted invites into actual users + company membership/role assignment.
+- Add company-owner/admin invite management inside company context.
+- Add invitation delivery mechanism (email send + resend + revoke UX polish).
 
 ## Next Steps (Superadmin)
 
-- Disable public registration (enforce invite-only internal signups).
+- Invite acceptance endpoint and onboarding screens.
+- Company status controls and safeguards (suspend/reactivate with clear effects).
+- Platform activity widgets (recent invites, recent admin actions).
 
 ## Next Steps (Owner + Modules)
 
