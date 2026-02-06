@@ -43,6 +43,13 @@ class InviteAcceptanceController extends Controller
             ]);
         }
 
+        if (Auth::check()) {
+            return Inertia::render('invites/accept', [
+                'canAccept' => false,
+                'message' => 'You are currently signed in. Please log out and open the invite link again to accept it.',
+            ]);
+        }
+
         return Inertia::render('invites/accept', [
             'canAccept' => true,
             'invite' => [
