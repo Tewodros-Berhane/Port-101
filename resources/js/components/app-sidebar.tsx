@@ -33,6 +33,12 @@ const companyNavItems: NavItem[] = [
         href: '/company/dashboard',
         icon: LayoutGrid,
     },
+    {
+        title: 'Invites',
+        href: '/core/invites',
+        icon: Mail,
+        permission: 'core.users.manage',
+    },
 ];
 
 const masterDataNavItems: NavItem[] = [

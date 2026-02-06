@@ -8,10 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\InviteStoreRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Mail\InviteLinkMail;
 
 class InvitesController extends Controller
 {
@@ -111,7 +113,7 @@ class InvitesController extends Controller
             ? Carbon::parse($data['expires_at'])->endOfDay()
             : now()->addDays(14);
 
-        Invite::create([
+        $invite = Invite::create([
             'email' => $data['email'],
             'name' => $data['name'] ?? null,
             'role' => $data['role'],
@@ -120,6 +122,11 @@ class InvitesController extends Controller
             'expires_at' => $expiresAt,
             'created_by' => $request->user()?->id,
         ]);
+
+        Mail::to($invite->email)->send(new InviteLinkMail(
+            $invite,
+            rtrim(config('app.url'), '/').'/invites/'.$invite->token
+        ));
 
         return redirect()
             ->route('platform.invites.index')
@@ -133,5 +140,23 @@ class InvitesController extends Controller
         return redirect()
             ->route('platform.invites.index')
             ->with('success', 'Invite removed.');
+    }
+
+    public function resend(Invite $invite): RedirectResponse
+    {
+        if ($invite->accepted_at) {
+            return redirect()
+                ->route('platform.invites.index')
+                ->with('error', 'Invite already accepted.');
+        }
+
+        Mail::to($invite->email)->send(new InviteLinkMail(
+            $invite,
+            rtrim(config('app.url'), '/').'/invites/'.$invite->token
+        ));
+
+        return redirect()
+            ->route('platform.invites.index')
+            ->with('success', 'Invite resent.');
     }
 }

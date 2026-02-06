@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Core\AuditLogsController;
+use App\Http\Controllers\Core\CompanyInvitesController;
 use App\Http\Controllers\Core\CompanySwitchController;
 use App\Http\Controllers\Core\AddressesController;
 use App\Http\Controllers\Core\ContactsController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Platform\DashboardController as PlatformDashboardContro
 use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
 use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
+use App\Http\Controllers\InviteAcceptanceController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +24,13 @@ Route::get('/', function () {
     return Inertia::render('welcome', [
     ]);
 })->name('home');
+
+Route::middleware('guest')->group(function () {
+    Route::get('invites/{token}', [InviteAcceptanceController::class, 'show'])
+        ->name('invites.accept.show');
+    Route::post('invites/{token}/accept', [InviteAcceptanceController::class, 'store'])
+        ->name('invites.accept.store');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::post('company/switch', [CompanySwitchController::class, 'update'])
@@ -66,6 +75,10 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             ->except(['show']);
         Route::resource('price-lists', PriceListsController::class)
             ->except(['show']);
+        Route::resource('invites', CompanyInvitesController::class)
+            ->only(['index', 'create', 'store', 'destroy']);
+        Route::post('invites/{invite}/resend', [CompanyInvitesController::class, 'resend'])
+            ->name('invites.resend');
     });
 });
 
@@ -78,6 +91,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name(
         ->only(['index', 'create', 'store']);
     Route::resource('invites', PlatformInvitesController::class)
         ->only(['index', 'create', 'store', 'destroy']);
+    Route::post('invites/{invite}/resend', [PlatformInvitesController::class, 'resend'])
+        ->name('invites.resend');
 });
 
 require __DIR__.'/settings.php';

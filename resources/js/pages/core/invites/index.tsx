@@ -1,6 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -9,18 +7,9 @@ type Invite = {
     email: string;
     name?: string | null;
     role: string;
-    company?: string | null;
-    token: string;
-    invite_url: string;
     status: string;
+    invite_url: string;
     expires_at?: string | null;
-    accepted_at?: string | null;
-};
-
-type Filters = {
-    status?: string | null;
-    role?: string | null;
-    search?: string | null;
 };
 
 type Props = {
@@ -28,42 +17,35 @@ type Props = {
         data: Invite[];
         links: { url: string | null; label: string; active: boolean }[];
     };
-    filters: Filters;
 };
-
-const formatDate = (value?: string | null) =>
-    value ? new Date(value).toLocaleString() : '—';
 
 const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
-export default function PlatformInvitesIndex({ invites, filters }: Props) {
-    const form = useForm({
-        status: filters.status ?? '',
-        role: filters.role ?? '',
-        search: filters.search ?? '',
-    });
+const formatDate = (value?: string | null) =>
+    value ? new Date(value).toLocaleString() : '—';
 
+export default function CompanyInvitesIndex({ invites }: Props) {
     const deleteForm = useForm({});
     const resendForm = useForm({});
 
     const handleDelete = (inviteId: string) => {
-        if (!confirm('Delete this invite?')) {
+        if (!confirm('Revoke this invite?')) {
             return;
         }
 
-        deleteForm.delete(`/platform/invites/${inviteId}`);
+        deleteForm.delete(`/core/invites/${inviteId}`);
     };
 
     const handleResend = (inviteId: string) => {
-        resendForm.post(`/platform/invites/${inviteId}/resend`);
+        resendForm.post(`/core/invites/${inviteId}/resend`);
     };
 
     return (
         <AppLayout
             breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Invites', href: '/platform/invites' },
+                { title: 'Company', href: '/company/dashboard' },
+                { title: 'Invites', href: '/core/invites' },
             ]}
         >
             <Head title="Invites" />
@@ -72,85 +54,13 @@ export default function PlatformInvitesIndex({ invites, filters }: Props) {
                 <div>
                     <h1 className="text-xl font-semibold">Invites</h1>
                     <p className="text-sm text-muted-foreground">
-                        Issue and track invite links for onboarding.
+                        Invite team members to your company.
                     </p>
                 </div>
                 <Button asChild>
-                    <Link href="/platform/invites/create">New invite</Link>
+                    <Link href="/core/invites/create">New invite</Link>
                 </Button>
             </div>
-
-            <form
-                className="mt-6 rounded-xl border p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    form.get('/platform/invites', {
-                        preserveState: true,
-                        preserveScroll: true,
-                    });
-                }}
-            >
-                <div className="grid gap-4 md:grid-cols-3">
-                    <div className="grid gap-2">
-                        <Label htmlFor="search">Search</Label>
-                        <Input
-                            id="search"
-                            placeholder="Email or name"
-                            value={form.data.search}
-                            onChange={(event) =>
-                                form.setData('search', event.target.value)
-                            }
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="status">Status</Label>
-                        <select
-                            id="status"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={form.data.status}
-                            onChange={(event) =>
-                                form.setData('status', event.target.value)
-                            }
-                        >
-                            <option value="">All statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="expired">Expired</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="role">Role</Label>
-                        <select
-                            id="role"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={form.data.role}
-                            onChange={(event) =>
-                                form.setData('role', event.target.value)
-                            }
-                        >
-                            <option value="">All roles</option>
-                            <option value="platform_admin">
-                                Platform admin
-                            </option>
-                            <option value="company_owner">Company owner</option>
-                            <option value="company_member">
-                                Company member
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Apply filters
-                    </Button>
-                    <Button variant="ghost" asChild>
-                        <Link href="/platform/invites">Reset</Link>
-                    </Button>
-                </div>
-            </form>
 
             <div className="mt-6 overflow-hidden rounded-xl border">
                 <table className="w-full text-sm">
@@ -158,7 +68,6 @@ export default function PlatformInvitesIndex({ invites, filters }: Props) {
                         <tr>
                             <th className="px-4 py-3 font-medium">Email</th>
                             <th className="px-4 py-3 font-medium">Role</th>
-                            <th className="px-4 py-3 font-medium">Company</th>
                             <th className="px-4 py-3 font-medium">Status</th>
                             <th className="px-4 py-3 font-medium">Expires</th>
                             <th className="px-4 py-3 font-medium">
@@ -174,7 +83,7 @@ export default function PlatformInvitesIndex({ invites, filters }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={7}
+                                    colSpan={6}
                                 >
                                     No invites yet.
                                 </td>
@@ -192,9 +101,6 @@ export default function PlatformInvitesIndex({ invites, filters }: Props) {
                                 </td>
                                 <td className="px-4 py-3">
                                     {formatRole(invite.role)}
-                                </td>
-                                <td className="px-4 py-3">
-                                    {invite.company ?? '—'}
                                 </td>
                                 <td className="px-4 py-3 capitalize">
                                     {invite.status}
