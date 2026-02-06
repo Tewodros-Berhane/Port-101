@@ -16,6 +16,10 @@ use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesContro
 use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
 use App\Http\Controllers\InviteAcceptanceController;
+use App\Http\Controllers\Company\ModulesController as CompanyModulesController;
+use App\Http\Controllers\Company\RolesController as CompanyRolesController;
+use App\Http\Controllers\Company\SettingsController as CompanySettingsController;
+use App\Http\Controllers\Company\UsersController as CompanyUsersController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -51,6 +55,31 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::get('company/dashboard', function () {
         return Inertia::render('company/dashboard');
     })->name('company.dashboard');
+
+    Route::prefix('company')->name('company.')->group(function () {
+        Route::get('settings', [CompanySettingsController::class, 'show'])
+            ->name('settings.show');
+        Route::put('settings', [CompanySettingsController::class, 'update'])
+            ->name('settings.update');
+
+        Route::get('users', [CompanyUsersController::class, 'index'])
+            ->name('users.index');
+        Route::get('roles', [CompanyRolesController::class, 'index'])
+            ->name('roles.index');
+
+        Route::get('sales', [CompanyModulesController::class, 'sales'])
+            ->name('modules.sales');
+        Route::get('inventory', [CompanyModulesController::class, 'inventory'])
+            ->name('modules.inventory');
+        Route::get('purchasing', [CompanyModulesController::class, 'purchasing'])
+            ->name('modules.purchasing');
+        Route::get('accounting', [CompanyModulesController::class, 'accounting'])
+            ->name('modules.accounting');
+        Route::get('reports', [CompanyModulesController::class, 'reports'])
+            ->name('modules.reports');
+        Route::get('approvals', [CompanyModulesController::class, 'approvals'])
+            ->name('modules.approvals');
+    });
 
     Route::prefix('core')->name('core.')->group(function () {
         Route::get('audit-logs', [AuditLogsController::class, 'index'])

@@ -34,6 +34,8 @@
 - Company-context invite management added (create/list/resend/revoke for users with `core.users.manage`).
 - Invite email delivery and resend actions wired.
 - Invite flow feature tests added (acceptance, token states, company invite permissions).
+- Company owner workspace foundation: settings, users, roles pages.
+- Company module placeholders added in sidebar/routes (Sales, Inventory, Purchasing, Accounting, Approvals, Reports).
 
 ## Not Yet Implemented
 
@@ -53,12 +55,12 @@
 
 ## Next Steps (Owner + Modules)
 
-- Company settings pages (profile, fiscal year, currency defaults).
-- Users & roles management pages with RBAC assignment UI.
+- Users & roles management enhancements (role assignment/edit actions).
+- Company settings expansion (fiscal year defaults, locale controls).
 - Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
 - Accounting lite: invoices and payments flow.
 - Purchasing slice: vendors, RFQs, purchase orders, receipts.
-- Approvals queue + notifications entry points.
-- Reports entry points for financial and operational views.
+- Approvals queue implementation.
+- Reports implementation (financial + operational views).

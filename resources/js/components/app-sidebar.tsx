@@ -13,17 +13,24 @@ import {
 import type { NavItem, SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
+    BarChart3,
     Building2,
+    ClipboardCheck,
     ClipboardList,
+    FileSpreadsheet,
+    Handshake,
     LayoutGrid,
     ListChecks,
     Mail,
     Package,
     Scale,
+    Settings,
     ShieldCheck,
+    ShoppingCart,
     Tag,
     UserCog,
     Users,
+    Warehouse,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -34,10 +41,61 @@ const companyNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Settings',
+        href: '/company/settings',
+        icon: Settings,
+        permission: 'core.company.view',
+    },
+    {
+        title: 'Users',
+        href: '/company/users',
+        icon: Users,
+        permission: 'core.users.manage',
+    },
+    {
+        title: 'Roles',
+        href: '/company/roles',
+        icon: ShieldCheck,
+        permission: 'core.roles.view',
+    },
+    {
         title: 'Invites',
         href: '/core/invites',
         icon: Mail,
         permission: 'core.users.manage',
+    },
+];
+
+const companyModuleNavItems: NavItem[] = [
+    {
+        title: 'Sales',
+        href: '/company/sales',
+        icon: Handshake,
+    },
+    {
+        title: 'Inventory',
+        href: '/company/inventory',
+        icon: Warehouse,
+    },
+    {
+        title: 'Purchasing',
+        href: '/company/purchasing',
+        icon: ShoppingCart,
+    },
+    {
+        title: 'Accounting',
+        href: '/company/accounting',
+        icon: FileSpreadsheet,
+    },
+    {
+        title: 'Approvals',
+        href: '/company/approvals',
+        icon: ClipboardCheck,
+    },
+    {
+        title: 'Reports',
+        href: '/company/reports',
+        icon: BarChart3,
     },
 ];
 
@@ -149,7 +207,13 @@ export function AppSidebar() {
 
             <SidebarContent>
                 {!isSuperAdmin && (
-                    <NavMain items={companyNavItems} label="Company" />
+                    <>
+                        <NavMain items={companyNavItems} label="Company" />
+                        <NavMain
+                            items={companyModuleNavItems}
+                            label="Modules"
+                        />
+                    </>
                 )}
                 {isSuperAdmin && (
                     <NavMain
