@@ -17,11 +17,9 @@ use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
     ]);
 })->name('home');
 

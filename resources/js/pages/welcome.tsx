@@ -1,4 +1,4 @@
-import { login, register } from '@/routes';
+import { login } from '@/routes';
 import { dashboard as companyDashboard } from '@/routes/company';
 import { dashboard as platformDashboard } from '@/routes/platform';
 import type { SharedData } from '@/types';
@@ -288,11 +288,7 @@ function RevealSection({ id, className, children }: RevealSectionProps) {
     );
 }
 
-export default function Welcome({
-    canRegister = true,
-}: {
-    canRegister?: boolean;
-}) {
+export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
     const isAuthenticated = Boolean(auth.user);
     const isSuperAdmin = Boolean(auth.user?.is_super_admin);
@@ -371,15 +367,6 @@ export default function Welcome({
                                     >
                                         Sign in
                                     </Link>
-                                    {canRegister && (
-                                        <Link
-                                            href={register()}
-                                            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-slate-800"
-                                        >
-                                            Get started
-                                            <ArrowRight className="h-4 w-4" />
-                                        </Link>
-                                    )}
                                 </>
                             )}
                         </div>
@@ -425,15 +412,6 @@ export default function Welcome({
                                     </Link>
                                 ) : (
                                     <>
-                                        {canRegister && (
-                                            <Link
-                                                href={register()}
-                                                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-slate-800"
-                                            >
-                                                Start free
-                                                <ArrowRight className="h-4 w-4" />
-                                            </Link>
-                                        )}
                                         <a
                                             href="#demo"
                                             className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400"
@@ -737,10 +715,10 @@ export default function Welcome({
                                             <ArrowRight className="h-4 w-4" />
                                         </a>
                                         <Link
-                                            href={register()}
+                                            href={login()}
                                             className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm"
                                         >
-                                            Create workspace
+                                            Request access
                                         </Link>
                                     </div>
                                 </div>
@@ -906,14 +884,14 @@ export default function Welcome({
                                         </ul>
                                         <div className="mt-6">
                                             <Link
-                                                href={register()}
+                                                href={login()}
                                                 className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition ${
                                                     tier.highlight
                                                         ? 'bg-slate-900 text-white hover:bg-slate-800'
                                                         : 'border border-slate-300 bg-white text-slate-900 hover:border-slate-400'
                                                 }`}
                                             >
-                                                Choose {tier.name}
+                                                Request access
                                                 <ArrowRight className="h-4 w-4" />
                                             </Link>
                                         </div>
@@ -948,15 +926,6 @@ export default function Welcome({
                                         ))}
                                     </div>
                                     <div className="mt-8 flex flex-wrap items-center gap-3">
-                                        {canRegister && (
-                                            <Link
-                                                href={register()}
-                                                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5"
-                                            >
-                                                Start now
-                                                <ArrowRight className="h-4 w-4" />
-                                            </Link>
-                                        )}
                                         <Link
                                             href={login()}
                                             className="inline-flex items-center gap-2 rounded-full border border-white/50 px-5 py-3 text-sm font-semibold text-white transition hover:border-white"
