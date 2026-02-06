@@ -12,6 +12,11 @@ export type SharedData = {
     company: Company | null;
     companies: Company[];
     permissions: string[];
+    flash?: {
+        success?: string | null;
+        error?: string | null;
+        warning?: string | null;
+    };
     sidebarOpen: boolean;
     [key: string]: unknown;
 };

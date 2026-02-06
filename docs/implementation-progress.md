@@ -29,6 +29,7 @@
 - Breadcrumb hierarchy added for Master Data and Governance pages.
 - Branding alignment: Port-101 logo/name unified across sidebar, header, and auth layouts.
 - Light mode border visibility improved with stronger border tokens.
+- Global toast notifications added for success/error/warning flash messages.
 - Invite acceptance flow (`/invites/{token}`) with token states (invalid/expired/accepted).
 - Invite-driven provisioning: accepted invites create users and assign platform/company roles.
 - Company-context invite management added (create/list/resend/revoke for users with `core.users.manage`).
