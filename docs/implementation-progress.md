@@ -29,19 +29,21 @@
 - Breadcrumb hierarchy added for Master Data and Governance pages.
 - Branding alignment: Port-101 logo/name unified across sidebar, header, and auth layouts.
 - Light mode border visibility improved with stronger border tokens.
+- Invite acceptance flow (`/invites/{token}`) with token states (invalid/expired/accepted).
+- Invite-driven provisioning: accepted invites create users and assign platform/company roles.
+- Company-context invite management added (create/list/resend/revoke for users with `core.users.manage`).
+- Invite email delivery and resend actions wired.
+- Invite flow feature tests added (acceptance, token states, company invite permissions).
 
 ## Not Yet Implemented
 
 - Audit log retention rules.
-- Invite acceptance flow (`/invites/{token}`) to complete invite-only onboarding.
-- Invite-driven user provisioning for company owner/member roles.
 
 ## TODO (Platform Mode)
 
 - Add invite acceptance flow and token validation (pending/expired/accepted states).
 - Convert accepted invites into actual users + company membership/role assignment.
-- Add company-owner/admin invite management inside company context.
-- Add invitation delivery mechanism (email send + resend + revoke UX polish).
+- Add invitation delivery hardening (queue + retry/failure visibility).
 
 ## Next Steps (Superadmin)
 
