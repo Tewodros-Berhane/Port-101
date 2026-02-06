@@ -28,17 +28,18 @@ export function NavMain({
     }
 
     return (
-        <SidebarGroup className="mt-1 p-1 first:mt-0">
-            <SidebarGroupLabel className="h-7 px-2 text-[11px]">
+        <SidebarGroup className="mt-0.5 p-1 first:mt-0">
+            <SidebarGroupLabel className="h-6 px-1 text-[10px]">
                 {label}
             </SidebarGroupLabel>
-            <SidebarMenu className="pl-2">
+            <SidebarMenu className="gap-0.5 pl-2">
                 {visibleItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                             asChild
                             isActive={isCurrentUrl(item.href)}
                             tooltip={{ children: item.title }}
+                            size="sm"
                         >
                             <Link href={item.href} prefetch>
                                 {item.icon && <item.icon />}
