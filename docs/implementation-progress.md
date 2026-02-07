@@ -20,7 +20,7 @@
 - Audit log filter/export tests.
 - Platform mode seeding: DatabaseSeeder creates a super admin only (no default company).
 - Superadmin access middleware and platform dashboard.
-- Platform company registry list, create flow, and detail page.
+- Platform company registry list, create flow, and detail page, including editable `is_active` status.
 - Platform admin user management (platform admins/support accounts).
 - Platform invite management (issue invites, list, revoke).
 - Invite-only direction applied: public registration disabled and register links removed.
@@ -37,26 +37,30 @@
 - Invite flow feature tests added (acceptance, token states, company invite permissions).
 - Company owner workspace foundation: settings, users, roles pages.
 - Company module placeholders added in sidebar/routes (Sales, Inventory, Purchasing, Accounting, Approvals, Reports).
+- Company users role assignment action added (per-member role updates from `/company/users`, with owner-role protection).
+- Company status safeguards enforced (inactive company selection blocked, active company context auto-resolution, inactive company access blocked for non-superadmins).
+- Platform dashboard activity widgets added (recent invites and recent superadmin actions).
+- Invitation delivery hardening completed (queued delivery job, retry attempts, failure status/error visibility, manual retry actions in platform/company invite lists).
 
 ## Not Yet Implemented
 
 - Audit log retention rules.
-
-## TODO (Platform Mode)
-
-- Add invite acceptance flow and token validation (pending/expired/accepted states).
-- Convert accepted invites into actual users + company membership/role assignment.
-- Add invitation delivery hardening (queue + retry/failure visibility).
+- Company settings expansion (fiscal year defaults, locale controls).
+- Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
+- Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
+- Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
+- Accounting lite: invoices and payments flow.
+- Purchasing slice: vendors, RFQs, purchase orders, receipts.
+- Approvals queue implementation.
+- Reports implementation (financial + operational views).
 
 ## Next Steps (Superadmin)
 
-- Invite acceptance endpoint and onboarding screens.
-- Company status controls and safeguards (suspend/reactivate with clear effects).
-- Platform activity widgets (recent invites, recent admin actions).
+- Company suspension lifecycle UX polish (dedicated inactive-company messaging flows).
+- Platform operations reporting improvements (delivery-failure trends, admin-action filtering).
 
 ## Next Steps (Owner + Modules)
 
-- Users & roles management enhancements (role assignment/edit actions).
 - Company settings expansion (fiscal year defaults, locale controls).
 - Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
