@@ -1,5 +1,8 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 type Props = {
     stats: {
@@ -35,6 +38,34 @@ type Props = {
         actor?: string | null;
         created_at?: string | null;
     }[];
+    deliverySummary: {
+        window_days: number;
+        sent: number;
+        failed: number;
+        pending: number;
+        total: number;
+        failure_rate: number;
+    };
+    deliveryTrend: {
+        date: string;
+        sent: number;
+        failed: number;
+        pending: number;
+    }[];
+    operationsFilters: {
+        trend_window: number;
+        admin_action?: string | null;
+        admin_actor_id?: string | null;
+        admin_start_date?: string | null;
+        admin_end_date?: string | null;
+    };
+    adminFilterOptions: {
+        actions: string[];
+        actors: {
+            id: string;
+            name: string;
+        }[];
+    };
 };
 
 const formatDate = (value?: string | null) =>
@@ -43,12 +74,29 @@ const formatDate = (value?: string | null) =>
 const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatAction = (action: string) =>
+    action.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
 export default function PlatformDashboard({
     stats,
     recentCompanies,
     recentInvites,
     recentAdminActions,
+    deliverySummary,
+    deliveryTrend,
+    operationsFilters,
+    adminFilterOptions,
 }: Props) {
+    const form = useForm({
+        trend_window: String(operationsFilters.trend_window ?? 30),
+        admin_action: operationsFilters.admin_action ?? '',
+        admin_actor_id: operationsFilters.admin_actor_id ?? '',
+        admin_start_date: operationsFilters.admin_start_date ?? '',
+        admin_end_date: operationsFilters.admin_end_date ?? '',
+    });
+
+    const trendRows = [...deliveryTrend].reverse().slice(0, 14);
+
     return (
         <AppLayout
             breadcrumbs={[{ title: 'Platform', href: '/platform/dashboard' }]}
@@ -65,6 +113,127 @@ export default function PlatformDashboard({
                     </p>
                 </div>
             </div>
+
+            <form
+                className="mt-6 rounded-xl border p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    form.get('/platform/dashboard', {
+                        preserveState: true,
+                        preserveScroll: true,
+                    });
+                }}
+            >
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Operations reporting filters
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Filter admin actions and adjust invite delivery
+                            trend windows.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-5">
+                    <div className="grid gap-2">
+                        <Label htmlFor="trend_window">Trend window</Label>
+                        <select
+                            id="trend_window"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={form.data.trend_window}
+                            onChange={(event) =>
+                                form.setData('trend_window', event.target.value)
+                            }
+                        >
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="admin_action">Admin action</Label>
+                        <select
+                            id="admin_action"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={form.data.admin_action}
+                            onChange={(event) =>
+                                form.setData('admin_action', event.target.value)
+                            }
+                        >
+                            <option value="">All actions</option>
+                            {adminFilterOptions.actions.map((action) => (
+                                <option key={action} value={action}>
+                                    {formatAction(action)}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="admin_actor_id">Admin actor</Label>
+                        <select
+                            id="admin_actor_id"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={form.data.admin_actor_id}
+                            onChange={(event) =>
+                                form.setData(
+                                    'admin_actor_id',
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="">All platform admins</option>
+                            {adminFilterOptions.actors.map((actor) => (
+                                <option key={actor.id} value={actor.id}>
+                                    {actor.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="admin_start_date">Start date</Label>
+                        <Input
+                            id="admin_start_date"
+                            type="date"
+                            value={form.data.admin_start_date}
+                            onChange={(event) =>
+                                form.setData(
+                                    'admin_start_date',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="admin_end_date">End date</Label>
+                        <Input
+                            id="admin_end_date"
+                            type="date"
+                            value={form.data.admin_end_date}
+                            onChange={(event) =>
+                                form.setData(
+                                    'admin_end_date',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button type="submit" disabled={form.processing}>
+                        Apply filters
+                    </Button>
+                    <Button variant="ghost" asChild>
+                        <Link href="/platform/dashboard">Reset</Link>
+                    </Button>
+                </div>
+            </form>
 
             <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-xl border p-4">
@@ -88,6 +257,86 @@ export default function PlatformDashboard({
                     <p className="mt-2 text-2xl font-semibold">
                         {stats.audit_logs}
                     </p>
+                </div>
+            </div>
+
+            <div className="mt-8">
+                <h2 className="text-lg font-semibold">Delivery trends</h2>
+                <p className="text-sm text-muted-foreground">
+                    Invite delivery performance over the last{' '}
+                    {deliverySummary.window_days} days.
+                </p>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-5">
+                    <div className="rounded-xl border p-4">
+                        <p className="text-sm text-muted-foreground">Total</p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {deliverySummary.total}
+                        </p>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                        <p className="text-sm text-muted-foreground">Sent</p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {deliverySummary.sent}
+                        </p>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                        <p className="text-sm text-muted-foreground">Failed</p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {deliverySummary.failed}
+                        </p>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                        <p className="text-sm text-muted-foreground">Pending</p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {deliverySummary.pending}
+                        </p>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                        <p className="text-sm text-muted-foreground">
+                            Failure rate
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {deliverySummary.failure_rate}%
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-xl border">
+                    <table className="w-full text-sm">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="px-4 py-3 font-medium">Date</th>
+                                <th className="px-4 py-3 font-medium">Sent</th>
+                                <th className="px-4 py-3 font-medium">
+                                    Failed
+                                </th>
+                                <th className="px-4 py-3 font-medium">
+                                    Pending
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {trendRows.length === 0 && (
+                                <tr>
+                                    <td
+                                        className="px-4 py-8 text-center text-muted-foreground"
+                                        colSpan={4}
+                                    >
+                                        No delivery trend data available.
+                                    </td>
+                                </tr>
+                            )}
+                            {trendRows.map((row) => (
+                                <tr key={row.date}>
+                                    <td className="px-4 py-3">{row.date}</td>
+                                    <td className="px-4 py-3">{row.sent}</td>
+                                    <td className="px-4 py-3">{row.failed}</td>
+                                    <td className="px-4 py-3">{row.pending}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -221,9 +470,10 @@ export default function PlatformDashboard({
                 </div>
 
                 <div>
-                    <h2 className="text-lg font-semibold">
-                        Recent admin actions
-                    </h2>
+                    <h2 className="text-lg font-semibold">Admin actions</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Filtered platform admin audit events.
+                    </p>
 
                     <div className="mt-4 overflow-hidden rounded-xl border">
                         <table className="w-full text-sm">
