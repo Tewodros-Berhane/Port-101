@@ -10,6 +10,10 @@ type Invite = {
     status: string;
     invite_url: string;
     expires_at?: string | null;
+    delivery_status?: string | null;
+    delivery_attempts?: number;
+    last_delivery_at?: string | null;
+    last_delivery_error?: string | null;
 };
 
 type Props = {
@@ -28,6 +32,7 @@ const formatDate = (value?: string | null) =>
 export default function CompanyInvitesIndex({ invites }: Props) {
     const deleteForm = useForm({});
     const resendForm = useForm({});
+    const retryDeliveryForm = useForm({});
 
     const handleDelete = (inviteId: string) => {
         if (!confirm('Revoke this invite?')) {
@@ -39,6 +44,10 @@ export default function CompanyInvitesIndex({ invites }: Props) {
 
     const handleResend = (inviteId: string) => {
         resendForm.post(`/core/invites/${inviteId}/resend`);
+    };
+
+    const handleRetryDelivery = (inviteId: string) => {
+        retryDeliveryForm.post(`/core/invites/${inviteId}/retry-delivery`);
     };
 
     return (
@@ -70,6 +79,7 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                             <th className="px-4 py-3 font-medium">Role</th>
                             <th className="px-4 py-3 font-medium">Status</th>
                             <th className="px-4 py-3 font-medium">Expires</th>
+                            <th className="px-4 py-3 font-medium">Delivery</th>
                             <th className="px-4 py-3 font-medium">
                                 Invite URL
                             </th>
@@ -83,7 +93,7 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={6}
+                                    colSpan={7}
                                 >
                                     No invites yet.
                                 </td>
@@ -109,6 +119,28 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                                     {formatDate(invite.expires_at)}
                                 </td>
                                 <td className="px-4 py-3">
+                                    <div className="capitalize">
+                                        {invite.delivery_status ?? 'pending'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Attempts:{' '}
+                                        {invite.delivery_attempts ?? 0}
+                                    </div>
+                                    {invite.last_delivery_at && (
+                                        <div className="text-xs text-muted-foreground">
+                                            Sent{' '}
+                                            {formatDate(
+                                                invite.last_delivery_at,
+                                            )}
+                                        </div>
+                                    )}
+                                    {invite.last_delivery_error && (
+                                        <div className="text-xs text-rose-600">
+                                            {invite.last_delivery_error}
+                                        </div>
+                                    )}
+                                </td>
+                                <td className="px-4 py-3">
                                     <a
                                         href={invite.invite_url}
                                         className="text-sm text-primary"
@@ -125,11 +157,33 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                                                 onClick={() =>
                                                     handleResend(invite.id)
                                                 }
-                                                disabled={resendForm.processing}
+                                                disabled={
+                                                    resendForm.processing ||
+                                                    retryDeliveryForm.processing
+                                                }
                                             >
                                                 Resend
                                             </Button>
                                         )}
+                                        {invite.status !== 'accepted' &&
+                                            invite.delivery_status ===
+                                                'failed' && (
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    onClick={() =>
+                                                        handleRetryDelivery(
+                                                            invite.id,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        retryDeliveryForm.processing ||
+                                                        resendForm.processing
+                                                    }
+                                                >
+                                                    Retry delivery
+                                                </Button>
+                                            )}
                                         <Button
                                             type="button"
                                             variant="destructive"

@@ -6,14 +6,13 @@ use App\Core\Access\Models\Invite;
 use App\Core\Company\Models\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\InviteStoreRequest;
+use App\Jobs\SendInviteLinkMail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Mail\InviteLinkMail;
 
 class InvitesController extends Controller
 {
@@ -88,6 +87,10 @@ class InvitesController extends Controller
                     'status' => $status,
                     'expires_at' => $invite->expires_at?->toIso8601String(),
                     'accepted_at' => $invite->accepted_at?->toIso8601String(),
+                    'delivery_status' => $invite->delivery_status,
+                    'delivery_attempts' => (int) $invite->delivery_attempts,
+                    'last_delivery_at' => $invite->last_delivery_at?->toIso8601String(),
+                    'last_delivery_error' => $invite->last_delivery_error,
                 ];
             }),
             'filters' => $filters,
@@ -120,17 +123,17 @@ class InvitesController extends Controller
             'company_id' => $data['company_id'] ?? null,
             'token' => Str::random(40),
             'expires_at' => $expiresAt,
+            'delivery_status' => Invite::DELIVERY_PENDING,
+            'delivery_attempts' => 0,
+            'last_delivery_error' => null,
             'created_by' => $request->user()?->id,
         ]);
 
-        Mail::to($invite->email)->send(new InviteLinkMail(
-            $invite,
-            rtrim(config('app.url'), '/').'/invites/'.$invite->token
-        ));
+        $this->queueDelivery($invite);
 
         return redirect()
             ->route('platform.invites.index')
-            ->with('success', 'Invite created.');
+            ->with('success', 'Invite created and queued for delivery.');
     }
 
     public function destroy(Invite $invite): RedirectResponse
@@ -150,13 +153,36 @@ class InvitesController extends Controller
                 ->with('error', 'Invite already accepted.');
         }
 
-        Mail::to($invite->email)->send(new InviteLinkMail(
-            $invite,
-            rtrim(config('app.url'), '/').'/invites/'.$invite->token
-        ));
+        $this->queueDelivery($invite);
 
         return redirect()
             ->route('platform.invites.index')
-            ->with('success', 'Invite resent.');
+            ->with('success', 'Invite resend queued.');
+    }
+
+    public function retryDelivery(Invite $invite): RedirectResponse
+    {
+        if ($invite->accepted_at) {
+            return redirect()
+                ->route('platform.invites.index')
+                ->with('error', 'Accepted invites do not require delivery retry.');
+        }
+
+        $this->queueDelivery($invite);
+
+        return redirect()
+            ->route('platform.invites.index')
+            ->with('success', 'Invite delivery retry queued.');
+    }
+
+    private function queueDelivery(Invite $invite): void
+    {
+        $invite->forceFill([
+            'delivery_status' => Invite::DELIVERY_PENDING,
+            'last_delivery_at' => null,
+            'last_delivery_error' => null,
+        ])->save();
+
+        SendInviteLinkMail::dispatch($invite->id);
     }
 }

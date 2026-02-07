@@ -107,6 +107,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             ->only(['index', 'create', 'store', 'destroy']);
         Route::post('invites/{invite}/resend', [CompanyInvitesController::class, 'resend'])
             ->name('invites.resend');
+        Route::post('invites/{invite}/retry-delivery', [CompanyInvitesController::class, 'retryDelivery'])
+            ->name('invites.retry-delivery');
     });
 });
 
@@ -121,6 +123,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name(
         ->only(['index', 'create', 'store', 'destroy']);
     Route::post('invites/{invite}/resend', [PlatformInvitesController::class, 'resend'])
         ->name('invites.resend');
+    Route::post('invites/{invite}/retry-delivery', [PlatformInvitesController::class, 'retryDelivery'])
+        ->name('invites.retry-delivery');
 });
 
 require __DIR__.'/settings.php';

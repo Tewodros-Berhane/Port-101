@@ -14,6 +14,12 @@ class Invite extends Model
     use HasFactory;
     use HasUuids;
 
+    public const DELIVERY_PENDING = 'pending';
+
+    public const DELIVERY_SENT = 'sent';
+
+    public const DELIVERY_FAILED = 'failed';
+
     public $incrementing = false;
 
     protected $keyType = 'string';
@@ -26,6 +32,10 @@ class Invite extends Model
         'token',
         'expires_at',
         'accepted_at',
+        'delivery_status',
+        'delivery_attempts',
+        'last_delivery_at',
+        'last_delivery_error',
         'created_by',
     ];
 
@@ -34,6 +44,8 @@ class Invite extends Model
         return [
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
+            'delivery_attempts' => 'integer',
+            'last_delivery_at' => 'datetime',
         ];
     }
 
