@@ -36,6 +36,33 @@ Route::post('invites/{token}/accept', [InviteAcceptanceController::class, 'store
     ->name('invites.accept.store');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('company/inactive', function (Request $request) {
+        $user = $request->user();
+
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        if ($user->is_super_admin) {
+            return redirect()->route('platform.dashboard');
+        }
+
+        $activeCompany = $user->companies()
+            ->where('companies.is_active', true)
+            ->orderBy('companies.name')
+            ->first();
+
+        if ($activeCompany) {
+            $user->forceFill([
+                'current_company_id' => $activeCompany->id,
+            ])->save();
+
+            return redirect()->route('company.dashboard');
+        }
+
+        return Inertia::render('company/inactive');
+    })->name('company.inactive');
+
     Route::post('company/switch', [CompanySwitchController::class, 'update'])
         ->name('company.switch');
 });

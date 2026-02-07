@@ -32,7 +32,9 @@ class CompanySwitchController extends Controller
             }
 
             if (! $company->is_active) {
-                return back()->with('error', 'Cannot switch to an inactive company.');
+                return redirect()
+                    ->route('company.inactive')
+                    ->with('warning', 'Cannot switch to an inactive company.');
             }
         }
 

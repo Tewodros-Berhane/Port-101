@@ -25,7 +25,9 @@ class EnsureCompanyMembership
         $company = app(CompanyContext::class)->get();
 
         if (! $company && ! $user->is_super_admin) {
-            abort(403, 'No active company access available.');
+            return redirect()
+                ->route('company.inactive')
+                ->with('warning', 'Company access is currently inactive.');
         }
 
         if ($company && ! $user->is_super_admin) {
@@ -38,7 +40,9 @@ class EnsureCompanyMembership
             }
 
             if (! $company->is_active) {
-                abort(403, 'This company is inactive.');
+                return redirect()
+                    ->route('company.inactive')
+                    ->with('warning', 'This company is inactive.');
             }
         }
 

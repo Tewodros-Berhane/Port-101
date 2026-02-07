@@ -2,7 +2,6 @@
 
 namespace App\Http\Responses;
 
-use Illuminate\Support\Facades\Auth;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
 class LoginResponse implements LoginResponseContract
@@ -29,13 +28,9 @@ class LoginResponse implements LoginResponseContract
         }
 
         if (! $activeCompany) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
             return redirect()
-                ->route('login')
-                ->with('error', 'Your account is not assigned to an active company.');
+                ->route('company.inactive')
+                ->with('warning', 'All assigned companies are currently inactive.');
         }
 
         if ($user->current_company_id !== $activeCompany->id) {

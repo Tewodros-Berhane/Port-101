@@ -49,11 +49,12 @@ class HandleInertiaRequests extends Middleware
                     'id' => $company->id,
                     'name' => $company->name,
                     'slug' => $company->slug,
+                    'is_active' => (bool) $company->is_active,
                 ]
                 : null,
             'companies' => $user
                 ? $user->companies()
-                    ->select('companies.id', 'companies.name', 'companies.slug')
+                    ->select('companies.id', 'companies.name', 'companies.slug', 'companies.is_active')
                     ->withPivot(['role_id', 'is_owner'])
                     ->get()
                     ->map(function ($company) {
@@ -61,6 +62,7 @@ class HandleInertiaRequests extends Middleware
                             'id' => $company->id,
                             'name' => $company->name,
                             'slug' => $company->slug,
+                            'is_active' => (bool) $company->is_active,
                             'role_id' => $company->pivot?->role_id,
                             'is_owner' => (bool) $company->pivot?->is_owner,
                         ];
