@@ -24,12 +24,19 @@ class ResolveCompanyContext
 
         $company = $user->currentCompany;
 
-        if (! $company) {
-            $company = $user->companies()->first();
+        if (! $user->is_super_admin) {
+            if ($company && ! $company->is_active) {
+                $company = null;
+            }
 
-            if ($company) {
+            if (! $company) {
+                $company = $user->companies()
+                    ->where('companies.is_active', true)
+                    ->orderBy('companies.name')
+                    ->first();
+
                 $user->forceFill([
-                    'current_company_id' => $company->id,
+                    'current_company_id' => $company?->id,
                 ])->save();
             }
         }

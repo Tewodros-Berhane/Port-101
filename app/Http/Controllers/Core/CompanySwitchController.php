@@ -23,12 +23,16 @@ class CompanySwitchController extends Controller
         $companyId = $data['company_id'];
 
         if (! $user->is_super_admin) {
-            $isMember = $user->companies()
+            $company = $user->companies()
                 ->where('companies.id', $companyId)
-                ->exists();
+                ->first();
 
-            if (! $isMember) {
+            if (! $company) {
                 abort(403);
+            }
+
+            if (! $company->is_active) {
+                return back()->with('error', 'Cannot switch to an inactive company.');
             }
         }
 

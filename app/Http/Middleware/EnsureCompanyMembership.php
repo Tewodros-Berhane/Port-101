@@ -25,7 +25,7 @@ class EnsureCompanyMembership
         $company = app(CompanyContext::class)->get();
 
         if (! $company && ! $user->is_super_admin) {
-            abort(403, 'Company context required.');
+            abort(403, 'No active company access available.');
         }
 
         if ($company && ! $user->is_super_admin) {
@@ -35,6 +35,10 @@ class EnsureCompanyMembership
 
             if (! $isMember) {
                 abort(403, 'Company access denied.');
+            }
+
+            if (! $company->is_active) {
+                abort(403, 'This company is inactive.');
             }
         }
 
