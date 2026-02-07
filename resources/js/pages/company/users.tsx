@@ -1,17 +1,57 @@
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 
 type Props = {
     members: {
         id: string;
         name?: string | null;
         email?: string | null;
+        role_id?: string | null;
         role?: string | null;
         is_owner: boolean;
     }[];
+    roles: {
+        id: string;
+        name: string;
+        slug: string;
+    }[];
 };
 
-export default function CompanyUsers({ members }: Props) {
+export default function CompanyUsers({ members, roles }: Props) {
+    const [roleByMemberId, setRoleByMemberId] = useState<
+        Record<string, string>
+    >(() =>
+        Object.fromEntries(
+            members.map((member) => [member.id, member.role_id ?? '']),
+        ),
+    );
+
+    useEffect(() => {
+        setRoleByMemberId(
+            Object.fromEntries(
+                members.map((member) => [member.id, member.role_id ?? '']),
+            ),
+        );
+    }, [members]);
+
+    const updateRole = (memberId: string) => {
+        const roleId = roleByMemberId[memberId];
+
+        if (!roleId) {
+            return;
+        }
+
+        router.put(
+            `/company/users/${memberId}/role`,
+            { role_id: roleId },
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
     return (
         <AppLayout
             breadcrumbs={[
@@ -44,6 +84,9 @@ export default function CompanyUsers({ members }: Props) {
                             <th className="px-4 py-3 font-medium">Email</th>
                             <th className="px-4 py-3 font-medium">Role</th>
                             <th className="px-4 py-3 font-medium">Owner</th>
+                            <th className="px-4 py-3 text-right font-medium">
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -51,7 +94,7 @@ export default function CompanyUsers({ members }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={4}
+                                    colSpan={5}
                                 >
                                     No users found.
                                 </td>
@@ -70,6 +113,62 @@ export default function CompanyUsers({ members }: Props) {
                                 </td>
                                 <td className="px-4 py-3">
                                     {member.is_owner ? 'Yes' : '—'}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                    {member.is_owner ? (
+                                        <span className="text-xs text-muted-foreground">
+                                            Owner role is locked
+                                        </span>
+                                    ) : (
+                                        <div className="flex justify-end gap-2">
+                                            <select
+                                                className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                                                value={
+                                                    roleByMemberId[member.id] ??
+                                                    ''
+                                                }
+                                                onChange={(event) =>
+                                                    setRoleByMemberId(
+                                                        (current) => ({
+                                                            ...current,
+                                                            [member.id]:
+                                                                event.target
+                                                                    .value,
+                                                        }),
+                                                    )
+                                                }
+                                            >
+                                                <option value="">
+                                                    Select role
+                                                </option>
+                                                {roles.map((role) => (
+                                                    <option
+                                                        key={role.id}
+                                                        value={role.id}
+                                                    >
+                                                        {role.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    updateRole(member.id)
+                                                }
+                                                disabled={
+                                                    !roleByMemberId[
+                                                        member.id
+                                                    ] ||
+                                                    roleByMemberId[
+                                                        member.id
+                                                    ] === (member.role_id ?? '')
+                                                }
+                                            >
+                                                Update role
+                                            </Button>
+                                        </div>
+                                    )}
                                 </td>
                             </tr>
                         ))}
