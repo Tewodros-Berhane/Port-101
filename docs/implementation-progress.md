@@ -41,6 +41,8 @@
 - Company status safeguards enforced (inactive company selection blocked, active company context auto-resolution, inactive company access blocked for non-superadmins).
 - Platform dashboard activity widgets added (recent invites and recent superadmin actions).
 - Invitation delivery hardening completed (queued delivery job, retry attempts, failure status/error visibility, manual retry actions in platform/company invite lists).
+- Company suspension lifecycle UX polish completed (dedicated inactive-company page, redirect-based inactive access flow, and inactive selection messaging).
+- Platform operations reporting improvements completed (delivery trend metrics and admin-action filtering on platform dashboard).
 
 ## Not Yet Implemented
 
@@ -56,8 +58,8 @@
 
 ## Next Steps (Superadmin)
 
-- Company suspension lifecycle UX polish (dedicated inactive-company messaging flows).
-- Platform operations reporting improvements (delivery-failure trends, admin-action filtering).
+- Company status change notifications (notify affected users on suspend/reactivate).
+- Exportable operations reporting (download filtered admin actions and delivery trends).
 
 ## Next Steps (Owner + Modules)
 
