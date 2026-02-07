@@ -6,6 +6,7 @@ import '../css/app.css';
 import FlashToaster from './components/flash-toaster';
 import { ToastProvider } from './components/ui/toast';
 import { initializeTheme } from './hooks/use-appearance';
+import type { SharedData } from './types';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Port-101';
 
@@ -23,7 +24,12 @@ createInertiaApp({
             <StrictMode>
                 <ToastProvider>
                     <App {...props} />
-                    <FlashToaster />
+                    <FlashToaster
+                        initialFlash={
+                            (props.initialPage.props as Partial<SharedData>)
+                                .flash
+                        }
+                    />
                 </ToastProvider>
             </StrictMode>,
         );
