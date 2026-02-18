@@ -27,7 +27,7 @@ type Filters = {
 };
 
 type Props = {
-    companies: {
+    companyRegistry: {
         data: Company[];
         links: { url: string | null; label: string; active: boolean }[];
     };
@@ -36,7 +36,7 @@ type Props = {
 };
 
 export default function PlatformCompaniesIndex({
-    companies,
+    companyRegistry,
     filters,
     owners,
 }: Props) {
@@ -150,7 +150,7 @@ export default function PlatformCompaniesIndex({
                         </tr>
                     </thead>
                     <tbody className="divide-y">
-                        {companies.data.length === 0 && (
+                        {companyRegistry.data.length === 0 && (
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
@@ -160,7 +160,7 @@ export default function PlatformCompaniesIndex({
                                 </td>
                             </tr>
                         )}
-                        {companies.data.map((company) => (
+                        {companyRegistry.data.map((company) => (
                             <tr key={company.id}>
                                 <td className="px-4 py-3 font-medium">
                                     <div>{company.name}</div>
@@ -194,9 +194,9 @@ export default function PlatformCompaniesIndex({
                 </table>
             </div>
 
-            {companies.links.length > 1 && (
+            {companyRegistry.links.length > 1 && (
                 <div className="mt-6 flex flex-wrap gap-2">
-                    {companies.links.map((link) => (
+                    {companyRegistry.links.map((link) => (
                         <Link
                             key={link.label}
                             href={link.url ?? '#'}

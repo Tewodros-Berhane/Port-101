@@ -70,7 +70,7 @@ class CompaniesController extends Controller
             : collect();
 
         return Inertia::render('platform/companies/index', [
-            'companies' => $companies->through(function (Company $company) {
+            'companyRegistry' => $companies->through(function (Company $company) {
                 return [
                     'id' => $company->id,
                     'name' => $company->name,
