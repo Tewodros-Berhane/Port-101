@@ -9,6 +9,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCompanyMembership
 {
+    private function shouldReturnJson(Request $request): bool
+    {
+        return $request->expectsJson() || $request->is('api/*');
+    }
+
     /**
      * Handle an incoming request.
      *
@@ -25,6 +30,13 @@ class EnsureCompanyMembership
         $company = app(CompanyContext::class)->get();
 
         if (! $company && ! $user->is_super_admin) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Company access is currently inactive.',
+                    'code' => 'company_inactive',
+                ], 403);
+            }
+
             return redirect()
                 ->route('company.inactive')
                 ->with('warning', 'Company access is currently inactive.');
@@ -40,6 +52,13 @@ class EnsureCompanyMembership
             }
 
             if (! $company->is_active) {
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'This company is inactive.',
+                        'code' => 'company_inactive',
+                    ], 403);
+                }
+
                 return redirect()
                     ->route('company.inactive')
                     ->with('warning', 'This company is inactive.');
