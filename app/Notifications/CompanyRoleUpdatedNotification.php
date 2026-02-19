@@ -33,6 +33,7 @@ class CompanyRoleUpdatedNotification extends Notification
             'title' => 'Role updated',
             'message' => "{$this->updatedBy} changed your role to {$this->roleName} in {$this->companyName}.",
             'url' => '/company/users',
+            'severity' => 'medium',
             'meta' => [
                 'company' => $this->companyName,
                 'role' => $this->roleName,
@@ -41,4 +42,3 @@ class CompanyRoleUpdatedNotification extends Notification
         ];
     }
 }
-

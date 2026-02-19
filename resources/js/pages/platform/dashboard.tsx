@@ -66,6 +66,17 @@ type Props = {
             name: string;
         }[];
     };
+    notificationGovernance: {
+        min_severity: 'low' | 'medium' | 'high' | 'critical';
+        escalation_enabled: boolean;
+        escalation_severity: 'low' | 'medium' | 'high' | 'critical';
+        escalation_delay_minutes: number;
+        digest_enabled: boolean;
+        digest_frequency: 'daily' | 'weekly';
+        digest_day_of_week: number;
+        digest_time: string;
+        digest_timezone: string;
+    };
 };
 
 const formatDate = (value?: string | null) =>
@@ -86,6 +97,7 @@ export default function PlatformDashboard({
     deliveryTrend,
     operationsFilters,
     adminFilterOptions,
+    notificationGovernance,
 }: Props) {
     const form = useForm({
         trend_window: String(operationsFilters.trend_window ?? 30),
@@ -94,8 +106,36 @@ export default function PlatformDashboard({
         admin_start_date: operationsFilters.admin_start_date ?? '',
         admin_end_date: operationsFilters.admin_end_date ?? '',
     });
+    const governanceForm = useForm({
+        min_severity: notificationGovernance.min_severity ?? 'low',
+        escalation_enabled: notificationGovernance.escalation_enabled ? '1' : '0',
+        escalation_severity: notificationGovernance.escalation_severity ?? 'high',
+        escalation_delay_minutes:
+            notificationGovernance.escalation_delay_minutes ?? 30,
+        digest_enabled: notificationGovernance.digest_enabled ? '1' : '0',
+        digest_frequency: notificationGovernance.digest_frequency ?? 'daily',
+        digest_day_of_week: notificationGovernance.digest_day_of_week ?? 1,
+        digest_time: notificationGovernance.digest_time ?? '08:00',
+        digest_timezone: notificationGovernance.digest_timezone ?? 'UTC',
+    });
 
     const trendRows = [...deliveryTrend].reverse().slice(0, 14);
+    const exportParams = new URLSearchParams({
+        trend_window: form.data.trend_window,
+        admin_action: form.data.admin_action,
+        admin_actor_id: form.data.admin_actor_id,
+        admin_start_date: form.data.admin_start_date,
+        admin_end_date: form.data.admin_end_date,
+    });
+    const exportQuery = exportParams.toString();
+    const exportAdminActionsCsvUrl =
+        `/platform/dashboard/export/admin-actions?${exportQuery}&format=csv`;
+    const exportAdminActionsJsonUrl =
+        `/platform/dashboard/export/admin-actions?${exportQuery}&format=json`;
+    const exportDeliveryTrendsCsvUrl =
+        `/platform/dashboard/export/delivery-trends?${exportQuery}&format=csv`;
+    const exportDeliveryTrendsJsonUrl =
+        `/platform/dashboard/export/delivery-trends?${exportQuery}&format=json`;
 
     return (
         <AppLayout
@@ -231,6 +271,243 @@ export default function PlatformDashboard({
                     </Button>
                     <Button variant="ghost" asChild>
                         <Link href="/platform/dashboard">Reset</Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <a href={exportAdminActionsCsvUrl}>
+                            Export admin actions CSV
+                        </a>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <a href={exportAdminActionsJsonUrl}>
+                            Export admin actions JSON
+                        </a>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <a href={exportDeliveryTrendsCsvUrl}>
+                            Export delivery trends CSV
+                        </a>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <a href={exportDeliveryTrendsJsonUrl}>
+                            Export delivery trends JSON
+                        </a>
+                    </Button>
+                </div>
+            </form>
+
+            <form
+                className="mt-6 rounded-xl border p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    governanceForm.put(
+                        '/platform/dashboard/notification-governance',
+                        {
+                            preserveScroll: true,
+                        },
+                    );
+                }}
+            >
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Notification governance controls
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Configure minimum severity, escalation rules, and
+                            digest policy.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-2">
+                        <Label htmlFor="min_severity">Minimum severity</Label>
+                        <select
+                            id="min_severity"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={governanceForm.data.min_severity}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'min_severity',
+                                    event.target.value as
+                                        | 'low'
+                                        | 'medium'
+                                        | 'high'
+                                        | 'critical',
+                                )
+                            }
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="escalation_enabled">
+                            Escalation
+                        </Label>
+                        <select
+                            id="escalation_enabled"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={governanceForm.data.escalation_enabled}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'escalation_enabled',
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="0">Disabled</option>
+                            <option value="1">Enabled</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="escalation_severity">
+                            Escalation severity
+                        </Label>
+                        <select
+                            id="escalation_severity"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={governanceForm.data.escalation_severity}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'escalation_severity',
+                                    event.target.value as
+                                        | 'low'
+                                        | 'medium'
+                                        | 'high'
+                                        | 'critical',
+                                )
+                            }
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="escalation_delay_minutes">
+                            Escalation delay (minutes)
+                        </Label>
+                        <Input
+                            id="escalation_delay_minutes"
+                            type="number"
+                            min={1}
+                            max={1440}
+                            value={String(
+                                governanceForm.data.escalation_delay_minutes,
+                            )}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'escalation_delay_minutes',
+                                    Number(event.target.value || 1),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="digest_enabled">Digest policy</Label>
+                        <select
+                            id="digest_enabled"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={governanceForm.data.digest_enabled}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'digest_enabled',
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="0">Disabled</option>
+                            <option value="1">Enabled</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="digest_frequency">
+                            Digest frequency
+                        </Label>
+                        <select
+                            id="digest_frequency"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={governanceForm.data.digest_frequency}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'digest_frequency',
+                                    event.target.value as 'daily' | 'weekly',
+                                )
+                            }
+                        >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="digest_day_of_week">
+                            Digest weekday (weekly)
+                        </Label>
+                        <select
+                            id="digest_day_of_week"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={String(governanceForm.data.digest_day_of_week)}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'digest_day_of_week',
+                                    Number(event.target.value),
+                                )
+                            }
+                        >
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="digest_time">Digest time</Label>
+                        <Input
+                            id="digest_time"
+                            type="time"
+                            value={governanceForm.data.digest_time}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'digest_time',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="digest_timezone">Digest timezone</Label>
+                        <Input
+                            id="digest_timezone"
+                            value={governanceForm.data.digest_timezone}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'digest_timezone',
+                                    event.target.value,
+                                )
+                            }
+                            placeholder="UTC"
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-4 flex items-center gap-3">
+                    <Button type="submit" disabled={governanceForm.processing}>
+                        Save governance controls
                     </Button>
                 </div>
             </form>

@@ -160,6 +160,12 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name('platform.')->group(function () {
     Route::get('dashboard', [PlatformDashboardController::class, 'index'])
         ->name('dashboard');
+    Route::get('dashboard/export/admin-actions', [PlatformDashboardController::class, 'exportAdminActions'])
+        ->name('dashboard.export.admin-actions');
+    Route::get('dashboard/export/delivery-trends', [PlatformDashboardController::class, 'exportDeliveryTrends'])
+        ->name('dashboard.export.delivery-trends');
+    Route::put('dashboard/notification-governance', [PlatformDashboardController::class, 'updateNotificationGovernance'])
+        ->name('dashboard.notification-governance.update');
     Route::resource('companies', PlatformCompaniesController::class)
         ->only(['index', 'create', 'store', 'show', 'update']);
     Route::resource('admin-users', PlatformAdminUsersController::class)

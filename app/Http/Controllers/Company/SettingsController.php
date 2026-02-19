@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Company;
 
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Settings\SettingsService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\CompanySettingsUpdateRequest;
@@ -51,7 +52,8 @@ class SettingsController extends Controller
 
     public function update(
         CompanySettingsUpdateRequest $request,
-        SettingsService $settingsService
+        SettingsService $settingsService,
+        NotificationGovernanceService $notificationGovernance
     ): RedirectResponse {
         abort_unless($request->user()?->hasPermission('core.settings.manage'), 403);
 
@@ -110,15 +112,22 @@ class SettingsController extends Controller
             $actorId
         );
 
-        $company->users()
+        $recipients = $company->users()
             ->where('users.id', '!=', $actorId)
-            ->get()
-            ->each(function ($user) use ($company, $request) {
-                $user->notify(new CompanySettingsUpdatedNotification(
-                    companyName: $company->name,
-                    updatedBy: $request->user()?->name ?? 'System'
-                ));
-            });
+            ->get();
+
+        $notificationGovernance->notify(
+            recipients: $recipients,
+            notification: new CompanySettingsUpdatedNotification(
+                companyName: $company->name,
+                updatedBy: $request->user()?->name ?? 'System'
+            ),
+            severity: 'medium',
+            context: [
+                'event' => 'Company settings updated',
+                'source' => 'company.settings',
+            ]
+        );
 
         return redirect()
             ->route('company.settings.show')

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Company;
 
 use App\Core\Company\Models\CompanyUser;
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\RBAC\Models\Role;
 use App\Http\Controllers\Controller;
 use App\Notifications\CompanyRoleUpdatedNotification;
@@ -59,7 +60,11 @@ class UsersController extends Controller
         ]);
     }
 
-    public function updateRole(Request $request, CompanyUser $membership): RedirectResponse
+    public function updateRole(
+        Request $request,
+        CompanyUser $membership,
+        NotificationGovernanceService $notificationGovernance
+    ): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
 
@@ -101,11 +106,19 @@ class UsersController extends Controller
         $actor = $request->user();
 
         if ($targetUser && $actor && $targetUser->id !== $actor->id) {
-            $targetUser->notify(new CompanyRoleUpdatedNotification(
-                companyName: $company->name,
-                roleName: $role->name,
-                updatedBy: $actor->name
-            ));
+            $notificationGovernance->notify(
+                recipients: [$targetUser],
+                notification: new CompanyRoleUpdatedNotification(
+                    companyName: $company->name,
+                    roleName: $role->name,
+                    updatedBy: $actor->name
+                ),
+                severity: 'medium',
+                context: [
+                    'event' => 'Company role updated',
+                    'source' => 'company.users',
+                ]
+            );
         }
 
         return redirect()

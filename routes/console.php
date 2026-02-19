@@ -1,9 +1,15 @@
 <?php
 
 use App\Core\Audit\Models\AuditLog;
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
+use App\Models\User;
+use App\Notifications\PlatformNotificationDigestNotification;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -125,4 +131,84 @@ Artisan::command('core:audit-logs:prune {--days=} {--dry-run}', function () {
     return self::SUCCESS;
 })->purpose('Prune audit logs using configured retention rules');
 
+Artisan::command('platform:notifications:send-digest {--force}', function () {
+    $governance = app(NotificationGovernanceService::class);
+    $settings = $governance->getSettings();
+    $force = (bool) $this->option('force');
+
+    if (! $force && ! $governance->shouldSendDigestNow($settings)) {
+        $this->line('Digest schedule not due yet.');
+
+        return self::SUCCESS;
+    }
+
+    $frequency = (string) ($settings['digest_frequency'] ?? 'daily');
+    $timezone = (string) ($settings['digest_timezone'] ?? 'UTC');
+    $now = CarbonImmutable::now($timezone);
+    $appTimezone = (string) config('app.timezone', 'UTC');
+    $cutoff = $frequency === 'weekly'
+        ? $now->subWeek()->setTimezone($appTimezone)
+        : $now->subDay()->setTimezone($appTimezone);
+    $periodLabel = $frequency === 'weekly' ? 'weekly digest' : 'daily digest';
+
+    $recipients = User::query()
+        ->where('is_super_admin', true)
+        ->get(['id', 'name', 'email']);
+
+    if ($recipients->isEmpty()) {
+        $this->line('No platform admins available for digest delivery.');
+
+        return self::SUCCESS;
+    }
+
+    $severityCounts = [
+        'low' => 0,
+        'medium' => 0,
+        'high' => 0,
+        'critical' => 0,
+    ];
+
+    $notifications = DatabaseNotification::query()
+        ->where('notifiable_type', User::class)
+        ->whereIn('notifiable_id', $recipients->pluck('id'))
+        ->where('created_at', '>=', $cutoff)
+        ->where('type', '!=', PlatformNotificationDigestNotification::class)
+        ->get(['data']);
+
+    foreach ($notifications as $notification) {
+        $payload = is_array($notification->data)
+            ? $notification->data
+            : [];
+        $severity = strtolower((string) ($payload['severity'] ?? 'low'));
+
+        if (! array_key_exists($severity, $severityCounts)) {
+            $severity = 'low';
+        }
+
+        $severityCounts[$severity] += 1;
+    }
+
+    $total = array_sum($severityCounts);
+
+    if (! $force && $total === 0) {
+        $this->line('No notifications in the configured digest window.');
+
+        return self::SUCCESS;
+    }
+
+    Notification::send(
+        $recipients,
+        new PlatformNotificationDigestNotification(
+            periodLabel: $periodLabel,
+            totalNotifications: $total,
+            severityCounts: $severityCounts
+        )
+    );
+
+    $this->info("Notification digest delivered to {$recipients->count()} platform admin(s).");
+
+    return self::SUCCESS;
+})->purpose('Send platform notification digests based on governance policy');
+
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
+Schedule::command('platform:notifications:send-digest')->everyMinute();

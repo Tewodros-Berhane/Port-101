@@ -32,6 +32,7 @@ class NotificationsController extends Controller
                     'title' => $payload['title'] ?? 'Notification',
                     'message' => $payload['message'] ?? '',
                     'url' => $payload['url'] ?? null,
+                    'severity' => $payload['severity'] ?? 'low',
                     'meta' => $payload['meta'] ?? [],
                     'read_at' => $notification->read_at?->toIso8601String(),
                     'created_at' => $notification->created_at?->toIso8601String(),
@@ -81,4 +82,3 @@ class NotificationsController extends Controller
         return back(303)->with('success', 'Notification removed.');
     }
 }
-

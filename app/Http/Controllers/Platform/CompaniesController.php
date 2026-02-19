@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Platform;
 
 use App\Core\Company\Models\Company;
 use App\Core\Company\Models\CompanyUser;
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\RBAC\Models\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\CompanyStoreRequest;
@@ -193,7 +194,11 @@ class CompaniesController extends Controller
         ]);
     }
 
-    public function update(CompanyUpdateRequest $request, Company $company): RedirectResponse
+    public function update(
+        CompanyUpdateRequest $request,
+        Company $company,
+        NotificationGovernanceService $notificationGovernance
+    ): RedirectResponse
     {
         $previousIsActive = (bool) $company->is_active;
         $data = $request->validated();
@@ -236,17 +241,24 @@ class CompaniesController extends Controller
 
         if ($previousIsActive !== (bool) $company->is_active) {
             $actorName = $request->user()?->name ?? 'System';
-
-            $company->users()
+            $recipients = $company->users()
                 ->select('users.id', 'users.name', 'users.email')
-                ->get()
-                ->each(function (User $member) use ($company, $actorName) {
-                    $member->notify(new CompanyStatusChangedNotification(
-                        companyName: $company->name,
-                        isActive: (bool) $company->is_active,
-                        changedBy: $actorName
-                    ));
-                });
+                ->get();
+
+            $notificationGovernance->notify(
+                recipients: $recipients,
+                notification: new CompanyStatusChangedNotification(
+                    companyName: $company->name,
+                    isActive: (bool) $company->is_active,
+                    changedBy: $actorName
+                ),
+                severity: $company->is_active ? 'medium' : 'high',
+                context: [
+                    'event' => 'Company status changed',
+                    'source' => 'platform.companies',
+                    'details' => $company->is_active ? 'Company reactivated' : 'Company suspended',
+                ]
+            );
         }
 
         return redirect()

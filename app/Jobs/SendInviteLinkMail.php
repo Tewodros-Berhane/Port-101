@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Core\Access\Models\Invite;
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Mail\InviteLinkMail;
 use App\Notifications\InviteDeliveryFailedNotification;
 use Illuminate\Bus\Queueable;
@@ -88,13 +89,21 @@ class SendInviteLinkMail implements ShouldQueue
         }
 
         $contextLabel = $invite->company?->name ?? 'platform';
-
-        $creator->notify(new InviteDeliveryFailedNotification(
-            inviteEmail: $invite->email,
-            contextLabel: $contextLabel,
-            errorMessage: $invite->last_delivery_error ?? 'Invite delivery failed.',
-            isPlatformInvite: ! $invite->company_id
-        ));
+        app(NotificationGovernanceService::class)->notify(
+            recipients: [$creator],
+            notification: new InviteDeliveryFailedNotification(
+                inviteEmail: $invite->email,
+                contextLabel: $contextLabel,
+                errorMessage: $invite->last_delivery_error ?? 'Invite delivery failed.',
+                isPlatformInvite: ! $invite->company_id
+            ),
+            severity: 'high',
+            context: [
+                'event' => 'Invite delivery failed',
+                'source' => ! $invite->company_id ? 'platform.invites' : 'company.invites',
+                'details' => $invite->last_delivery_error ?? 'Invite delivery failed.',
+            ]
+        );
     }
 
     private function truncatedError(Throwable $exception): string

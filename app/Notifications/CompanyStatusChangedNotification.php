@@ -35,6 +35,7 @@ class CompanyStatusChangedNotification extends Notification
             'title' => 'Company status changed',
             'message' => "{$this->changedBy} {$statusText} {$this->companyName}.",
             'url' => '/company/dashboard',
+            'severity' => $this->isActive ? 'medium' : 'high',
             'meta' => [
                 'company' => $this->companyName,
                 'is_active' => $this->isActive,
@@ -43,4 +44,3 @@ class CompanyStatusChangedNotification extends Notification
         ];
     }
 }
-

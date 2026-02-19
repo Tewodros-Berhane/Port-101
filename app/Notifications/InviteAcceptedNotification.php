@@ -33,6 +33,7 @@ class InviteAcceptedNotification extends Notification
             'title' => 'Invite accepted',
             'message' => "{$this->acceptedBy} ({$this->inviteeEmail}) accepted an invite for {$this->companyName}.",
             'url' => '/core/invites',
+            'severity' => 'low',
             'meta' => [
                 'company' => $this->companyName,
                 'invitee_email' => $this->inviteeEmail,
@@ -41,4 +42,3 @@ class InviteAcceptedNotification extends Notification
         ];
     }
 }
-

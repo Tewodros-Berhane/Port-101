@@ -5,33 +5,25 @@ namespace App\Http\Controllers\Platform;
 use App\Core\Access\Models\Invite;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): Response
-    {
-        $validatedFilters = $request->validate([
-            'trend_window' => ['nullable', 'integer', 'in:7,30,90'],
-            'admin_action' => ['nullable', 'string', 'max:32'],
-            'admin_actor_id' => ['nullable', 'uuid', 'exists:users,id'],
-            'admin_start_date' => ['nullable', 'date_format:Y-m-d'],
-            'admin_end_date' => ['nullable', 'date_format:Y-m-d'],
-        ]);
-
+    public function index(
+        Request $request,
+        NotificationGovernanceService $notificationGovernance
+    ): Response {
+        $validatedFilters = $this->validatedOperationsFilters($request);
         $trendWindow = (int) ($validatedFilters['trend_window'] ?? 30);
-        $adminFilters = [
-            'admin_action' => $validatedFilters['admin_action'] ?? null,
-            'admin_actor_id' => $validatedFilters['admin_actor_id'] ?? null,
-            'admin_start_date' => $validatedFilters['admin_start_date'] ?? null,
-            'admin_end_date' => $validatedFilters['admin_end_date'] ?? null,
-        ];
+        $adminFilters = $this->normalizedAdminFilters($validatedFilters);
 
         $stats = [
             'companies' => Company::query()->count(),
@@ -149,7 +141,155 @@ class DashboardController extends Controller
                 'actions' => $adminActionOptions,
                 'actors' => $adminActors,
             ],
+            'notificationGovernance' => $notificationGovernance->getSettings(),
         ]);
+    }
+
+    public function updateNotificationGovernance(
+        Request $request,
+        NotificationGovernanceService $notificationGovernance
+    ): RedirectResponse {
+        $data = $request->validate([
+            'min_severity' => ['required', 'string', 'in:low,medium,high,critical'],
+            'escalation_enabled' => ['required', 'boolean'],
+            'escalation_severity' => ['required', 'string', 'in:low,medium,high,critical'],
+            'escalation_delay_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            'digest_enabled' => ['required', 'boolean'],
+            'digest_frequency' => ['required', 'string', 'in:daily,weekly'],
+            'digest_day_of_week' => ['required', 'integer', 'min:1', 'max:7'],
+            'digest_time' => ['required', 'date_format:H:i'],
+            'digest_timezone' => ['required', 'string', 'max:64'],
+        ]);
+
+        $notificationGovernance->setSettings(
+            data: $data,
+            actorId: $request->user()?->id
+        );
+
+        return redirect()
+            ->route('platform.dashboard')
+            ->with('success', 'Notification governance controls updated.');
+    }
+
+    public function exportAdminActions(Request $request)
+    {
+        $validatedFilters = $this->validatedOperationsFilters($request);
+        $adminFilters = $this->normalizedAdminFilters($validatedFilters);
+        $format = $this->normalizedExportFormat((string) $request->input('format', 'csv'));
+
+        $adminActionsQuery = $this->baseAdminActionsQuery();
+        $this->applyAdminFilters($adminActionsQuery, $adminFilters);
+
+        $rows = $adminActionsQuery
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (AuditLog $log) {
+                return [
+                    'created_at' => $log->created_at?->toIso8601String(),
+                    'action' => $log->action,
+                    'record_type' => class_basename($log->auditable_type),
+                    'record_id' => $log->auditable_id,
+                    'company' => $log->company?->name ?? 'Platform',
+                    'actor' => $log->actor?->name ?? 'System',
+                ];
+            })
+            ->values();
+
+        $timestamp = now()->format('Ymd-His');
+
+        if ($format === 'json') {
+            $filename = "platform-admin-actions-{$timestamp}.json";
+
+            return response()->json($rows)->withHeaders([
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ]);
+        }
+
+        $filename = "platform-admin-actions-{$timestamp}.csv";
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Created At',
+                'Action',
+                'Record Type',
+                'Record ID',
+                'Company',
+                'Actor',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['created_at'] ?? '',
+                    $row['action'] ?? '',
+                    $row['record_type'] ?? '',
+                    $row['record_id'] ?? '',
+                    $row['company'] ?? '',
+                    $row['actor'] ?? '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function exportDeliveryTrends(Request $request)
+    {
+        $validatedFilters = $this->validatedOperationsFilters($request);
+        $trendWindow = (int) ($validatedFilters['trend_window'] ?? 30);
+        $format = $this->normalizedExportFormat((string) $request->input('format', 'csv'));
+
+        $today = CarbonImmutable::now()->startOfDay();
+        $trendStart = $today->subDays($trendWindow - 1);
+        $rows = $this->buildDeliveryTrend($trendStart, $today);
+        $summary = $this->deliverySummary($rows, $trendWindow);
+
+        $timestamp = now()->format('Ymd-His');
+
+        if ($format === 'json') {
+            $filename = "platform-delivery-trends-{$timestamp}.json";
+
+            return response()->json([
+                'summary' => $summary,
+                'rows' => $rows,
+            ])->withHeaders([
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ]);
+        }
+
+        $filename = "platform-delivery-trends-{$timestamp}.csv";
+
+        return response()->streamDownload(function () use ($rows, $summary) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Date',
+                'Sent',
+                'Failed',
+                'Pending',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $row['date'] ?? '',
+                    $row['sent'] ?? 0,
+                    $row['failed'] ?? 0,
+                    $row['pending'] ?? 0,
+                ]);
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Summary Metric', 'Value']);
+            fputcsv($handle, ['Window days', $summary['window_days']]);
+            fputcsv($handle, ['Sent', $summary['sent']]);
+            fputcsv($handle, ['Failed', $summary['failed']]);
+            fputcsv($handle, ['Pending', $summary['pending']]);
+            fputcsv($handle, ['Total', $summary['total']]);
+            fputcsv($handle, ['Failure rate', $summary['failure_rate'].'%']);
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     private function baseAdminActionsQuery(): Builder
@@ -161,6 +301,9 @@ class DashboardController extends Controller
             });
     }
 
+    /**
+     * @param  array<string, mixed>  $filters
+     */
     private function applyAdminFilters(Builder $query, array $filters): void
     {
         $action = $filters['admin_action'] ?? null;
@@ -280,4 +423,44 @@ class DashboardController extends Controller
 
         return 'pending';
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedOperationsFilters(Request $request): array
+    {
+        return $request->validate([
+            'trend_window' => ['nullable', 'integer', 'in:7,30,90'],
+            'admin_action' => ['nullable', 'string', 'max:32'],
+            'admin_actor_id' => ['nullable', 'uuid', 'exists:users,id'],
+            'admin_start_date' => ['nullable', 'date_format:Y-m-d'],
+            'admin_end_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validatedFilters
+     * @return array<string, mixed>
+     */
+    private function normalizedAdminFilters(array $validatedFilters): array
+    {
+        return [
+            'admin_action' => $validatedFilters['admin_action'] ?? null,
+            'admin_actor_id' => $validatedFilters['admin_actor_id'] ?? null,
+            'admin_start_date' => $validatedFilters['admin_start_date'] ?? null,
+            'admin_end_date' => $validatedFilters['admin_end_date'] ?? null,
+        ];
+    }
+
+    private function normalizedExportFormat(string $format): string
+    {
+        $normalized = strtolower(trim($format));
+
+        if (! in_array($normalized, ['csv', 'json'], true)) {
+            return 'csv';
+        }
+
+        return $normalized;
+    }
 }
+

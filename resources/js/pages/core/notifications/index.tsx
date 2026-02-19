@@ -9,6 +9,7 @@ type AppNotification = {
     title: string;
     message: string;
     url?: string | null;
+    severity: 'low' | 'medium' | 'high' | 'critical';
     meta?: Record<string, unknown>;
     read_at?: string | null;
     created_at?: string | null;
@@ -82,6 +83,7 @@ export default function NotificationsIndex({ notifications }: Props) {
                         <tr>
                             <th className="px-4 py-3 font-medium">Notification</th>
                             <th className="px-4 py-3 font-medium">When</th>
+                            <th className="px-4 py-3 font-medium">Severity</th>
                             <th className="px-4 py-3 font-medium">Status</th>
                             {canManage && (
                                 <th className="px-4 py-3 text-right font-medium">
@@ -95,7 +97,7 @@ export default function NotificationsIndex({ notifications }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={canManage ? 4 : 3}
+                                    colSpan={canManage ? 5 : 4}
                                 >
                                     No notifications yet.
                                 </td>
@@ -128,6 +130,9 @@ export default function NotificationsIndex({ notifications }: Props) {
                                 </td>
                                 <td className="px-4 py-3">
                                     {formatDate(notification.created_at)}
+                                </td>
+                                <td className="px-4 py-3 capitalize">
+                                    {notification.severity}
                                 </td>
                                 <td className="px-4 py-3">
                                     {notification.read_at ? 'Read' : 'Unread'}
@@ -195,4 +200,3 @@ export default function NotificationsIndex({ notifications }: Props) {
         </AppLayout>
     );
 }
-

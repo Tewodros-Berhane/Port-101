@@ -32,6 +32,7 @@ class CompanySettingsUpdatedNotification extends Notification
             'title' => 'Company settings updated',
             'message' => "{$this->updatedBy} updated company settings for {$this->companyName}.",
             'url' => '/company/settings',
+            'severity' => 'medium',
             'meta' => [
                 'company' => $this->companyName,
                 'updated_by' => $this->updatedBy,
@@ -39,4 +40,3 @@ class CompanySettingsUpdatedNotification extends Notification
         ];
     }
 }
-

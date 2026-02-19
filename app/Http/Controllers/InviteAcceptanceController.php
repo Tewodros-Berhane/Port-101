@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Core\Access\Models\Invite;
 use App\Core\Company\Models\CompanyUser;
+use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\RBAC\Models\Role;
 use App\Http\Requests\InviteAcceptRequest;
 use App\Notifications\InviteAcceptedNotification;
@@ -63,8 +64,11 @@ class InviteAcceptanceController extends Controller
         ]);
     }
 
-    public function store(InviteAcceptRequest $request, string $token): RedirectResponse
-    {
+    public function store(
+        InviteAcceptRequest $request,
+        string $token,
+        NotificationGovernanceService $notificationGovernance
+    ): RedirectResponse {
         $invite = Invite::query()->where('token', $token)->firstOrFail();
 
         if ($invite->accepted_at || ($invite->expires_at && $invite->expires_at->isPast())) {
@@ -138,16 +142,23 @@ class InviteAcceptanceController extends Controller
             ->values();
 
         if ($recipientIds->isNotEmpty()) {
-            User::query()
+            $recipients = User::query()
                 ->whereIn('id', $recipientIds->all())
-                ->get()
-                ->each(function (User $recipient) use ($invite, $companyName, $acceptedBy) {
-                    $recipient->notify(new InviteAcceptedNotification(
-                        inviteeEmail: $invite->email,
-                        companyName: $companyName,
-                        acceptedBy: $acceptedBy
-                    ));
-                });
+                ->get();
+
+            $notificationGovernance->notify(
+                recipients: $recipients,
+                notification: new InviteAcceptedNotification(
+                    inviteeEmail: $invite->email,
+                    companyName: $companyName,
+                    acceptedBy: $acceptedBy
+                ),
+                severity: 'low',
+                context: [
+                    'event' => 'Invite accepted',
+                    'source' => 'invites.acceptance',
+                ]
+            );
         }
 
         Auth::login($user);

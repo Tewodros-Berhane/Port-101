@@ -43,11 +43,13 @@
 - Invitation delivery hardening completed (queued delivery job, retry attempts, failure status/error visibility, manual retry actions in platform/company invite lists).
 - Company suspension lifecycle UX polish completed (dedicated inactive-company page, redirect-based inactive access flow, and inactive selection messaging).
 - Platform operations reporting improvements completed (delivery trend metrics and admin-action filtering on platform dashboard).
+- Superadmin operations reporting exports implemented (filtered admin actions + delivery trends in CSV/JSON).
 - Audit log retention rules implemented (config + settings-backed pruning command + scheduler).
 - Core API scaffolding implemented under `/api/v1` (health + partners/products/settings endpoints).
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
+- Notification governance controls implemented (severity threshold, escalation policy, digest scheduling policy + digest command).
 
 ## Not Yet Implemented
 
@@ -71,6 +73,7 @@
 - Invite acceptance and invite-driven user provisioning (`/invites/{token}`).
 - Multi-company context resolution, company switching, and inactive-company safeguards.
 - Platform superadmin area: dashboard, companies (list/create/show/update), platform admins, platform invites.
+- Platform dashboard operations reporting now supports filtered CSV/JSON exports for admin actions and invite delivery trends.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
@@ -78,8 +81,10 @@
 - Company settings now persist operational defaults (`fiscal_year_start`, `locale`, `date_format`, `number_format`, audit retention days) via the new `settings` service/table.
 - In-app notifications center is live at `/core/notifications` with unread counters, mark-read, mark-all-read, and delete actions.
 - Notifications now emit for company settings updates, role changes, invite acceptance, company status changes, and invite delivery failures.
+- Notification governance is now configurable from platform dashboard (minimum severity, escalation behavior, digest policy) and enforced by the notification service.
 - Attachment upload/download/delete flows are live via `/core/attachments`, including partner/product edit-page attachments panels.
 - Audit retention command now prunes with company-specific settings fallback and is scheduled daily.
+- Scheduled platform digest dispatch is available via `platform:notifications:send-digest` and wired into the scheduler.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings.
 
 ### Present but placeholder-only
@@ -116,8 +121,8 @@
 
 ## Next Steps (Superadmin)
 
-- Exportable operations reporting (download filtered admin actions and delivery trends).
-- Notification governance controls (severity levels, escalation rules, and digest policies).
+- Saved operations-report filter presets and scheduled export delivery.
+- Notification governance analytics (escalation outcomes, digest send/open coverage, noisy-event detection).
 
 ## Next Steps (Owner + Modules)
 
