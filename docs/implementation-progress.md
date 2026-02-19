@@ -43,11 +43,18 @@
 - Invitation delivery hardening completed (queued delivery job, retry attempts, failure status/error visibility, manual retry actions in platform/company invite lists).
 - Company suspension lifecycle UX polish completed (dedicated inactive-company page, redirect-based inactive access flow, and inactive selection messaging).
 - Platform operations reporting improvements completed (delivery trend metrics and admin-action filtering on platform dashboard).
+- Audit log retention rules implemented (config + settings-backed pruning command + scheduler).
+- Core API scaffolding implemented under `/api/v1` (health + partners/products/settings endpoints).
+- Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
+- Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
+- In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
 
 ## Not Yet Implemented
 
-- Audit log retention rules.
-- Company settings expansion (fiscal year defaults, locale controls).
+- Ownership-mode config wiring (`APP_OWNERSHIP_MODE`) described in docs is not yet implemented in code.
+- Token-based API auth for external integrations (current `/api/v1` scaffolding still uses app session auth middleware).
+- Attachments integration coverage for all supported master-data pages (currently wired on partner and product edit flows).
+- Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
 - Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
@@ -55,15 +62,66 @@
 - Purchasing slice: vendors, RFQs, purchase orders, receipts.
 - Approvals queue implementation.
 - Reports implementation (financial + operational views).
+
+## Functional Status (Audit)
+
+### Working (implemented end-to-end)
+
+- Authentication flows (login, password reset, verification, two-factor settings/challenge).
+- Invite acceptance and invite-driven user provisioning (`/invites/{token}`).
+- Multi-company context resolution, company switching, and inactive-company safeguards.
+- Platform superadmin area: dashboard, companies (list/create/show/update), platform admins, platform invites.
+- Company workspace management pages: settings, users (role updates), roles, company invites.
+- Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
+- Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
+- Permission-based UI and route/controller authorization for master data and governance.
+- Company settings now persist operational defaults (`fiscal_year_start`, `locale`, `date_format`, `number_format`, audit retention days) via the new `settings` service/table.
+- In-app notifications center is live at `/core/notifications` with unread counters, mark-read, mark-all-read, and delete actions.
+- Notifications now emit for company settings updates, role changes, invite acceptance, company status changes, and invite delivery failures.
+- Attachment upload/download/delete flows are live via `/core/attachments`, including partner/product edit-page attachments panels.
+- Audit retention command now prunes with company-specific settings fallback and is scheduled daily.
+- API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings.
+
+### Present but placeholder-only
+
+- Company dashboard (`/company/dashboard`) is still a placeholder layout.
+- Company modules are placeholders only: Sales, Inventory, Purchasing, Accounting, Approvals, Reports.
+
+### Test run result (2026-02-19)
+
+- Command executed: `php artisan test` (requested with long timeout).
+- Test runtime now uses PostgreSQL test DB (`phpunit.xml` updated to `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
+- Current status: suite executes on PostgreSQL and reports real app/test mismatches.
+- Result summary after latest implementation: `74` passed, `16` failed.
+- Main failing groups:
+  - Auth/Dashboard/Settings tests that now redirect to `/company/inactive` because plain test users do not have active company membership.
+  - Registration tests expecting `register` routes, which are intentionally disabled by invite-only onboarding.
+
+## Next Steps (Priority Order)
+
+1. Align legacy auth/settings/dashboard tests with current invite-only + active-company constraints:
+   - Update factories/helpers to attach users to active companies for routes behind `company` middleware.
+   - Remove or rewrite registration-route expectations (`register`, `register.store`) to match invite-only onboarding.
+2. Add company-scoped foreign-key validation hardening:
+   - Enforce company ownership checks for `partner_id`, `uom_id`, `default_tax_id`, `currency_id`, and similar foreign keys in store/update requests.
+3. Expand attachments module coverage:
+   - Add attachment panels to contacts, addresses, taxes, currencies, units, and price lists.
+4. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
+5. Implement company dashboards with real KPIs and quick actions.
+6. Build Phase 1 module slices:
+   - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
+7. Build Phase 2 purchasing slice:
+   - Vendors, RFQs, POs, receipts, and vendor bill handoff.
+8. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
 
-- Company status change notifications (notify affected users on suspend/reactivate).
 - Exportable operations reporting (download filtered admin actions and delivery trends).
+- Notification governance controls (severity levels, escalation rules, and digest policies).
 
 ## Next Steps (Owner + Modules)
 
-- Company settings expansion (fiscal year defaults, locale controls).
+- Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
 - Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
@@ -71,3 +129,15 @@
 - Purchasing slice: vendors, RFQs, purchase orders, receipts.
 - Approvals queue implementation.
 - Reports implementation (financial + operational views).
+
+## Suggestions
+
+- Add a dedicated `testing` DB profile and CI preflight check that fails fast with a clear message when the required PDO driver is missing.
+- Implement shared request helpers/rules for company-scoped `exists` validations to avoid cross-company reference leaks.
+- Add feature tests for platform/company management flows that are currently lightly covered: company switch, inactive-company redirects, role updates, and platform company ownership changes.
+- Introduce a reusable CRUD abstraction (or shared table/form components) for master-data modules to reduce repeated controller/page logic and keep behavior consistent.
+- Wire the documented ownership mode config into runtime behavior so platform-only/company-only behaviors are explicit and testable.
+- Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
+- Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
+- Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
+- Formalize API versioning policy (deprecation headers + change log) before exposing `/api/v1` to third parties.
