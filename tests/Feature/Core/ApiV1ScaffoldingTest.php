@@ -7,7 +7,7 @@ use App\Core\RBAC\Models\Role;
 use App\Core\Settings\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Str;
-use function Pest\Laravel\actingAs;
+use Laravel\Sanctum\Sanctum;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\putJson;
 
@@ -60,6 +60,25 @@ test('api v1 health endpoint returns ok status', function () {
         ->assertJsonPath('version', 'v1');
 });
 
+test('api v1 protected endpoints require token auth', function () {
+    getJson('/api/v1/partners')
+        ->assertUnauthorized();
+});
+
+test('api v1 accepts bearer personal access tokens', function () {
+    [$user] = createCompanyUserForApi(['core.partners.view']);
+
+    $token = $user->createToken('integration-test', ['*'])->plainTextToken;
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/v1/partners')
+        ->assertOk()
+        ->assertJsonStructure([
+            'data',
+            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+        ]);
+});
+
 test('api v1 partners index is company scoped', function () {
     [$user, $company] = createCompanyUserForApi(['core.partners.view']);
 
@@ -92,7 +111,7 @@ test('api v1 partners index is company scoped', function () {
         'updated_by' => $otherOwner->id,
     ]);
 
-    actingAs($user);
+    Sanctum::actingAs($user);
 
     getJson('/api/v1/partners')
         ->assertOk()
@@ -106,7 +125,7 @@ test('api v1 settings endpoint persists company settings', function () {
         'core.settings.manage',
     ]);
 
-    actingAs($user);
+    Sanctum::actingAs($user);
 
     putJson('/api/v1/settings', [
         'locale' => 'en_US',
@@ -128,4 +147,3 @@ test('api v1 settings endpoint persists company settings', function () {
 
     expect((int) $setting?->value)->toBe(120);
 });
-

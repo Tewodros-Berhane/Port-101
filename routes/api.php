@@ -14,7 +14,7 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
-    Route::middleware(['auth', 'company'])->group(function () {
+    Route::middleware(['auth:sanctum', 'company.context', 'company'])->group(function () {
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
 

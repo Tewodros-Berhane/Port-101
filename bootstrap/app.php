@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'company' => EnsureCompanyMembership::class,
+            'company.context' => ResolveCompanyContext::class,
             'superadmin' => EnsureSuperAdmin::class,
         ]);
 
@@ -30,10 +31,6 @@ return Application::configure(basePath: dirname(__DIR__))
             ResolveCompanyContext::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-        ]);
-
-        $middleware->api(prepend: [
-            ResolveCompanyContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
