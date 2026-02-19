@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Company;
 use App\Core\Company\Models\CompanyUser;
 use App\Core\RBAC\Models\Role;
 use App\Http\Controllers\Controller;
+use App\Notifications\CompanyRoleUpdatedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -95,6 +96,17 @@ class UsersController extends Controller
         $membership->update([
             'role_id' => $role->id,
         ]);
+
+        $targetUser = $membership->user;
+        $actor = $request->user();
+
+        if ($targetUser && $actor && $targetUser->id !== $actor->id) {
+            $targetUser->notify(new CompanyRoleUpdatedNotification(
+                companyName: $company->name,
+                roleName: $role->name,
+                updatedBy: $actor->name
+            ));
+        }
 
         return redirect()
             ->route('company.users.index')

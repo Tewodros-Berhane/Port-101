@@ -8,6 +8,7 @@ use App\Core\RBAC\Models\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\CompanyStoreRequest;
 use App\Http\Requests\Platform\CompanyUpdateRequest;
+use App\Notifications\CompanyStatusChangedNotification;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -194,6 +195,7 @@ class CompaniesController extends Controller
 
     public function update(CompanyUpdateRequest $request, Company $company): RedirectResponse
     {
+        $previousIsActive = (bool) $company->is_active;
         $data = $request->validated();
         $ownerId = $data['owner_id'] ?? $company->owner_id;
 
@@ -230,6 +232,21 @@ class CompaniesController extends Controller
                     'current_company_id' => $company->id,
                 ])->save();
             }
+        }
+
+        if ($previousIsActive !== (bool) $company->is_active) {
+            $actorName = $request->user()?->name ?? 'System';
+
+            $company->users()
+                ->select('users.id', 'users.name', 'users.email')
+                ->get()
+                ->each(function (User $member) use ($company, $actorName) {
+                    $member->notify(new CompanyStatusChangedNotification(
+                        companyName: $company->name,
+                        isActive: (bool) $company->is_active,
+                        changedBy: $actorName
+                    ));
+                });
         }
 
         return redirect()

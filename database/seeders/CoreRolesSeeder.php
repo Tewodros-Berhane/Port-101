@@ -55,6 +55,26 @@ class CoreRolesSeeder extends Seeder
                 'group' => 'core',
             ],
             [
+                'name' => 'View Notifications',
+                'slug' => 'core.notifications.view',
+                'group' => 'core',
+            ],
+            [
+                'name' => 'Manage Notifications',
+                'slug' => 'core.notifications.manage',
+                'group' => 'core',
+            ],
+            [
+                'name' => 'View Attachments',
+                'slug' => 'core.attachments.view',
+                'group' => 'core',
+            ],
+            [
+                'name' => 'Manage Attachments',
+                'slug' => 'core.attachments.manage',
+                'group' => 'core',
+            ],
+            [
                 'name' => 'View Audit Logs',
                 'slug' => 'core.audit_logs.view',
                 'group' => 'core',

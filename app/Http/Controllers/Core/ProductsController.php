@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Product;
 use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
@@ -72,6 +73,22 @@ class ProductsController extends Controller
     {
         $this->authorize('update', $product);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $product::class)
+            ->where('attachable_id', $product->id)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Attachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'original_name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime_type,
+                    'size' => (int) $attachment->size,
+                    'created_at' => $attachment->created_at?->toIso8601String(),
+                    'download_url' => route('core.attachments.download', $attachment),
+                ];
+            });
+
         return Inertia::render('core/products/edit', [
             'product' => [
                 'id' => $product->id,
@@ -83,6 +100,7 @@ class ProductsController extends Controller
                 'description' => $product->description,
                 'is_active' => $product->is_active,
             ],
+            'attachments' => $attachments,
             'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
             'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
         ]);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Partner;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\PartnerStoreRequest;
@@ -66,6 +67,22 @@ class PartnersController extends Controller
     {
         $this->authorize('update', $partner);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $partner::class)
+            ->where('attachable_id', $partner->id)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Attachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'original_name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime_type,
+                    'size' => (int) $attachment->size,
+                    'created_at' => $attachment->created_at?->toIso8601String(),
+                    'download_url' => route('core.attachments.download', $attachment),
+                ];
+            });
+
         return Inertia::render('core/partners/edit', [
             'partner' => [
                 'id' => $partner->id,
@@ -76,6 +93,7 @@ class PartnersController extends Controller
                 'phone' => $partner->phone,
                 'is_active' => $partner->is_active,
             ],
+            'attachments' => $attachments,
         ]);
     }
 

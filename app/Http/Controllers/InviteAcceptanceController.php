@@ -6,6 +6,7 @@ use App\Core\Access\Models\Invite;
 use App\Core\Company\Models\CompanyUser;
 use App\Core\RBAC\Models\Role;
 use App\Http\Requests\InviteAcceptRequest;
+use App\Notifications\InviteAcceptedNotification;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -116,6 +117,38 @@ class InviteAcceptanceController extends Controller
         }
 
         $invite->forceFill(['accepted_at' => now()])->save();
+
+        $invite->loadMissing('company:id,name');
+
+        $companyName = $invite->company?->name ?? 'Platform';
+        $acceptedBy = $user->name ?: 'User';
+
+        $recipientIds = collect([$invite->created_by])
+            ->merge(
+                $invite->company_id
+                    ? CompanyUser::query()
+                        ->where('company_id', $invite->company_id)
+                        ->where('is_owner', true)
+                        ->pluck('user_id')
+                    : collect()
+            )
+            ->filter()
+            ->unique()
+            ->reject(fn (string $recipientId) => $recipientId === $user->id)
+            ->values();
+
+        if ($recipientIds->isNotEmpty()) {
+            User::query()
+                ->whereIn('id', $recipientIds->all())
+                ->get()
+                ->each(function (User $recipient) use ($invite, $companyName, $acceptedBy) {
+                    $recipient->notify(new InviteAcceptedNotification(
+                        inviteeEmail: $invite->email,
+                        companyName: $companyName,
+                        acceptedBy: $acceptedBy
+                    ));
+                });
+        }
 
         Auth::login($user);
         $request->session()->regenerate();

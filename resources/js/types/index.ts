@@ -12,6 +12,9 @@ export type SharedData = {
     company: Company | null;
     companies: Company[];
     permissions: string[];
+    notifications?: {
+        unread_count: number;
+    };
     flash?: {
         success?: string | null;
         error?: string | null;

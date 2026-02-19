@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Core\Access\Models\Invite;
 use App\Mail\InviteLinkMail;
+use App\Notifications\InviteDeliveryFailedNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -78,6 +79,22 @@ class SendInviteLinkMail implements ShouldQueue
             'delivery_status' => Invite::DELIVERY_FAILED,
             'last_delivery_error' => $this->truncatedError($exception),
         ])->save();
+
+        $invite->loadMissing('company:id,name', 'creator:id,name,email');
+
+        $creator = $invite->creator;
+        if (! $creator) {
+            return;
+        }
+
+        $contextLabel = $invite->company?->name ?? 'platform';
+
+        $creator->notify(new InviteDeliveryFailedNotification(
+            inviteEmail: $invite->email,
+            contextLabel: $contextLabel,
+            errorMessage: $invite->last_delivery_error ?? 'Invite delivery failed.',
+            isPlatformInvite: ! $invite->company_id
+        ));
     }
 
     private function truncatedError(Throwable $exception): string

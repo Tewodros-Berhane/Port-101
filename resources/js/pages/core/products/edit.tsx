@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,15 +24,27 @@ type Product = {
     is_active: boolean;
 };
 
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
+};
+
 type Props = {
     product: Product;
     uoms: Option[];
     taxes: Option[];
+    attachments: Attachment[];
 };
 
-export default function ProductEdit({ product, uoms, taxes }: Props) {
+export default function ProductEdit({ product, uoms, taxes, attachments }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.products.manage');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const form = useForm({
         sku: product.sku ?? '',
         name: product.name ?? '',
@@ -178,6 +191,14 @@ export default function ProductEdit({ product, uoms, taxes }: Props) {
                     />
                     <Label htmlFor="is_active">Active</Label>
                 </div>
+
+                <AttachmentsPanel
+                    attachableType="product"
+                    attachableId={product.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
 
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-3">

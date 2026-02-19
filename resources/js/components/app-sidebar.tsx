@@ -14,6 +14,7 @@ import type { NavItem, SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    Bell,
     Building2,
     ClipboardCheck,
     ClipboardList,
@@ -63,6 +64,12 @@ const companyNavItems: NavItem[] = [
         href: '/core/invites',
         icon: Mail,
         permission: 'core.users.manage',
+    },
+    {
+        title: 'Notifications',
+        href: '/core/notifications',
+        icon: Bell,
+        permission: 'core.notifications.view',
     },
 ];
 
@@ -180,16 +187,49 @@ const platformAdminNavItems: NavItem[] = [
         href: '/platform/invites',
         icon: Mail,
     },
+    {
+        title: 'Notifications',
+        href: '/core/notifications',
+        icon: Bell,
+        permission: 'core.notifications.view',
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, notifications } = usePage<SharedData>().props;
     const isSuperAdmin = Boolean(auth?.user?.is_super_admin);
     const homeHref = isSuperAdmin
         ? '/platform/dashboard'
         : '/company/dashboard';
+    const unreadNotifications = notifications?.unread_count ?? 0;
+    const resolvedCompanyNavItems = companyNavItems.map((item) =>
+        item.title === 'Notifications'
+            ? {
+                  ...item,
+                  badge:
+                      unreadNotifications > 99
+                          ? '99+'
+                          : unreadNotifications > 0
+                            ? unreadNotifications
+                            : null,
+              }
+            : item,
+    );
+    const resolvedPlatformNavItems = platformAdminNavItems.map((item) =>
+        item.title === 'Notifications'
+            ? {
+                  ...item,
+                  badge:
+                      unreadNotifications > 99
+                          ? '99+'
+                          : unreadNotifications > 0
+                            ? unreadNotifications
+                            : null,
+              }
+            : item,
+    );
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -208,7 +248,7 @@ export function AppSidebar() {
             <SidebarContent>
                 {!isSuperAdmin && (
                     <>
-                        <NavMain items={companyNavItems} label="Company" />
+                        <NavMain items={resolvedCompanyNavItems} label="Company" />
                         <NavMain
                             items={companyModuleNavItems}
                             label="Modules"
@@ -217,7 +257,7 @@ export function AppSidebar() {
                 )}
                 {isSuperAdmin && (
                     <NavMain
-                        items={platformAdminNavItems}
+                        items={resolvedPlatformNavItems}
                         label="Platform Admin"
                     />
                 )}

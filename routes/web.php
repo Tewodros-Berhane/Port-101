@@ -6,6 +6,8 @@ use App\Http\Controllers\Core\CompanySwitchController;
 use App\Http\Controllers\Core\AddressesController;
 use App\Http\Controllers\Core\ContactsController;
 use App\Http\Controllers\Core\CurrenciesController;
+use App\Http\Controllers\Core\AttachmentsController;
+use App\Http\Controllers\Core\NotificationsController;
 use App\Http\Controllers\Core\PartnersController;
 use App\Http\Controllers\Core\PriceListsController;
 use App\Http\Controllers\Core\ProductsController;
@@ -132,6 +134,20 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             ->except(['show']);
         Route::resource('price-lists', PriceListsController::class)
             ->except(['show']);
+        Route::post('attachments', [AttachmentsController::class, 'store'])
+            ->name('attachments.store');
+        Route::get('attachments/{attachment}/download', [AttachmentsController::class, 'download'])
+            ->name('attachments.download');
+        Route::delete('attachments/{attachment}', [AttachmentsController::class, 'destroy'])
+            ->name('attachments.destroy');
+        Route::get('notifications', [NotificationsController::class, 'index'])
+            ->name('notifications.index');
+        Route::post('notifications/mark-all-read', [NotificationsController::class, 'markAllRead'])
+            ->name('notifications.mark-all-read');
+        Route::post('notifications/{notificationId}/read', [NotificationsController::class, 'markRead'])
+            ->name('notifications.mark-read');
+        Route::delete('notifications/{notificationId}', [NotificationsController::class, 'destroy'])
+            ->name('notifications.destroy');
         Route::resource('invites', CompanyInvitesController::class)
             ->only(['index', 'create', 'store', 'destroy']);
         Route::post('invites/{invite}/resend', [CompanyInvitesController::class, 'resend'])
