@@ -51,6 +51,7 @@
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
 - Notification governance controls implemented (severity threshold, escalation policy, digest scheduling policy + digest command).
 - Legacy auth/settings/dashboard tests aligned with invite-only and active-company middleware behavior (including active-company test helper updates).
+- Company-scoped foreign-key validation hardening implemented for core request references (`partner_id`, `uom_id`, `default_tax_id`, `currency_id`) with coverage tests.
 
 ## Not Yet Implemented
 
@@ -79,6 +80,7 @@
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
 - Permission-based UI and route/controller authorization for master data and governance.
+- Core master-data foreign-key validation now enforces active-company ownership for related records.
 - Company settings now persist operational defaults (`fiscal_year_start`, `locale`, `date_format`, `number_format`, audit retention days) via the new `settings` service/table.
 - In-app notifications center is live at `/core/notifications` with unread counters, mark-read, mark-all-read, and delete actions.
 - Notifications now emit for company settings updates, role changes, invite acceptance, company status changes, and invite delivery failures.
@@ -102,17 +104,15 @@
 
 ## Next Steps (Priority Order)
 
-1. Add company-scoped foreign-key validation hardening:
-   - Enforce company ownership checks for `partner_id`, `uom_id`, `default_tax_id`, `currency_id`, and similar foreign keys in store/update requests.
-2. Expand attachments module coverage:
+1. Expand attachments module coverage:
    - Add attachment panels to contacts, addresses, taxes, currencies, units, and price lists.
-3. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
-4. Implement company dashboards with real KPIs and quick actions.
-5. Build Phase 1 module slices:
+2. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
+3. Implement company dashboards with real KPIs and quick actions.
+4. Build Phase 1 module slices:
    - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
-6. Build Phase 2 purchasing slice:
+5. Build Phase 2 purchasing slice:
    - Vendors, RFQs, POs, receipts, and vendor bill handoff.
-7. Implement approvals queue and reporting views.
+6. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
 

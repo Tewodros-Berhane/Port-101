@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Core;
 
+use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class PriceListUpdateRequest extends FormRequest
 {
+    use CompanyScopedExistsRule;
+
     public function authorize(): bool
     {
         return true;
@@ -26,7 +29,7 @@ class PriceListUpdateRequest extends FormRequest
                     ->where('company_id', $companyId)
                     ->ignore($priceListId),
             ],
-            'currency_id' => ['nullable', 'uuid', 'exists:currencies,id'],
+            'currency_id' => ['nullable', 'uuid', $this->companyScopedExists('currencies')],
             'is_active' => ['required', 'boolean'],
         ];
     }

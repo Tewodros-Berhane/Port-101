@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Core;
 
+use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ProductUpdateRequest extends FormRequest
 {
+    use CompanyScopedExistsRule;
+
     public function authorize(): bool
     {
         return true;
@@ -28,8 +31,8 @@ class ProductUpdateRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', Rule::in(['stock', 'service'])],
-            'uom_id' => ['nullable', 'uuid', 'exists:uoms,id'],
-            'default_tax_id' => ['nullable', 'uuid', 'exists:taxes,id'],
+            'uom_id' => ['nullable', 'uuid', $this->companyScopedExists('uoms')],
+            'default_tax_id' => ['nullable', 'uuid', $this->companyScopedExists('taxes')],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['required', 'boolean'],
         ];
