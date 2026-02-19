@@ -140,4 +140,14 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Keep native select dropdown menus legible in both themes. */
+    select option,
+    select optgroup {
+        @apply bg-background text-foreground;
+    }
+
+    .dark select {
+        color-scheme: dark;
+    }
 }
