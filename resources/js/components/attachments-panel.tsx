@@ -98,8 +98,8 @@ export default function AttachmentsPanel({
                 </form>
             )}
 
-            <div className="mt-4 overflow-hidden rounded-md border">
-                <table className="w-full text-sm">
+            <div className="mt-4 overflow-x-auto rounded-md border">
+                <table className="w-full min-w-max text-sm">
                     <thead className="bg-muted/60 text-left">
                         <tr>
                             <th className="px-3 py-2 font-medium">File</th>

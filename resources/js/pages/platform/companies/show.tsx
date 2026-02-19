@@ -190,8 +190,8 @@ export default function PlatformCompanyShow({
 
             <div className="mt-8">
                 <h2 className="text-lg font-semibold">Members</h2>
-                <div className="mt-4 overflow-hidden rounded-xl border">
-                    <table className="w-full text-sm">
+                <div className="mt-4 overflow-x-auto rounded-xl border">
+                    <table className="w-full min-w-max text-sm">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-4 py-3 font-medium">User</th>

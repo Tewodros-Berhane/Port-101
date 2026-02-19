@@ -76,8 +76,8 @@ export default function CompanyUsers({ members, roles }: Props) {
                 </Link>
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-xl border">
-                <table className="w-full text-sm">
+            <div className="mt-6 overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-max text-sm">
                     <thead className="bg-muted/60 text-left">
                         <tr>
                             <th className="px-4 py-3 font-medium">Name</th>

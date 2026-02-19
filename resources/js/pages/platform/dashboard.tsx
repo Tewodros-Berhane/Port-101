@@ -302,8 +302,8 @@ export default function PlatformDashboard({
                     </div>
                 </div>
 
-                <div className="mt-4 overflow-hidden rounded-xl border">
-                    <table className="w-full text-sm">
+                <div className="mt-4 overflow-x-auto rounded-xl border">
+                    <table className="w-full min-w-max text-sm">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-4 py-3 font-medium">Date</th>
@@ -351,8 +351,8 @@ export default function PlatformDashboard({
                     </Link>
                 </div>
 
-                <div className="mt-4 overflow-hidden rounded-xl border">
-                    <table className="w-full text-sm">
+                <div className="mt-4 overflow-x-auto rounded-xl border">
+                    <table className="w-full min-w-max text-sm">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-4 py-3 font-medium">Name</th>
@@ -413,8 +413,8 @@ export default function PlatformDashboard({
                         </Link>
                     </div>
 
-                    <div className="mt-4 overflow-hidden rounded-xl border">
-                        <table className="w-full text-sm">
+                    <div className="mt-4 overflow-x-auto rounded-xl border">
+                        <table className="w-full min-w-max text-sm">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="px-4 py-3 font-medium">
@@ -475,8 +475,8 @@ export default function PlatformDashboard({
                         Filtered platform admin audit events.
                     </p>
 
-                    <div className="mt-4 overflow-hidden rounded-xl border">
-                        <table className="w-full text-sm">
+                    <div className="mt-4 overflow-x-auto rounded-xl border">
+                        <table className="w-full min-w-max text-sm">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="px-4 py-3 font-medium">
