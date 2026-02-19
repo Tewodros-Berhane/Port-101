@@ -50,6 +50,7 @@
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
 - Notification governance controls implemented (severity threshold, escalation policy, digest scheduling policy + digest command).
+- Legacy auth/settings/dashboard tests aligned with invite-only and active-company middleware behavior (including active-company test helper updates).
 
 ## Not Yet Implemented
 
@@ -96,28 +97,22 @@
 
 - Command executed: `php artisan test` (requested with long timeout).
 - Test runtime now uses PostgreSQL test DB (`phpunit.xml` updated to `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
-- Current status: suite executes on PostgreSQL and reports real app/test mismatches.
-- Result summary after latest implementation: `74` passed, `16` failed.
-- Main failing groups:
-  - Auth/Dashboard/Settings tests that now redirect to `/company/inactive` because plain test users do not have active company membership.
-  - Registration tests expecting `register` routes, which are intentionally disabled by invite-only onboarding.
+- Current status: suite executes on PostgreSQL and is fully passing.
+- Result summary after latest implementation: `93` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 
-1. Align legacy auth/settings/dashboard tests with current invite-only + active-company constraints:
-   - Update factories/helpers to attach users to active companies for routes behind `company` middleware.
-   - Remove or rewrite registration-route expectations (`register`, `register.store`) to match invite-only onboarding.
-2. Add company-scoped foreign-key validation hardening:
+1. Add company-scoped foreign-key validation hardening:
    - Enforce company ownership checks for `partner_id`, `uom_id`, `default_tax_id`, `currency_id`, and similar foreign keys in store/update requests.
-3. Expand attachments module coverage:
+2. Expand attachments module coverage:
    - Add attachment panels to contacts, addresses, taxes, currencies, units, and price lists.
-4. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
-5. Implement company dashboards with real KPIs and quick actions.
-6. Build Phase 1 module slices:
+3. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
+4. Implement company dashboards with real KPIs and quick actions.
+5. Build Phase 1 module slices:
    - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
-7. Build Phase 2 purchasing slice:
+6. Build Phase 2 purchasing slice:
    - Vendors, RFQs, POs, receipts, and vendor bill handoff.
-8. Implement approvals queue and reporting views.
+7. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
 

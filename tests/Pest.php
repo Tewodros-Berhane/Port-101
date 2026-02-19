@@ -1,5 +1,9 @@
 <?php
 
+use App\Core\Company\Models\Company;
+use App\Models\User;
+use Illuminate\Support\Str;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -44,4 +48,35 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * @return array{0: User, 1: Company}
+ */
+function makeActiveCompanyMember(?User $user = null): array
+{
+    $member = $user ?? User::factory()->create();
+    $owner = User::factory()->create();
+
+    $name = 'Test Company '.Str::upper(Str::random(4));
+    $company = Company::create([
+        'name' => $name,
+        'slug' => Str::slug($name).'-'.Str::lower(Str::random(4)),
+        'timezone' => 'UTC',
+        'is_active' => true,
+        'owner_id' => $owner->id,
+    ]);
+
+    $company->users()->syncWithoutDetaching([
+        $member->id => [
+            'role_id' => null,
+            'is_owner' => false,
+        ],
+    ]);
+
+    $member->forceFill([
+        'current_company_id' => $company->id,
+    ])->save();
+
+    return [$member, $company];
 }
