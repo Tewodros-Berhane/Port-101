@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,14 +21,26 @@ type PriceList = {
     is_active: boolean;
 };
 
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
+};
+
 type Props = {
     priceList: PriceList;
     currencies: CurrencyOption[];
+    attachments: Attachment[];
 };
 
-export default function PriceListEdit({ priceList, currencies }: Props) {
+export default function PriceListEdit({ priceList, currencies, attachments }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.price_lists.manage');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const form = useForm({
         name: priceList.name ?? '',
         currency_id: priceList.currency_id ?? '',
@@ -128,6 +141,16 @@ export default function PriceListEdit({ priceList, currencies }: Props) {
                     </div>
                 )}
             </form>
+
+            <div className="mt-6">
+                <AttachmentsPanel
+                    attachableType="price_list"
+                    attachableId={priceList.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
+            </div>
         </AppLayout>
     );
 }

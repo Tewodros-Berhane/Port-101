@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,13 +16,25 @@ type Tax = {
     is_active: boolean;
 };
 
-type Props = {
-    tax: Tax;
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
 };
 
-export default function TaxEdit({ tax }: Props) {
+type Props = {
+    tax: Tax;
+    attachments: Attachment[];
+};
+
+export default function TaxEdit({ tax, attachments }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.taxes.manage');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const form = useForm({
         name: tax.name ?? '',
         type: tax.type ?? 'percent',
@@ -130,6 +143,16 @@ export default function TaxEdit({ tax }: Props) {
                     </div>
                 )}
             </form>
+
+            <div className="mt-6">
+                <AttachmentsPanel
+                    attachableType="tax"
+                    attachableId={tax.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
+            </div>
         </AppLayout>
     );
 }

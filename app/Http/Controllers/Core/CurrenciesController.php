@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Currency;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\CurrencyStoreRequest;
@@ -65,6 +66,22 @@ class CurrenciesController extends Controller
     {
         $this->authorize('update', $currency);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $currency::class)
+            ->where('attachable_id', $currency->id)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Attachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'original_name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime_type,
+                    'size' => (int) $attachment->size,
+                    'created_at' => $attachment->created_at?->toIso8601String(),
+                    'download_url' => route('core.attachments.download', $attachment),
+                ];
+            });
+
         return Inertia::render('core/currencies/edit', [
             'currency' => [
                 'id' => $currency->id,
@@ -74,6 +91,7 @@ class CurrenciesController extends Controller
                 'decimal_places' => $currency->decimal_places,
                 'is_active' => $currency->is_active,
             ],
+            'attachments' => $attachments,
         ]);
     }
 

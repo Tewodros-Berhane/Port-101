@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,13 +15,25 @@ type Uom = {
     is_active: boolean;
 };
 
-type Props = {
-    uom: Uom;
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
 };
 
-export default function UomEdit({ uom }: Props) {
+type Props = {
+    uom: Uom;
+    attachments: Attachment[];
+};
+
+export default function UomEdit({ uom, attachments }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.uoms.manage');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const form = useForm({
         name: uom.name ?? '',
         symbol: uom.symbol ?? '',
@@ -108,6 +121,16 @@ export default function UomEdit({ uom }: Props) {
                     </div>
                 )}
             </form>
+
+            <div className="mt-6">
+                <AttachmentsPanel
+                    attachableType="uom"
+                    attachableId={uom.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
+            </div>
         </AppLayout>
     );
 }

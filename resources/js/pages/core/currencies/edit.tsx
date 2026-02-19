@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,13 +17,25 @@ type Currency = {
     is_active: boolean;
 };
 
-type Props = {
-    currency: Currency;
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
 };
 
-export default function CurrencyEdit({ currency }: Props) {
+type Props = {
+    currency: Currency;
+    attachments: Attachment[];
+};
+
+export default function CurrencyEdit({ currency, attachments }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.currencies.manage');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const form = useForm({
         code: currency.code ?? '',
         name: currency.name ?? '',
@@ -153,6 +166,16 @@ export default function CurrencyEdit({ currency }: Props) {
                     </div>
                 )}
             </form>
+
+            <div className="mt-6">
+                <AttachmentsPanel
+                    attachableType="currency"
+                    attachableId={currency.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
+            </div>
         </AppLayout>
     );
 }

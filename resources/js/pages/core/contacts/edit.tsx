@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,14 +24,26 @@ type PartnerOption = {
     code?: string | null;
 };
 
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
+};
+
 type Props = {
     contact: Contact;
     partners: PartnerOption[];
+    attachments: Attachment[];
 };
 
-export default function ContactEdit({ contact, partners }: Props) {
+export default function ContactEdit({ contact, partners, attachments }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.contacts.manage');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const form = useForm({
         partner_id: contact.partner_id ?? '',
         name: contact.name ?? '',
@@ -173,6 +186,16 @@ export default function ContactEdit({ contact, partners }: Props) {
                     </div>
                 )}
             </form>
+
+            <div className="mt-6">
+                <AttachmentsPanel
+                    attachableType="contact"
+                    attachableId={contact.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
+            </div>
         </AppLayout>
     );
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Currency;
 use App\Core\MasterData\Models\PriceList;
 use App\Http\Controllers\Controller;
@@ -67,6 +68,22 @@ class PriceListsController extends Controller
     {
         $this->authorize('update', $priceList);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $priceList::class)
+            ->where('attachable_id', $priceList->id)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Attachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'original_name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime_type,
+                    'size' => (int) $attachment->size,
+                    'created_at' => $attachment->created_at?->toIso8601String(),
+                    'download_url' => route('core.attachments.download', $attachment),
+                ];
+            });
+
         return Inertia::render('core/price-lists/edit', [
             'priceList' => [
                 'id' => $priceList->id,
@@ -75,6 +92,7 @@ class PriceListsController extends Controller
                 'is_active' => $priceList->is_active,
             ],
             'currencies' => Currency::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'attachments' => $attachments,
         ]);
     }
 

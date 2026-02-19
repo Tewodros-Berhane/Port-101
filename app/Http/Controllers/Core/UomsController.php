@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Uom;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\UomStoreRequest;
@@ -63,6 +64,22 @@ class UomsController extends Controller
     {
         $this->authorize('update', $uom);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $uom::class)
+            ->where('attachable_id', $uom->id)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Attachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'original_name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime_type,
+                    'size' => (int) $attachment->size,
+                    'created_at' => $attachment->created_at?->toIso8601String(),
+                    'download_url' => route('core.attachments.download', $attachment),
+                ];
+            });
+
         return Inertia::render('core/uoms/edit', [
             'uom' => [
                 'id' => $uom->id,
@@ -70,6 +87,7 @@ class UomsController extends Controller
                 'symbol' => $uom->symbol,
                 'is_active' => $uom->is_active,
             ],
+            'attachments' => $attachments,
         ]);
     }
 

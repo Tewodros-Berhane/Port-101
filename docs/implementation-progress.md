@@ -52,12 +52,12 @@
 - Notification governance controls implemented (severity threshold, escalation policy, digest scheduling policy + digest command).
 - Legacy auth/settings/dashboard tests aligned with invite-only and active-company middleware behavior (including active-company test helper updates).
 - Company-scoped foreign-key validation hardening implemented for core request references (`partner_id`, `uom_id`, `default_tax_id`, `currency_id`) with coverage tests.
+- Attachments module coverage expanded across supported master-data edit pages (contacts, addresses, taxes, currencies, units, and price lists).
 
 ## Not Yet Implemented
 
 - Ownership-mode config wiring (`APP_OWNERSHIP_MODE`) described in docs is not yet implemented in code.
 - Token-based API auth for external integrations (current `/api/v1` scaffolding still uses app session auth middleware).
-- Attachments integration coverage for all supported master-data pages (currently wired on partner and product edit flows).
 - Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
 - Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
@@ -85,7 +85,7 @@
 - In-app notifications center is live at `/core/notifications` with unread counters, mark-read, mark-all-read, and delete actions.
 - Notifications now emit for company settings updates, role changes, invite acceptance, company status changes, and invite delivery failures.
 - Notification governance is now configurable from platform dashboard (minimum severity, escalation behavior, digest policy) and enforced by the notification service.
-- Attachment upload/download/delete flows are live via `/core/attachments`, including partner/product edit-page attachments panels.
+- Attachment upload/download/delete flows are live via `/core/attachments`, with attachments panels across partner, product, contact, address, tax, currency, unit, and price-list edit pages.
 - Audit retention command now prunes with company-specific settings fallback and is scheduled daily.
 - Scheduled platform digest dispatch is available via `platform:notifications:send-digest` and wired into the scheduler.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings.
@@ -104,15 +104,13 @@
 
 ## Next Steps (Priority Order)
 
-1. Expand attachments module coverage:
-   - Add attachment panels to contacts, addresses, taxes, currencies, units, and price lists.
-2. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
-3. Implement company dashboards with real KPIs and quick actions.
-4. Build Phase 1 module slices:
+1. Move API v1 auth from session middleware to integration-ready token auth (for example, Sanctum or equivalent).
+2. Implement company dashboards with real KPIs and quick actions.
+3. Build Phase 1 module slices:
    - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
-5. Build Phase 2 purchasing slice:
+4. Build Phase 2 purchasing slice:
    - Vendors, RFQs, POs, receipts, and vendor bill handoff.
-6. Implement approvals queue and reporting views.
+5. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
 

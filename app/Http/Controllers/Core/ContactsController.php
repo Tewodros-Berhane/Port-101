@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Partner;
 use App\Http\Controllers\Controller;
@@ -70,6 +71,22 @@ class ContactsController extends Controller
     {
         $this->authorize('update', $contact);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $contact::class)
+            ->where('attachable_id', $contact->id)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Attachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'original_name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime_type,
+                    'size' => (int) $attachment->size,
+                    'created_at' => $attachment->created_at?->toIso8601String(),
+                    'download_url' => route('core.attachments.download', $attachment),
+                ];
+            });
+
         return Inertia::render('core/contacts/edit', [
             'contact' => [
                 'id' => $contact->id,
@@ -81,6 +98,7 @@ class ContactsController extends Controller
                 'is_primary' => $contact->is_primary,
             ],
             'partners' => Partner::query()->orderBy('name')->get(['id', 'name', 'code']),
+            'attachments' => $attachments,
         ]);
     }
 
