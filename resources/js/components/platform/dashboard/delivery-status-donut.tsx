@@ -7,9 +7,9 @@ type Props = {
 };
 
 const COLORS = {
-    sent: 'hsl(var(--chart-2))',
-    failed: 'hsl(var(--chart-5))',
-    pending: 'hsl(var(--chart-3))',
+    sent: 'var(--chart-2)',
+    failed: 'var(--chart-5)',
+    pending: 'var(--chart-3)',
 };
 
 export default function DeliveryStatusDonut({ sent, failed, pending }: Props) {
@@ -40,14 +40,14 @@ export default function DeliveryStatusDonut({ sent, failed, pending }: Props) {
                         paddingAngle={rows.length > 1 ? 2 : 0}
                         label={false}
                         labelLine={false}
-                        stroke="hsl(var(--card))"
+                        stroke="var(--card)"
                         strokeWidth={2}
                         isAnimationActive={false}
                     />
                     <Tooltip
                         contentStyle={{
-                            background: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
+                            background: 'var(--card)',
+                            border: '1px solid var(--border)',
                             borderRadius: '0.75rem',
                         }}
                     />

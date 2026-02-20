@@ -20,11 +20,11 @@ type Props = {
     rows: DeliveryTrendRow[];
 };
 
-const axisTickStyle = { fill: 'hsl(var(--muted-foreground))', fontSize: 12 };
+const axisTickStyle = { fill: 'var(--muted-foreground)', fontSize: 12 };
 const seriesColors = {
-    sent: 'hsl(var(--chart-2))',
-    failed: 'hsl(var(--chart-5))',
-    pending: 'hsl(var(--chart-3))',
+    sent: 'var(--chart-2)',
+    failed: 'var(--chart-5)',
+    pending: 'var(--chart-3)',
 };
 
 const formatDayLabel = (value: unknown): string => {
@@ -117,7 +117,7 @@ export default function DeliveryTrendChart({ rows }: Props) {
                     </defs>
                     <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke="hsl(var(--border))"
+                        stroke="var(--border)"
                     />
                     <XAxis
                         dataKey="date"
@@ -128,8 +128,8 @@ export default function DeliveryTrendChart({ rows }: Props) {
                     <YAxis allowDecimals={false} tick={axisTickStyle} />
                     <Tooltip
                         contentStyle={{
-                            background: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
+                            background: 'var(--card)',
+                            border: '1px solid var(--border)',
                             borderRadius: '0.75rem',
                         }}
                         labelFormatter={(label) => formatTooltipLabel(label)}

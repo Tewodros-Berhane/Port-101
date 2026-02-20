@@ -400,7 +400,7 @@ export default function PlatformDashboard({
                                                 className="size-2 rounded-full"
                                                 style={{
                                                     backgroundColor:
-                                                        'hsl(var(--chart-2))',
+                                                        'var(--chart-2)',
                                                 }}
                                             />
                                             Sent
@@ -415,7 +415,7 @@ export default function PlatformDashboard({
                                                 className="size-2 rounded-full"
                                                 style={{
                                                     backgroundColor:
-                                                        'hsl(var(--chart-5))',
+                                                        'var(--chart-5)',
                                                 }}
                                             />
                                             Failed
@@ -430,7 +430,7 @@ export default function PlatformDashboard({
                                                 className="size-2 rounded-full"
                                                 style={{
                                                     backgroundColor:
-                                                        'hsl(var(--chart-3))',
+                                                        'var(--chart-3)',
                                                 }}
                                             />
                                             Pending

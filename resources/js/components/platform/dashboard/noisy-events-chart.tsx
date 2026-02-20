@@ -20,11 +20,11 @@ type Props = {
     rows: NoisyEventRow[];
 };
 
-const axisTickStyle = { fill: 'hsl(var(--muted-foreground))', fontSize: 12 };
+const axisTickStyle = { fill: 'var(--muted-foreground)', fontSize: 12 };
 const seriesColors = {
-    notifications: 'hsl(var(--chart-1))',
-    unread: 'hsl(var(--chart-4))',
-    highOrCritical: 'hsl(var(--chart-5))',
+    notifications: 'var(--chart-1)',
+    unread: 'var(--chart-4)',
+    highOrCritical: 'var(--chart-5)',
 };
 
 const truncateEventLabel = (value: string) => {
@@ -56,7 +56,7 @@ export default function NoisyEventsChart({ rows }: Props) {
                 >
                     <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke="hsl(var(--border))"
+                        stroke="var(--border)"
                     />
                     <XAxis
                         type="number"
@@ -72,8 +72,8 @@ export default function NoisyEventsChart({ rows }: Props) {
                     />
                     <Tooltip
                         contentStyle={{
-                            background: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
+                            background: 'var(--card)',
+                            border: '1px solid var(--border)',
                             borderRadius: '0.75rem',
                         }}
                     />
