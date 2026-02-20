@@ -770,36 +770,39 @@ export default function PlatformDashboard({
                                         pending={deliverySummary.pending}
                                     />
                                 </div>
-                                <div className="mt-4 space-y-2 text-sm">
+                                <div className="mt-3 space-y-2 border-t pt-3 text-sm">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">
+                                        <span className="inline-flex items-center gap-2 text-muted-foreground">
+                                            <span className="size-2 rounded-full bg-primary" />
                                             Sent
                                         </span>
-                                        <span className="font-medium">
+                                        <span className="font-semibold tabular-nums">
                                             {deliverySummary.sent}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">
+                                        <span className="inline-flex items-center gap-2 text-muted-foreground">
+                                            <span className="size-2 rounded-full bg-destructive" />
                                             Failed
                                         </span>
-                                        <span className="font-medium">
+                                        <span className="font-semibold tabular-nums">
                                             {deliverySummary.failed}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">
+                                        <span className="inline-flex items-center gap-2 text-muted-foreground">
+                                            <span className="size-2 rounded-full bg-muted-foreground" />
                                             Pending
                                         </span>
-                                        <span className="font-medium">
+                                        <span className="font-semibold tabular-nums">
                                             {deliverySummary.pending}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between border-t pt-2">
                                         <span className="text-muted-foreground">
                                             Total
                                         </span>
-                                        <span className="font-medium">
+                                        <span className="font-semibold tabular-nums">
                                             {deliverySummary.total}
                                         </span>
                                     </div>

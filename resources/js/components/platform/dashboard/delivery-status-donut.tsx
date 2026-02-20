@@ -28,16 +28,21 @@ export default function DeliveryStatusDonut({ sent, failed, pending }: Props) {
     }
 
     return (
-        <div className="h-56 w-full">
+        <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                     <Pie
                         data={rows}
                         dataKey="value"
                         nameKey="name"
-                        innerRadius={55}
-                        outerRadius={85}
-                        paddingAngle={3}
+                        innerRadius={52}
+                        outerRadius={78}
+                        paddingAngle={rows.length > 1 ? 2 : 0}
+                        label={false}
+                        labelLine={false}
+                        stroke="hsl(var(--card))"
+                        strokeWidth={2}
+                        isAnimationActive={false}
                     />
                     <Tooltip
                         contentStyle={{
@@ -48,29 +53,6 @@ export default function DeliveryStatusDonut({ sent, failed, pending }: Props) {
                     />
                 </PieChart>
             </ResponsiveContainer>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                    <span
-                        className="size-2 rounded-full"
-                        style={{ background: COLORS.sent }}
-                    />
-                    Sent
-                </span>
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                    <span
-                        className="size-2 rounded-full"
-                        style={{ background: COLORS.failed }}
-                    />
-                    Failed
-                </span>
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                    <span
-                        className="size-2 rounded-full"
-                        style={{ background: COLORS.pending }}
-                    />
-                    Pending
-                </span>
-            </div>
         </div>
     );
 }

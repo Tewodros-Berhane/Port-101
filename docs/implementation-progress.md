@@ -61,6 +61,7 @@
 - Superadmin dashboard Sprint 3 completed: per-admin dashboard personalization (saved layout order, widget visibility toggles, default operations tab, and default filter preset).
 - Fixed platform dashboard operations tab state sync so invite/admin-action tabs correctly switch views when clicked.
 - Operations detail tab clicks now switch client-side without Inertia reload when data is already present.
+- Cleaned status-mix donut presentation to remove overlapping chart text and use a single readable legend/metric block.
 
 ## Not Yet Implemented
 
