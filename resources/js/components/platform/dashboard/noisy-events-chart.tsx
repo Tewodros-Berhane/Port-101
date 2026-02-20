@@ -2,6 +2,7 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
+    Legend,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -20,6 +21,11 @@ type Props = {
 };
 
 const axisTickStyle = { fill: 'hsl(var(--muted-foreground))', fontSize: 12 };
+const seriesColors = {
+    notifications: 'hsl(var(--chart-1))',
+    unread: 'hsl(var(--chart-4))',
+    highOrCritical: 'hsl(var(--chart-5))',
+};
 
 const truncateEventLabel = (value: string) => {
     if (value.length <= 24) {
@@ -71,10 +77,23 @@ export default function NoisyEventsChart({ rows }: Props) {
                             borderRadius: '0.75rem',
                         }}
                     />
+                    <Legend />
                     <Bar
                         dataKey="count"
                         name="Notifications"
-                        fill="hsl(var(--primary))"
+                        fill={seriesColors.notifications}
+                        radius={[0, 6, 6, 0]}
+                    />
+                    <Bar
+                        dataKey="unread"
+                        name="Unread"
+                        fill={seriesColors.unread}
+                        radius={[0, 6, 6, 0]}
+                    />
+                    <Bar
+                        dataKey="high_or_critical"
+                        name="High/Critical"
+                        fill={seriesColors.highOrCritical}
                         radius={[0, 6, 6, 0]}
                     />
                 </BarChart>

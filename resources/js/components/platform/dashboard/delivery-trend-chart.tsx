@@ -21,6 +21,11 @@ type Props = {
 };
 
 const axisTickStyle = { fill: 'hsl(var(--muted-foreground))', fontSize: 12 };
+const seriesColors = {
+    sent: 'hsl(var(--chart-2))',
+    failed: 'hsl(var(--chart-5))',
+    pending: 'hsl(var(--chart-3))',
+};
 
 const formatDayLabel = (value: unknown): string => {
     if (typeof value !== 'string' && typeof value !== 'number') {
@@ -64,12 +69,12 @@ export default function DeliveryTrendChart({ rows }: Props) {
                         >
                             <stop
                                 offset="5%"
-                                stopColor="hsl(var(--primary))"
+                                stopColor={seriesColors.sent}
                                 stopOpacity={0.3}
                             />
                             <stop
                                 offset="95%"
-                                stopColor="hsl(var(--primary))"
+                                stopColor={seriesColors.sent}
                                 stopOpacity={0.05}
                             />
                         </linearGradient>
@@ -82,12 +87,12 @@ export default function DeliveryTrendChart({ rows }: Props) {
                         >
                             <stop
                                 offset="5%"
-                                stopColor="hsl(var(--destructive))"
+                                stopColor={seriesColors.failed}
                                 stopOpacity={0.3}
                             />
                             <stop
                                 offset="95%"
-                                stopColor="hsl(var(--destructive))"
+                                stopColor={seriesColors.failed}
                                 stopOpacity={0.05}
                             />
                         </linearGradient>
@@ -100,12 +105,12 @@ export default function DeliveryTrendChart({ rows }: Props) {
                         >
                             <stop
                                 offset="5%"
-                                stopColor="hsl(var(--muted-foreground))"
+                                stopColor={seriesColors.pending}
                                 stopOpacity={0.2}
                             />
                             <stop
                                 offset="95%"
-                                stopColor="hsl(var(--muted-foreground))"
+                                stopColor={seriesColors.pending}
                                 stopOpacity={0.05}
                             />
                         </linearGradient>
@@ -134,7 +139,7 @@ export default function DeliveryTrendChart({ rows }: Props) {
                         type="monotone"
                         dataKey="sent"
                         name="Sent"
-                        stroke="hsl(var(--primary))"
+                        stroke={seriesColors.sent}
                         fill="url(#sentFill)"
                         strokeWidth={2}
                     />
@@ -142,7 +147,7 @@ export default function DeliveryTrendChart({ rows }: Props) {
                         type="monotone"
                         dataKey="failed"
                         name="Failed"
-                        stroke="hsl(var(--destructive))"
+                        stroke={seriesColors.failed}
                         fill="url(#failedFill)"
                         strokeWidth={2}
                     />
@@ -150,7 +155,7 @@ export default function DeliveryTrendChart({ rows }: Props) {
                         type="monotone"
                         dataKey="pending"
                         name="Pending"
-                        stroke="hsl(var(--muted-foreground))"
+                        stroke={seriesColors.pending}
                         fill="url(#pendingFill)"
                         strokeWidth={2}
                     />

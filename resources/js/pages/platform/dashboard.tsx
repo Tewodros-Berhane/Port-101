@@ -396,7 +396,13 @@ export default function PlatformDashboard({
                                 <div className="mt-3 space-y-2 border-t pt-3 text-sm">
                                     <div className="flex items-center justify-between">
                                         <span className="inline-flex items-center gap-2 text-muted-foreground">
-                                            <span className="size-2 rounded-full bg-primary" />
+                                            <span
+                                                className="size-2 rounded-full"
+                                                style={{
+                                                    backgroundColor:
+                                                        'hsl(var(--chart-2))',
+                                                }}
+                                            />
                                             Sent
                                         </span>
                                         <span className="font-semibold tabular-nums">
@@ -405,7 +411,13 @@ export default function PlatformDashboard({
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="inline-flex items-center gap-2 text-muted-foreground">
-                                            <span className="size-2 rounded-full bg-destructive" />
+                                            <span
+                                                className="size-2 rounded-full"
+                                                style={{
+                                                    backgroundColor:
+                                                        'hsl(var(--chart-5))',
+                                                }}
+                                            />
                                             Failed
                                         </span>
                                         <span className="font-semibold tabular-nums">
@@ -414,7 +426,13 @@ export default function PlatformDashboard({
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="inline-flex items-center gap-2 text-muted-foreground">
-                                            <span className="size-2 rounded-full bg-muted-foreground" />
+                                            <span
+                                                className="size-2 rounded-full"
+                                                style={{
+                                                    backgroundColor:
+                                                        'hsl(var(--chart-3))',
+                                                }}
+                                            />
                                             Pending
                                         </span>
                                         <span className="font-semibold tabular-nums">

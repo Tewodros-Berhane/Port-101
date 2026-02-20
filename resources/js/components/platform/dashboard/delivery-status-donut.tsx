@@ -7,9 +7,9 @@ type Props = {
 };
 
 const COLORS = {
-    sent: 'hsl(var(--primary))',
-    failed: 'hsl(var(--destructive))',
-    pending: 'hsl(var(--muted-foreground))',
+    sent: 'hsl(var(--chart-2))',
+    failed: 'hsl(var(--chart-5))',
+    pending: 'hsl(var(--chart-3))',
 };
 
 export default function DeliveryStatusDonut({ sent, failed, pending }: Props) {
