@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Settings2 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 type OperationsTab = 'companies' | 'invites' | 'admin_actions';
 type WidgetId =
@@ -213,13 +213,26 @@ export default function PlatformDashboard({
         layout: dashboardPreferences.layout ?? 'balanced',
         hidden_widgets: dashboardPreferences.hidden_widgets ?? [],
     });
-    const selectedOperationsTab = operationsTab;
+    const [selectedOperationsTab, setSelectedOperationsTab] =
+        useState<OperationsTab>(operationsTab);
 
     useEffect(() => {
-        if (form.data.operations_tab !== selectedOperationsTab) {
-            form.setData('operations_tab', selectedOperationsTab);
+        setSelectedOperationsTab(operationsTab);
+    }, [operationsTab]);
+
+    useEffect(() => {
+        form.setData('operations_tab', selectedOperationsTab);
+        // Reflect tab state in URL without issuing a network request.
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('operations_tab') !== selectedOperationsTab) {
+            url.searchParams.set('operations_tab', selectedOperationsTab);
+            window.history.replaceState(
+                window.history.state,
+                '',
+                `${url.pathname}?${url.searchParams.toString()}`,
+            );
         }
-    }, [form, form.data.operations_tab, selectedOperationsTab]);
+    }, [form, selectedOperationsTab]);
 
     const trendRows = [...deliveryTrend].reverse();
     const activeLayout = preferencesForm.data.layout;
@@ -1096,15 +1109,12 @@ export default function PlatformDashboard({
                                                 active ? 'secondary' : 'ghost'
                                             }
                                             size="sm"
-                                            asChild
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedOperationsTab(tab)
+                                            }
                                         >
-                                            <Link
-                                                href={tabHref(tab)}
-                                                preserveState
-                                                preserveScroll
-                                            >
-                                                {makeTabTitle(tab)}
-                                            </Link>
+                                            {makeTabTitle(tab)}
                                         </Button>
                                     );
                                 })}
