@@ -399,6 +399,46 @@ test('superadmin can persist dashboard preferences and default filters', functio
         );
 });
 
+test('superadmin can manage dashboard personalization from settings page', function () {
+    $superAdmin = createSuperAdmin();
+    $operationsSettings = app(OperationsReportingSettingsService::class);
+    $preset = $operationsSettings->savePreset('Ops default', [
+        'trend_window' => 30,
+        'admin_action' => null,
+        'admin_actor_id' => null,
+        'admin_start_date' => null,
+        'admin_end_date' => null,
+        'invite_delivery_status' => Invite::DELIVERY_PENDING,
+    ], $superAdmin->id);
+
+    actingAs($superAdmin)
+        ->get(route('settings.dashboard-personalization.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/dashboard-personalization')
+            ->has('dashboardPreferences')
+            ->has('operationsReportPresets')
+        );
+
+    actingAs($superAdmin)
+        ->put(route('settings.dashboard-personalization.update'), [
+            'default_preset_id' => $preset['id'],
+            'default_operations_tab' => 'invites',
+            'layout' => 'operations_first',
+            'hidden_widgets' => [],
+        ])
+        ->assertRedirect(route('settings.dashboard-personalization.edit'));
+
+    $stored = Setting::query()
+        ->where('key', DashboardPreferencesService::KEY)
+        ->where('user_id', $superAdmin->id)
+        ->first();
+
+    expect($stored?->value['default_operations_tab'] ?? null)->toBe('invites');
+    expect($stored?->value['layout'] ?? null)->toBe('operations_first');
+    expect($stored?->value['hidden_widgets'] ?? null)->toBe([]);
+});
+
 test('platform dashboard supports invite drill-down tab and delivery status filter', function () {
     $superAdmin = createSuperAdmin();
     $company = Company::create([

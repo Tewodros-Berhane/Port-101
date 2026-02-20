@@ -62,6 +62,7 @@
 - Fixed platform dashboard operations tab state sync so invite/admin-action tabs correctly switch views when clicked.
 - Operations detail tab clicks now switch client-side without Inertia reload when data is already present.
 - Cleaned status-mix donut presentation to remove overlapping chart text and use a single readable legend/metric block.
+- Moved superadmin dashboard personalization controls out of `/platform/dashboard` into settings at `/settings/dashboard-personalization` to reduce dashboard clutter.
 
 ## Not Yet Implemented
 
@@ -87,7 +88,7 @@
 - Platform dashboard operations reporting now supports saved presets and scheduled export delivery policies.
 - Platform governance settings are now managed from `/platform/governance` (delivery schedule + notification governance controls), while the dashboard stays monitoring-focused.
 - Platform dashboard now supports invite-delivery drill-down filtering and applies user-level default filter presets when no explicit filter query is provided.
-- Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`).
+- Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`) and are managed from `/settings/dashboard-personalization`.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.

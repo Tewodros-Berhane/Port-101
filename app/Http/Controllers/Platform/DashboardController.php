@@ -275,6 +275,8 @@ class DashboardController extends Controller
         DashboardPreferencesService $dashboardPreferences,
         OperationsReportingSettingsService $operationsSettings
     ): RedirectResponse {
+        $redirectToSettings = $request->routeIs('settings.dashboard-personalization.update');
+
         $data = $request->validate([
             'default_preset_id' => ['nullable', 'string', 'max:80'],
             'default_operations_tab' => ['required', 'string', 'in:companies,invites,admin_actions'],
@@ -299,10 +301,13 @@ class DashboardController extends Controller
                 fn (array $preset) => $preset['id'] === $defaultPresetId
             )
         ) {
-            return redirect()
-                ->route('platform.dashboard')
+            $redirect = $redirectToSettings
+                ? redirect()->route('settings.dashboard-personalization.edit')
+                : redirect()->route('platform.dashboard');
+
+            return $redirect
                 ->withErrors([
-                    'preferences.default_preset_id' => 'Selected default preset was not found.',
+                    'default_preset_id' => 'Selected default preset was not found.',
                 ]);
         }
 
@@ -312,6 +317,12 @@ class DashboardController extends Controller
             'layout' => $data['layout'],
             'hidden_widgets' => $data['hidden_widgets'] ?? [],
         ], $request->user()?->id, $request->user()?->id);
+
+        if ($redirectToSettings) {
+            return redirect()
+                ->route('settings.dashboard-personalization.edit')
+                ->with('success', 'Dashboard preferences updated.');
+        }
 
         return redirect()
             ->route('platform.dashboard', [

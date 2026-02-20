@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Settings\DashboardPersonalizationController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
@@ -28,4 +30,11 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
+});
+
+Route::middleware(['auth', 'verified', 'superadmin'])->group(function () {
+    Route::get('settings/dashboard-personalization', [DashboardPersonalizationController::class, 'edit'])
+        ->name('settings.dashboard-personalization.edit');
+    Route::put('settings/dashboard-personalization', [PlatformDashboardController::class, 'updatePreferences'])
+        ->name('settings.dashboard-personalization.update');
 });

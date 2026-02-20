@@ -134,13 +134,6 @@ const formatAction = (action: string) =>
 
 const formatPercent = (value: number) => `${value}%`;
 
-const widgetLabels: Record<WidgetId, string> = {
-    delivery_performance: 'Delivery performance',
-    governance_snapshot: 'Governance snapshot',
-    operations_presets: 'Saved presets',
-    operations_detail: 'Operations detail tabs',
-};
-
 const sectionOrderByLayout: Record<
     NonNullable<Props['dashboardPreferences']['layout']>,
     WidgetId[]
@@ -206,13 +199,6 @@ export default function PlatformDashboard({
         admin_end_date: operationsFilters.admin_end_date ?? '',
         invite_delivery_status: operationsFilters.invite_delivery_status ?? '',
     });
-    const preferencesForm = useForm({
-        default_preset_id: dashboardPreferences.default_preset_id ?? '',
-        default_operations_tab:
-            dashboardPreferences.default_operations_tab ?? 'companies',
-        layout: dashboardPreferences.layout ?? 'balanced',
-        hidden_widgets: dashboardPreferences.hidden_widgets ?? [],
-    });
     const [selectedOperationsTab, setSelectedOperationsTab] =
         useState<OperationsTab>(operationsTab);
 
@@ -235,8 +221,8 @@ export default function PlatformDashboard({
     }, [form, selectedOperationsTab]);
 
     const trendRows = [...deliveryTrend].reverse();
-    const activeLayout = preferencesForm.data.layout;
-    const hiddenWidgets = new Set(preferencesForm.data.hidden_widgets);
+    const activeLayout = dashboardPreferences.layout ?? 'balanced';
+    const hiddenWidgets = new Set(dashboardPreferences.hidden_widgets ?? []);
     const buildQuery = (overrides: Partial<typeof form.data> = {}) => {
         const merged = {
             trend_window: form.data.trend_window,
@@ -267,23 +253,6 @@ export default function PlatformDashboard({
     const exportDeliveryTrendsJsonUrl = `/platform/dashboard/export/delivery-trends?${exportQuery}&format=json`;
     const tabHref = (tab: OperationsTab) =>
         `/platform/dashboard?${buildQuery({ operations_tab: tab })}`;
-
-    const toggleWidgetVisibility = (widget: WidgetId, visible: boolean) => {
-        const current = [...preferencesForm.data.hidden_widgets];
-
-        if (visible) {
-            preferencesForm.setData(
-                'hidden_widgets',
-                current.filter((item) => item !== widget),
-            );
-
-            return;
-        }
-
-        if (!current.includes(widget)) {
-            preferencesForm.setData('hidden_widgets', [...current, widget]);
-        }
-    };
 
     const sectionOrder = sectionOrderByLayout[activeLayout].filter(
         (widget) => !hiddenWidgets.has(widget),
@@ -591,140 +560,6 @@ export default function PlatformDashboard({
                         deliveryTrendsCsvUrl={exportDeliveryTrendsCsvUrl}
                         deliveryTrendsJsonUrl={exportDeliveryTrendsJsonUrl}
                     />
-                </div>
-            </form>
-
-            <form
-                className="mt-6 rounded-xl border p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    preferencesForm.put('/platform/dashboard/preferences', {
-                        preserveScroll: true,
-                    });
-                }}
-            >
-                <div>
-                    <h2 className="text-sm font-semibold">
-                        Dashboard personalization
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Save widget layout, default filter preset, and default
-                        operations tab per superadmin account.
-                    </p>
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <div className="grid gap-2">
-                        <Label htmlFor="default_preset_id">
-                            Default preset
-                        </Label>
-                        <select
-                            id="default_preset_id"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={preferencesForm.data.default_preset_id}
-                            onChange={(event) =>
-                                preferencesForm.setData(
-                                    'default_preset_id',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="">No default preset</option>
-                            {operationsReportPresets.map((preset) => (
-                                <option key={preset.id} value={preset.id}>
-                                    {preset.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="default_operations_tab">
-                            Default operations tab
-                        </Label>
-                        <select
-                            id="default_operations_tab"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={preferencesForm.data.default_operations_tab}
-                            onChange={(event) =>
-                                preferencesForm.setData(
-                                    'default_operations_tab',
-                                    event.target.value as OperationsTab,
-                                )
-                            }
-                        >
-                            <option value="companies">Companies</option>
-                            <option value="invites">Invites</option>
-                            <option value="admin_actions">Admin actions</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="layout">Widget layout</Label>
-                        <select
-                            id="layout"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={preferencesForm.data.layout}
-                            onChange={(event) =>
-                                preferencesForm.setData(
-                                    'layout',
-                                    event.target.value as
-                                        | 'balanced'
-                                        | 'analytics_first'
-                                        | 'operations_first',
-                                )
-                            }
-                        >
-                            <option value="balanced">Balanced</option>
-                            <option value="analytics_first">
-                                Analytics first
-                            </option>
-                            <option value="operations_first">
-                                Operations first
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="mt-4 rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">
-                        Visible widgets
-                    </p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {(Object.keys(widgetLabels) as WidgetId[]).map(
-                            (widget) => {
-                                const visible =
-                                    !preferencesForm.data.hidden_widgets.includes(
-                                        widget,
-                                    );
-
-                                return (
-                                    <label
-                                        key={widget}
-                                        className="flex items-center gap-2 text-sm"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={visible}
-                                            onChange={(event) =>
-                                                toggleWidgetVisibility(
-                                                    widget,
-                                                    event.target.checked,
-                                                )
-                                            }
-                                        />
-                                        <span>{widgetLabels[widget]}</span>
-                                    </label>
-                                );
-                            },
-                        )}
-                    </div>
-                </div>
-
-                <div className="mt-4">
-                    <Button type="submit" disabled={preferencesForm.processing}>
-                        Save personalization
-                    </Button>
                 </div>
             </form>
 
