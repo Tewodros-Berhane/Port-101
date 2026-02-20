@@ -6,6 +6,7 @@ use App\Core\Access\Models\Invite;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
+use App\Core\Platform\DashboardPreferencesService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -21,12 +22,28 @@ class DashboardController extends Controller
     public function index(
         Request $request,
         NotificationGovernanceService $notificationGovernance,
-        OperationsReportingSettingsService $operationsSettings
+        OperationsReportingSettingsService $operationsSettings,
+        DashboardPreferencesService $dashboardPreferences
     ): Response {
+        $userId = $request->user()?->id;
+        $preferences = $dashboardPreferences->get($userId);
         $validatedFilters = $this->validatedOperationsFilters($request);
+
+        if (! $this->hasAnyOperationsFilterInput($request)) {
+            $validatedFilters = [
+                ...$validatedFilters,
+                ...$operationsSettings->filtersForPreset(
+                    $preferences['default_preset_id'] ?? null
+                ),
+            ];
+        }
+
         $normalizedFilters = $operationsSettings->normalizeFilters($validatedFilters);
         $trendWindow = (int) ($normalizedFilters['trend_window'] ?? 30);
         $adminFilters = $this->normalizedAdminFilters($normalizedFilters);
+        $operationsTab = $this->normalizedOperationsTab(
+            $request->input('operations_tab', $preferences['default_operations_tab'] ?? 'companies')
+        );
 
         $stats = [
             'companies' => Company::query()->count(),
@@ -51,10 +68,24 @@ class DashboardController extends Controller
                 ];
             });
 
-        $recentInvites = Invite::query()
+        $recentInvitesQuery = Invite::query()
             ->with(['company:id,name', 'creator:id,name'])
-            ->orderByDesc('created_at')
-            ->limit(6)
+            ->orderByDesc('created_at');
+
+        $inviteDeliveryStatus = $adminFilters['invite_delivery_status'] ?? null;
+        if ($inviteDeliveryStatus === Invite::DELIVERY_PENDING) {
+            $recentInvitesQuery->where(function (Builder $query): void {
+                $query->whereNull('delivery_status')
+                    ->orWhere('delivery_status', Invite::DELIVERY_PENDING);
+            });
+        } elseif (
+            in_array($inviteDeliveryStatus, [Invite::DELIVERY_SENT, Invite::DELIVERY_FAILED], true)
+        ) {
+            $recentInvitesQuery->where('delivery_status', $inviteDeliveryStatus);
+        }
+
+        $recentInvites = $recentInvitesQuery
+            ->limit(12)
             ->get()
             ->map(function (Invite $invite) {
                 $status = 'pending';
@@ -140,12 +171,14 @@ class DashboardController extends Controller
                 ...$adminFilters,
                 'trend_window' => $trendWindow,
             ],
+            'operationsTab' => $operationsTab,
             'adminFilterOptions' => [
                 'actions' => $adminActionOptions,
                 'actors' => $adminActors,
             ],
             'notificationGovernanceAnalytics' => $notificationGovernance->getAnalytics($trendWindow),
             'operationsReportPresets' => $operationsSettings->getPresets(),
+            'dashboardPreferences' => $preferences,
         ]);
     }
 
@@ -206,6 +239,7 @@ class DashboardController extends Controller
             'admin_actor_id' => ['nullable', 'uuid', 'exists:users,id'],
             'admin_start_date' => ['nullable', 'date_format:Y-m-d'],
             'admin_end_date' => ['nullable', 'date_format:Y-m-d'],
+            'invite_delivery_status' => ['nullable', 'string', 'in:pending,sent,failed'],
         ]);
 
         $operationsSettings->savePreset(
@@ -234,6 +268,56 @@ class DashboardController extends Controller
             ->with($deleted ? 'success' : 'warning', $deleted
                 ? 'Operations report preset deleted.'
                 : 'Preset was not found.');
+    }
+
+    public function updatePreferences(
+        Request $request,
+        DashboardPreferencesService $dashboardPreferences,
+        OperationsReportingSettingsService $operationsSettings
+    ): RedirectResponse {
+        $data = $request->validate([
+            'default_preset_id' => ['nullable', 'string', 'max:80'],
+            'default_operations_tab' => ['required', 'string', 'in:companies,invites,admin_actions'],
+            'layout' => ['required', 'string', 'in:balanced,analytics_first,operations_first'],
+            'hidden_widgets' => ['nullable', 'array'],
+            'hidden_widgets.*' => [
+                'string',
+                'in:delivery_performance,governance_snapshot,operations_presets,operations_detail',
+            ],
+        ]);
+
+        $defaultPresetId = $data['default_preset_id'] ?? null;
+        if (! is_string($defaultPresetId) || trim($defaultPresetId) === '') {
+            $defaultPresetId = null;
+        } else {
+            $defaultPresetId = trim($defaultPresetId);
+        }
+
+        if (
+            $defaultPresetId !== null
+            && ! collect($operationsSettings->getPresets())->contains(
+                fn (array $preset) => $preset['id'] === $defaultPresetId
+            )
+        ) {
+            return redirect()
+                ->route('platform.dashboard')
+                ->withErrors([
+                    'preferences.default_preset_id' => 'Selected default preset was not found.',
+                ]);
+        }
+
+        $preferences = $dashboardPreferences->set([
+            'default_preset_id' => $defaultPresetId,
+            'default_operations_tab' => $data['default_operations_tab'],
+            'layout' => $data['layout'],
+            'hidden_widgets' => $data['hidden_widgets'] ?? [],
+        ], $request->user()?->id, $request->user()?->id);
+
+        return redirect()
+            ->route('platform.dashboard', [
+                'operations_tab' => $preferences['default_operations_tab'] ?? 'companies',
+            ])
+            ->with('success', 'Dashboard preferences updated.');
     }
 
     public function updateReportDeliverySchedule(
@@ -544,6 +628,7 @@ class DashboardController extends Controller
             'admin_actor_id' => ['nullable', 'uuid', 'exists:users,id'],
             'admin_start_date' => ['nullable', 'date_format:Y-m-d'],
             'admin_end_date' => ['nullable', 'date_format:Y-m-d'],
+            'invite_delivery_status' => ['nullable', 'string', 'in:pending,sent,failed'],
         ]);
     }
 
@@ -558,7 +643,41 @@ class DashboardController extends Controller
             'admin_actor_id' => $validatedFilters['admin_actor_id'] ?? null,
             'admin_start_date' => $validatedFilters['admin_start_date'] ?? null,
             'admin_end_date' => $validatedFilters['admin_end_date'] ?? null,
+            'invite_delivery_status' => $validatedFilters['invite_delivery_status'] ?? null,
         ];
+    }
+
+    private function hasAnyOperationsFilterInput(Request $request): bool
+    {
+        foreach ([
+            'trend_window',
+            'admin_action',
+            'admin_actor_id',
+            'admin_start_date',
+            'admin_end_date',
+            'invite_delivery_status',
+        ] as $key) {
+            if ($request->filled($key)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizedOperationsTab(mixed $tab): string
+    {
+        if (! is_string($tab)) {
+            return 'companies';
+        }
+
+        $normalized = strtolower(trim($tab));
+
+        if (! in_array($normalized, ['companies', 'invites', 'admin_actions'], true)) {
+            return 'companies';
+        }
+
+        return $normalized;
     }
 
     private function normalizedExportFormat(string $format): string

@@ -4,6 +4,7 @@ use App\Core\Access\Models\Invite;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
+use App\Core\Platform\DashboardPreferencesService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Settings\Models\Setting;
 use App\Models\User;
@@ -351,5 +352,98 @@ test('platform governance page returns governance settings payload', function ()
             ->has('notificationGovernance')
             ->has('operationsReportDeliverySchedule')
             ->has('operationsReportPresets')
+        );
+});
+
+test('superadmin can persist dashboard preferences and default filters', function () {
+    $superAdmin = createSuperAdmin();
+    $operationsSettings = app(OperationsReportingSettingsService::class);
+    $preset = $operationsSettings->savePreset('Default 90d', [
+        'trend_window' => 90,
+        'admin_action' => null,
+        'admin_actor_id' => null,
+        'admin_start_date' => null,
+        'admin_end_date' => null,
+        'invite_delivery_status' => Invite::DELIVERY_FAILED,
+    ], $superAdmin->id);
+
+    actingAs($superAdmin)
+        ->put(route('platform.dashboard.preferences.update'), [
+            'default_preset_id' => $preset['id'],
+            'default_operations_tab' => 'admin_actions',
+            'layout' => 'analytics_first',
+            'hidden_widgets' => [
+                'operations_presets',
+            ],
+        ])
+        ->assertRedirect(route('platform.dashboard', [
+            'operations_tab' => 'admin_actions',
+        ]));
+
+    $stored = Setting::query()
+        ->where('key', DashboardPreferencesService::KEY)
+        ->where('user_id', $superAdmin->id)
+        ->first();
+
+    expect($stored?->value['default_preset_id'] ?? null)->toBe($preset['id']);
+    expect($stored?->value['layout'] ?? null)->toBe('analytics_first');
+
+    actingAs($superAdmin)
+        ->get(route('platform.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('operationsFilters.trend_window', 90)
+            ->where('operationsFilters.invite_delivery_status', Invite::DELIVERY_FAILED)
+            ->where('operationsTab', 'admin_actions')
+            ->where('dashboardPreferences.layout', 'analytics_first')
+        );
+});
+
+test('platform dashboard supports invite drill-down tab and delivery status filter', function () {
+    $superAdmin = createSuperAdmin();
+    $company = Company::create([
+        'name' => 'Invite Drilldown Co',
+        'slug' => 'invite-drilldown-'.Str::lower(Str::random(4)),
+        'timezone' => 'UTC',
+        'is_active' => true,
+        'owner_id' => $superAdmin->id,
+    ]);
+
+    Invite::create([
+        'email' => 'failed@example.com',
+        'name' => 'Failed Invite',
+        'token' => Str::random(40),
+        'role' => 'company_member',
+        'company_id' => $company->id,
+        'created_by' => $superAdmin->id,
+        'expires_at' => now()->addDays(7),
+        'delivery_status' => Invite::DELIVERY_FAILED,
+        'delivery_attempts' => 1,
+    ]);
+
+    Invite::create([
+        'email' => 'sent@example.com',
+        'name' => 'Sent Invite',
+        'token' => Str::random(40),
+        'role' => 'company_member',
+        'company_id' => $company->id,
+        'created_by' => $superAdmin->id,
+        'expires_at' => now()->addDays(7),
+        'delivery_status' => Invite::DELIVERY_SENT,
+        'delivery_attempts' => 1,
+    ]);
+
+    actingAs($superAdmin)
+        ->get(route('platform.dashboard', [
+            'operations_tab' => 'invites',
+            'invite_delivery_status' => Invite::DELIVERY_FAILED,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('operationsTab', 'invites')
+            ->where('operationsFilters.invite_delivery_status', Invite::DELIVERY_FAILED)
+            ->has('recentInvites', 1)
+            ->where('recentInvites.0.email', 'failed@example.com')
+            ->where('recentInvites.0.delivery_status', Invite::DELIVERY_FAILED)
         );
 });

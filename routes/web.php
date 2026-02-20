@@ -170,6 +170,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name(
         ->name('dashboard.report-presets.store');
     Route::delete('dashboard/report-presets/{presetId}', [PlatformDashboardController::class, 'destroyReportPreset'])
         ->name('dashboard.report-presets.destroy');
+    Route::put('dashboard/preferences', [PlatformDashboardController::class, 'updatePreferences'])
+        ->name('dashboard.preferences.update');
     Route::put('dashboard/report-delivery-schedule', [PlatformDashboardController::class, 'updateReportDeliverySchedule'])
         ->name('dashboard.report-delivery-schedule.update');
     Route::put('dashboard/notification-governance', [PlatformDashboardController::class, 'updateNotificationGovernance'])

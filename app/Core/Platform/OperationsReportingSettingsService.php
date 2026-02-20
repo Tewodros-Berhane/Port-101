@@ -14,8 +14,7 @@ class OperationsReportingSettingsService
 
     public function __construct(
         private SettingsService $settingsService
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<int, array{id: string, name: string, filters: array<string, mixed>, created_at: string|null}>
@@ -324,6 +323,9 @@ class OperationsReportingSettingsService
             'admin_actor_id' => $actorId,
             'admin_start_date' => $this->normalizeDate($input['admin_start_date'] ?? null),
             'admin_end_date' => $this->normalizeDate($input['admin_end_date'] ?? null),
+            'invite_delivery_status' => $this->normalizeInviteDeliveryStatus(
+                $input['invite_delivery_status'] ?? null
+            ),
         ];
     }
 
@@ -367,6 +369,7 @@ class OperationsReportingSettingsService
             'admin_actor_id' => (string) ($normalized['admin_actor_id'] ?? ''),
             'admin_start_date' => (string) ($normalized['admin_start_date'] ?? ''),
             'admin_end_date' => (string) ($normalized['admin_end_date'] ?? ''),
+            'invite_delivery_status' => (string) ($normalized['invite_delivery_status'] ?? ''),
         ]);
 
         return $query;
@@ -401,5 +404,20 @@ class OperationsReportingSettingsService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function normalizeInviteDeliveryStatus(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim($value));
+
+        if (! in_array($normalized, ['pending', 'sent', 'failed'], true)) {
+            return null;
+        }
+
+        return $normalized;
     }
 }

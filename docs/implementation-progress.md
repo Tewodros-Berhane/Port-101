@@ -57,6 +57,8 @@
 - Superadmin operations reporting now supports saved filter presets and scheduled export delivery notifications.
 - Notification governance analytics implemented on the platform dashboard (escalation outcomes, digest open coverage, noisy-event detection).
 - Superadmin dashboard Sprint 1 modernization completed: chart-based delivery/governance visuals, consolidated export menu, and governance controls moved to dedicated `/platform/governance`.
+- Superadmin dashboard Sprint 2 completed: drill-down KPI links and tabbed operations detail view (companies/invites/admin actions) with shared filter state.
+- Superadmin dashboard Sprint 3 completed: per-admin dashboard personalization (saved layout order, widget visibility toggles, default operations tab, and default filter preset).
 
 ## Not Yet Implemented
 
@@ -81,6 +83,8 @@
 - Platform dashboard operations reporting now supports filtered CSV/JSON exports for admin actions and invite delivery trends.
 - Platform dashboard operations reporting now supports saved presets and scheduled export delivery policies.
 - Platform governance settings are now managed from `/platform/governance` (delivery schedule + notification governance controls), while the dashboard stays monitoring-focused.
+- Platform dashboard now supports invite-delivery drill-down filtering and applies user-level default filter presets when no explicit filter query is provided.
+- Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`).
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
