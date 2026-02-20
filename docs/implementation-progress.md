@@ -59,6 +59,7 @@
 - Superadmin dashboard Sprint 1 modernization completed: chart-based delivery/governance visuals, consolidated export menu, and governance controls moved to dedicated `/platform/governance`.
 - Superadmin dashboard Sprint 2 completed: drill-down KPI links and tabbed operations detail view (companies/invites/admin actions) with shared filter state.
 - Superadmin dashboard Sprint 3 completed: per-admin dashboard personalization (saved layout order, widget visibility toggles, default operations tab, and default filter preset).
+- Fixed platform dashboard operations tab state sync so invite/admin-action tabs correctly switch views when clicked.
 
 ## Not Yet Implemented
 

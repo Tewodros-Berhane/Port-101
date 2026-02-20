@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Settings2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 type OperationsTab = 'companies' | 'invites' | 'admin_actions';
 type WidgetId =
@@ -212,6 +213,13 @@ export default function PlatformDashboard({
         layout: dashboardPreferences.layout ?? 'balanced',
         hidden_widgets: dashboardPreferences.hidden_widgets ?? [],
     });
+    const selectedOperationsTab = operationsTab;
+
+    useEffect(() => {
+        if (form.data.operations_tab !== selectedOperationsTab) {
+            form.setData('operations_tab', selectedOperationsTab);
+        }
+    }, [form, form.data.operations_tab, selectedOperationsTab]);
 
     const trendRows = [...deliveryTrend].reverse();
     const activeLayout = preferencesForm.data.layout;
@@ -224,7 +232,7 @@ export default function PlatformDashboard({
             admin_start_date: form.data.admin_start_date,
             admin_end_date: form.data.admin_end_date,
             invite_delivery_status: form.data.invite_delivery_status,
-            operations_tab: form.data.operations_tab,
+            operations_tab: selectedOperationsTab,
             ...overrides,
         };
 
@@ -276,7 +284,7 @@ export default function PlatformDashboard({
             admin_start_date: preset.filters.admin_start_date ?? '',
             admin_end_date: preset.filters.admin_end_date ?? '',
             invite_delivery_status: preset.filters.invite_delivery_status ?? '',
-            operations_tab: form.data.operations_tab,
+            operations_tab: selectedOperationsTab,
         });
 
         return params.toString();
@@ -373,6 +381,10 @@ export default function PlatformDashboard({
                 className="mt-6 rounded-xl border p-4"
                 onSubmit={(event) => {
                     event.preventDefault();
+                    form.transform((data) => ({
+                        ...data,
+                        operations_tab: selectedOperationsTab,
+                    }));
                     form.get('/platform/dashboard', {
                         preserveState: true,
                         preserveScroll: true,
@@ -513,7 +525,7 @@ export default function PlatformDashboard({
                     <Button variant="ghost" asChild>
                         <Link
                             href={`/platform/dashboard?${new URLSearchParams({
-                                operations_tab: form.data.operations_tab,
+                                operations_tab: selectedOperationsTab,
                             }).toString()}`}
                         >
                             Reset
@@ -1075,7 +1087,7 @@ export default function PlatformDashboard({
                                     ] as OperationsTab[]
                                 ).map((tab) => {
                                     const active =
-                                        form.data.operations_tab === tab;
+                                        selectedOperationsTab === tab;
 
                                     return (
                                         <Button
@@ -1099,7 +1111,7 @@ export default function PlatformDashboard({
                             </div>
                         </div>
 
-                        {form.data.operations_tab === 'companies' && (
+                        {selectedOperationsTab === 'companies' && (
                             <div className="mt-4 overflow-x-auto rounded-xl border">
                                 <table className="w-full min-w-max text-sm">
                                     <thead className="bg-muted/60 text-left">
@@ -1154,7 +1166,7 @@ export default function PlatformDashboard({
                             </div>
                         )}
 
-                        {form.data.operations_tab === 'invites' && (
+                        {selectedOperationsTab === 'invites' && (
                             <div className="mt-4 overflow-x-auto rounded-xl border">
                                 <table className="w-full min-w-max text-sm">
                                     <thead className="bg-muted/60 text-left">
@@ -1220,7 +1232,7 @@ export default function PlatformDashboard({
                             </div>
                         )}
 
-                        {form.data.operations_tab === 'admin_actions' && (
+                        {selectedOperationsTab === 'admin_actions' && (
                             <div className="mt-4 overflow-x-auto rounded-xl border">
                                 <table className="w-full min-w-max text-sm">
                                     <thead className="bg-muted/60 text-left">
