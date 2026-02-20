@@ -22,6 +22,7 @@ use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersCont
 use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
+use App\Http\Controllers\Platform\ReportsController as PlatformReportsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -160,6 +161,14 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name('platform.')->group(function () {
     Route::get('dashboard', [PlatformDashboardController::class, 'index'])
         ->name('dashboard');
+    Route::get('reports', [PlatformReportsController::class, 'index'])
+        ->name('reports');
+    Route::get('reports/export/{reportKey}', [PlatformReportsController::class, 'export'])
+        ->name('reports.export');
+    Route::post('reports/report-presets', [PlatformDashboardController::class, 'storeReportPreset'])
+        ->name('reports.report-presets.store');
+    Route::delete('reports/report-presets/{presetId}', [PlatformDashboardController::class, 'destroyReportPreset'])
+        ->name('reports.report-presets.destroy');
     Route::get('governance', [PlatformDashboardController::class, 'governance'])
         ->name('governance');
     Route::get('dashboard/export/admin-actions', [PlatformDashboardController::class, 'exportAdminActions'])

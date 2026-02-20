@@ -8,6 +8,8 @@ use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\DashboardPreferencesService;
 use App\Core\Platform\OperationsReportingSettingsService;
+use App\Core\Platform\PlatformReportExportService;
+use App\Core\Platform\PlatformReportsService;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -16,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class DashboardController extends Controller
 {
@@ -232,6 +235,8 @@ class DashboardController extends Controller
         Request $request,
         OperationsReportingSettingsService $operationsSettings
     ): RedirectResponse {
+        $redirectToReports = $request->routeIs('platform.reports.report-presets.store');
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'trend_window' => ['nullable', 'integer', 'in:7,30,90'],
@@ -248,8 +253,12 @@ class DashboardController extends Controller
             actorId: $request->user()?->id
         );
 
+        $targetRoute = $redirectToReports
+            ? 'platform.reports'
+            : 'platform.dashboard';
+
         return redirect()
-            ->route('platform.dashboard')
+            ->route($targetRoute)
             ->with('success', 'Operations report preset saved.');
     }
 
@@ -258,13 +267,19 @@ class DashboardController extends Controller
         string $presetId,
         OperationsReportingSettingsService $operationsSettings
     ): RedirectResponse {
+        $redirectToReports = $request->routeIs('platform.reports.report-presets.destroy');
+
         $deleted = $operationsSettings->deletePreset(
             presetId: $presetId,
             actorId: $request->user()?->id
         );
 
+        $targetRoute = $redirectToReports
+            ? 'platform.reports'
+            : 'platform.dashboard';
+
         return redirect()
-            ->route('platform.dashboard')
+            ->route($targetRoute)
             ->with($deleted ? 'success' : 'warning', $deleted
                 ? 'Operations report preset deleted.'
                 : 'Preset was not found.');
@@ -338,7 +353,7 @@ class DashboardController extends Controller
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
             'preset_id' => ['nullable', 'string', 'max:80'],
-            'format' => ['required', 'string', 'in:csv,json'],
+            'format' => ['required', 'string', 'in:pdf,xlsx'],
             'frequency' => ['required', 'string', 'in:daily,weekly'],
             'day_of_week' => ['required', 'integer', 'min:1', 'max:7'],
             'time' => ['required', 'date_format:H:i'],
@@ -375,125 +390,72 @@ class DashboardController extends Controller
             ->with('success', 'Operations report delivery schedule updated.');
     }
 
-    public function exportAdminActions(Request $request)
-    {
+    public function exportAdminActions(
+        Request $request,
+        OperationsReportingSettingsService $operationsSettings,
+        DashboardPreferencesService $dashboardPreferences,
+        PlatformReportsService $reportsService,
+        PlatformReportExportService $exportService
+    ): HttpResponse {
         $validatedFilters = $this->validatedOperationsFilters($request);
-        $adminFilters = $this->normalizedAdminFilters($validatedFilters);
-        $format = $this->normalizedExportFormat((string) $request->input('format', 'csv'));
 
-        $adminActionsQuery = $this->baseAdminActionsQuery();
-        $this->applyAdminFilters($adminActionsQuery, $adminFilters);
-
-        $rows = $adminActionsQuery
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(function (AuditLog $log) {
-                return [
-                    'created_at' => $log->created_at?->toIso8601String(),
-                    'action' => $log->action,
-                    'record_type' => class_basename($log->auditable_type),
-                    'record_id' => $log->auditable_id,
-                    'company' => $log->company?->name ?? 'Platform',
-                    'actor' => $log->actor?->name ?? 'System',
-                ];
-            })
-            ->values();
-
-        $timestamp = now()->format('Ymd-His');
-
-        if ($format === 'json') {
-            $filename = "platform-admin-actions-{$timestamp}.json";
-
-            return response()->json($rows)->withHeaders([
-                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            ]);
+        if (! $this->hasAnyOperationsFilterInput($request)) {
+            $preferences = $dashboardPreferences->get($request->user()?->id);
+            $validatedFilters = [
+                ...$validatedFilters,
+                ...$operationsSettings->filtersForPreset(
+                    $preferences['default_preset_id'] ?? null
+                ),
+            ];
         }
 
-        $filename = "platform-admin-actions-{$timestamp}.csv";
+        $filters = $operationsSettings->normalizeFilters($validatedFilters);
+        $report = $reportsService->buildReport(
+            PlatformReportsService::REPORT_ADMIN_ACTIONS,
+            $filters
+        );
 
-        return response()->streamDownload(function () use ($rows) {
-            $handle = fopen('php://output', 'w');
+        abort_if(! $report, 404);
 
-            fputcsv($handle, [
-                'Created At',
-                'Action',
-                'Record Type',
-                'Record ID',
-                'Company',
-                'Actor',
-            ]);
+        $format = $exportService->normalizeFormat(
+            (string) $request->input('format', 'pdf')
+        );
 
-            foreach ($rows as $row) {
-                fputcsv($handle, [
-                    $row['created_at'] ?? '',
-                    $row['action'] ?? '',
-                    $row['record_type'] ?? '',
-                    $row['record_id'] ?? '',
-                    $row['company'] ?? '',
-                    $row['actor'] ?? '',
-                ]);
-            }
-
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv']);
+        return $exportService->export($report, $format);
     }
 
-    public function exportDeliveryTrends(Request $request)
-    {
+    public function exportDeliveryTrends(
+        Request $request,
+        OperationsReportingSettingsService $operationsSettings,
+        DashboardPreferencesService $dashboardPreferences,
+        PlatformReportsService $reportsService,
+        PlatformReportExportService $exportService
+    ): HttpResponse {
         $validatedFilters = $this->validatedOperationsFilters($request);
-        $trendWindow = (int) ($validatedFilters['trend_window'] ?? 30);
-        $format = $this->normalizedExportFormat((string) $request->input('format', 'csv'));
 
-        $today = CarbonImmutable::now()->startOfDay();
-        $trendStart = $today->subDays($trendWindow - 1);
-        $rows = $this->buildDeliveryTrend($trendStart, $today);
-        $summary = $this->deliverySummary($rows, $trendWindow);
-
-        $timestamp = now()->format('Ymd-His');
-
-        if ($format === 'json') {
-            $filename = "platform-delivery-trends-{$timestamp}.json";
-
-            return response()->json([
-                'summary' => $summary,
-                'rows' => $rows,
-            ])->withHeaders([
-                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            ]);
+        if (! $this->hasAnyOperationsFilterInput($request)) {
+            $preferences = $dashboardPreferences->get($request->user()?->id);
+            $validatedFilters = [
+                ...$validatedFilters,
+                ...$operationsSettings->filtersForPreset(
+                    $preferences['default_preset_id'] ?? null
+                ),
+            ];
         }
 
-        $filename = "platform-delivery-trends-{$timestamp}.csv";
+        $filters = $operationsSettings->normalizeFilters($validatedFilters);
+        $report = $reportsService->buildReport(
+            PlatformReportsService::REPORT_DELIVERY_TRENDS,
+            $filters
+        );
 
-        return response()->streamDownload(function () use ($rows, $summary) {
-            $handle = fopen('php://output', 'w');
+        abort_if(! $report, 404);
 
-            fputcsv($handle, [
-                'Date',
-                'Sent',
-                'Failed',
-                'Pending',
-            ]);
+        $format = $exportService->normalizeFormat(
+            (string) $request->input('format', 'pdf')
+        );
 
-            foreach ($rows as $row) {
-                fputcsv($handle, [
-                    $row['date'] ?? '',
-                    $row['sent'] ?? 0,
-                    $row['failed'] ?? 0,
-                    $row['pending'] ?? 0,
-                ]);
-            }
-
-            fputcsv($handle, []);
-            fputcsv($handle, ['Summary Metric', 'Value']);
-            fputcsv($handle, ['Window days', $summary['window_days']]);
-            fputcsv($handle, ['Sent', $summary['sent']]);
-            fputcsv($handle, ['Failed', $summary['failed']]);
-            fputcsv($handle, ['Pending', $summary['pending']]);
-            fputcsv($handle, ['Total', $summary['total']]);
-            fputcsv($handle, ['Failure rate', $summary['failure_rate'].'%']);
-
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv']);
+        return $exportService->export($report, $format);
     }
 
     private function baseAdminActionsQuery(): Builder
@@ -691,14 +653,4 @@ class DashboardController extends Controller
         return $normalized;
     }
 
-    private function normalizedExportFormat(string $format): string
-    {
-        $normalized = strtolower(trim($format));
-
-        if (! in_array($normalized, ['csv', 'json'], true)) {
-            return 'csv';
-        }
-
-        return $normalized;
-    }
 }

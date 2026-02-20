@@ -173,6 +173,11 @@ const platformAdminNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Reports',
+        href: '/platform/reports',
+        icon: BarChart3,
+    },
+    {
         title: 'Governance',
         href: '/platform/governance',
         icon: Settings,

@@ -1,10 +1,7 @@
 import DeliveryStatusDonut from '@/components/platform/dashboard/delivery-status-donut';
 import DeliveryTrendChart from '@/components/platform/dashboard/delivery-trend-chart';
 import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
-import OperationsExportMenu from '@/components/platform/dashboard/operations-export-menu';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Settings2 } from 'lucide-react';
@@ -74,13 +71,6 @@ type Props = {
         invite_delivery_status?: 'pending' | 'sent' | 'failed' | null;
     };
     operationsTab: OperationsTab;
-    adminFilterOptions: {
-        actions: string[];
-        actors: {
-            id: string;
-            name: string;
-        }[];
-    };
     notificationGovernanceAnalytics: {
         window_days: number;
         escalations: {
@@ -175,7 +165,6 @@ export default function PlatformDashboard({
     deliveryTrend,
     operationsFilters,
     operationsTab,
-    adminFilterOptions,
     notificationGovernanceAnalytics,
     operationsReportPresets,
     dashboardPreferences,
@@ -190,15 +179,6 @@ export default function PlatformDashboard({
         operations_tab: operationsTab,
     });
     const deletePresetForm = useForm({});
-    const presetForm = useForm({
-        name: '',
-        trend_window: String(operationsFilters.trend_window ?? 30),
-        admin_action: operationsFilters.admin_action ?? '',
-        admin_actor_id: operationsFilters.admin_actor_id ?? '',
-        admin_start_date: operationsFilters.admin_start_date ?? '',
-        admin_end_date: operationsFilters.admin_end_date ?? '',
-        invite_delivery_status: operationsFilters.invite_delivery_status ?? '',
-    });
     const [selectedOperationsTab, setSelectedOperationsTab] =
         useState<OperationsTab>(operationsTab);
 
@@ -246,11 +226,6 @@ export default function PlatformDashboard({
         ).toString();
     };
 
-    const exportQuery = buildQuery();
-    const exportAdminActionsCsvUrl = `/platform/dashboard/export/admin-actions?${exportQuery}&format=csv`;
-    const exportAdminActionsJsonUrl = `/platform/dashboard/export/admin-actions?${exportQuery}&format=json`;
-    const exportDeliveryTrendsCsvUrl = `/platform/dashboard/export/delivery-trends?${exportQuery}&format=csv`;
-    const exportDeliveryTrendsJsonUrl = `/platform/dashboard/export/delivery-trends?${exportQuery}&format=json`;
     const tabHref = (tab: OperationsTab) =>
         `/platform/dashboard?${buildQuery({ operations_tab: tab })}`;
 
@@ -359,209 +334,22 @@ export default function PlatformDashboard({
                 </Link>
             </div>
 
-            <form
-                className="mt-6 rounded-xl border p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    form.transform((data) => ({
-                        ...data,
-                        operations_tab: selectedOperationsTab,
-                    }));
-                    form.get('/platform/dashboard', {
-                        preserveState: true,
-                        preserveScroll: true,
-                    });
-                }}
-            >
-                <div className="flex items-center justify-between gap-4">
+            <div className="mt-6 rounded-xl border p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-sm font-semibold">
-                            Operations reporting filters
+                            Reporting and exports
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            Shared filter state for charts, exports, and
-                            operations tabs.
+                            Filters, presets, and PDF/Excel downloads are now
+                            managed in the dedicated Reports page.
                         </p>
                     </div>
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="trend_window">Trend window</Label>
-                        <select
-                            id="trend_window"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={form.data.trend_window}
-                            onChange={(event) =>
-                                form.setData('trend_window', event.target.value)
-                            }
-                        >
-                            <option value="7">Last 7 days</option>
-                            <option value="30">Last 30 days</option>
-                            <option value="90">Last 90 days</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="invite_delivery_status">
-                            Invite delivery
-                        </Label>
-                        <select
-                            id="invite_delivery_status"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={form.data.invite_delivery_status}
-                            onChange={(event) =>
-                                form.setData(
-                                    'invite_delivery_status',
-                                    event.target.value as
-                                        | ''
-                                        | 'pending'
-                                        | 'sent'
-                                        | 'failed',
-                                )
-                            }
-                        >
-                            <option value="">All delivery states</option>
-                            <option value="pending">Pending</option>
-                            <option value="sent">Sent</option>
-                            <option value="failed">Failed</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="admin_action">Admin action</Label>
-                        <select
-                            id="admin_action"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={form.data.admin_action}
-                            onChange={(event) =>
-                                form.setData('admin_action', event.target.value)
-                            }
-                        >
-                            <option value="">All actions</option>
-                            {adminFilterOptions.actions.map((action) => (
-                                <option key={action} value={action}>
-                                    {formatAction(action)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="admin_actor_id">Admin actor</Label>
-                        <select
-                            id="admin_actor_id"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={form.data.admin_actor_id}
-                            onChange={(event) =>
-                                form.setData(
-                                    'admin_actor_id',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="">All platform admins</option>
-                            {adminFilterOptions.actors.map((actor) => (
-                                <option key={actor.id} value={actor.id}>
-                                    {actor.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="admin_start_date">Start date</Label>
-                        <Input
-                            id="admin_start_date"
-                            type="date"
-                            value={form.data.admin_start_date}
-                            onChange={(event) =>
-                                form.setData(
-                                    'admin_start_date',
-                                    event.target.value,
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="admin_end_date">End date</Label>
-                        <Input
-                            id="admin_end_date"
-                            type="date"
-                            value={form.data.admin_end_date}
-                            onChange={(event) =>
-                                form.setData(
-                                    'admin_end_date',
-                                    event.target.value,
-                                )
-                            }
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Button type="submit" disabled={form.processing}>
-                        Apply filters
+                    <Button variant="outline" asChild>
+                        <Link href="/platform/reports">Open reports center</Link>
                     </Button>
-                    <Button variant="ghost" asChild>
-                        <Link
-                            href={`/platform/dashboard?${new URLSearchParams({
-                                operations_tab: selectedOperationsTab,
-                            }).toString()}`}
-                        >
-                            Reset
-                        </Link>
-                    </Button>
-                    <div className="flex min-w-[260px] flex-1 items-center gap-2">
-                        <Input
-                            value={presetForm.data.name}
-                            onChange={(event) =>
-                                presetForm.setData('name', event.target.value)
-                            }
-                            placeholder="Preset name"
-                        />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={
-                                presetForm.processing ||
-                                presetForm.data.name.trim() === ''
-                            }
-                            onClick={() => {
-                                presetForm.transform((data) => ({
-                                    ...data,
-                                    trend_window: form.data.trend_window,
-                                    admin_action: form.data.admin_action,
-                                    admin_actor_id: form.data.admin_actor_id,
-                                    admin_start_date:
-                                        form.data.admin_start_date,
-                                    admin_end_date: form.data.admin_end_date,
-                                    invite_delivery_status:
-                                        form.data.invite_delivery_status,
-                                }));
-
-                                presetForm.post(
-                                    '/platform/dashboard/report-presets',
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: () =>
-                                            presetForm.reset('name'),
-                                    },
-                                );
-                            }}
-                        >
-                            Save preset
-                        </Button>
-                    </div>
-                    <OperationsExportMenu
-                        adminActionsCsvUrl={exportAdminActionsCsvUrl}
-                        adminActionsJsonUrl={exportAdminActionsJsonUrl}
-                        deliveryTrendsCsvUrl={exportDeliveryTrendsCsvUrl}
-                        deliveryTrendsJsonUrl={exportDeliveryTrendsJsonUrl}
-                    />
                 </div>
-            </form>
+            </div>
 
             <div className="mt-6 flex flex-col gap-6">
                 {!hiddenWidgets.has('delivery_performance') && (

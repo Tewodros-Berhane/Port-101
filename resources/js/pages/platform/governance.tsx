@@ -56,7 +56,7 @@ type Props = {
     operationsReportDeliverySchedule: {
         enabled: boolean;
         preset_id?: string | null;
-        format: 'csv' | 'json';
+        format: 'pdf' | 'xlsx';
         frequency: 'daily' | 'weekly';
         day_of_week: number;
         time: string;
@@ -98,7 +98,7 @@ export default function PlatformGovernance({
     const deliveryScheduleForm = useForm({
         enabled: operationsReportDeliverySchedule.enabled ? '1' : '0',
         preset_id: operationsReportDeliverySchedule.preset_id ?? '',
-        format: operationsReportDeliverySchedule.format ?? 'csv',
+        format: operationsReportDeliverySchedule.format ?? 'xlsx',
         frequency: operationsReportDeliverySchedule.frequency ?? 'weekly',
         day_of_week: operationsReportDeliverySchedule.day_of_week ?? 1,
         time: operationsReportDeliverySchedule.time ?? '08:00',
@@ -238,12 +238,12 @@ export default function PlatformGovernance({
                             onChange={(event) =>
                                 deliveryScheduleForm.setData(
                                     'format',
-                                    event.target.value as 'csv' | 'json',
+                                    event.target.value as 'pdf' | 'xlsx',
                                 )
                             }
                         >
-                            <option value="csv">CSV</option>
-                            <option value="json">JSON</option>
+                            <option value="pdf">PDF</option>
+                            <option value="xlsx">Excel (.xlsx)</option>
                         </select>
                     </div>
 
@@ -341,7 +341,7 @@ export default function PlatformGovernance({
                         Save delivery schedule
                     </Button>
                     <Button variant="ghost" asChild>
-                        <Link href="/platform/dashboard">Manage presets</Link>
+                        <Link href="/platform/reports">Manage presets</Link>
                     </Button>
                 </div>
             </form>

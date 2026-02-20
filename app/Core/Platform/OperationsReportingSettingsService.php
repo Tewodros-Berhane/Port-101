@@ -145,9 +145,9 @@ class OperationsReportingSettingsService
         $presets = $this->getPresets();
         $presetIds = collect($presets)->pluck('id')->all();
 
-        $format = strtolower(trim((string) ($schedule['format'] ?? 'csv')));
-        if (! in_array($format, ['csv', 'json'], true)) {
-            $format = 'csv';
+        $format = strtolower(trim((string) ($schedule['format'] ?? 'xlsx')));
+        if (! in_array($format, ['pdf', 'xlsx'], true)) {
+            $format = 'xlsx';
         }
 
         $frequency = strtolower(trim((string) ($schedule['frequency'] ?? 'weekly')));
@@ -191,8 +191,8 @@ class OperationsReportingSettingsService
 
         $enabled = (bool) ($data['enabled'] ?? false);
         $format = strtolower(trim((string) ($data['format'] ?? $current['format'])));
-        if (! in_array($format, ['csv', 'json'], true)) {
-            $format = 'csv';
+        if (! in_array($format, ['pdf', 'xlsx'], true)) {
+            $format = 'xlsx';
         }
 
         $frequency = strtolower(trim((string) ($data['frequency'] ?? $current['frequency'])));

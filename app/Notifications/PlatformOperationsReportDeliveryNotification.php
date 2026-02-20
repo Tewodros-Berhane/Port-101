@@ -42,7 +42,7 @@ class PlatformOperationsReportDeliveryNotification extends Notification
         return [
             'title' => 'Scheduled operations report delivered',
             'message' => "Preset \"{$this->presetName}\" ({$this->periodLabel}) is ready in {$formatLabel}. Admin actions: {$adminActions}, invite deliveries: {$invites}.",
-            'url' => '/platform/dashboard',
+            'url' => '/platform/reports',
             'severity' => 'low',
             'meta' => [
                 'preset_name' => $this->presetName,
@@ -54,4 +54,3 @@ class PlatformOperationsReportDeliveryNotification extends Notification
         ];
     }
 }
-

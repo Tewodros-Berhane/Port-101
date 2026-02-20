@@ -63,6 +63,10 @@
 - Operations detail tab clicks now switch client-side without Inertia reload when data is already present.
 - Cleaned status-mix donut presentation to remove overlapping chart text and use a single readable legend/metric block.
 - Moved superadmin dashboard personalization controls out of `/platform/dashboard` into settings at `/settings/dashboard-personalization` to reduce dashboard clutter.
+- Added dedicated superadmin reports center at `/platform/reports` with centralized operations filters and report presets.
+- Expanded platform report catalog coverage (admin actions, delivery trends, companies, platform admins, platform invites, notification events, performance snapshot).
+- Switched platform report exports from CSV/JSON to PDF/XLSX only, including branded PDF templates and Excel sheet output.
+- Removed operations filter/export controls from the platform dashboard and linked dashboard reporting actions to the new reports center.
 
 ## Not Yet Implemented
 
@@ -84,8 +88,9 @@
 - Invite acceptance and invite-driven user provisioning (`/invites/{token}`).
 - Multi-company context resolution, company switching, and inactive-company safeguards.
 - Platform superadmin area: dashboard, companies (list/create/show/update), platform admins, platform invites.
-- Platform dashboard operations reporting now supports filtered CSV/JSON exports for admin actions and invite delivery trends.
+- Platform dashboard operations reporting now supports filtered PDF/XLSX exports for admin actions and invite delivery trends.
 - Platform dashboard operations reporting now supports saved presets and scheduled export delivery policies.
+- Platform reports center now centralizes operations filters and exports in PDF/XLSX for core platform datasets.
 - Platform governance settings are now managed from `/platform/governance` (delivery schedule + notification governance controls), while the dashboard stays monitoring-focused.
 - Platform dashboard now supports invite-delivery drill-down filtering and applies user-level default filter presets when no explicit filter query is provided.
 - Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`) and are managed from `/settings/dashboard-personalization`.
@@ -103,6 +108,7 @@
 - Audit retention command now prunes with company-specific settings fallback and is scheduled daily.
 - Scheduled platform digest dispatch is available via `platform:notifications:send-digest` and wired into the scheduler.
 - Scheduled operations report delivery is available via `platform:operations-reports:deliver-scheduled` and wired into the scheduler.
+- Scheduled operations report delivery now points to reports-center export links and PDF/XLSX formats.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
 
 ### Present but placeholder-only

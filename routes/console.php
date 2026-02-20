@@ -339,11 +339,11 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
         return self::SUCCESS;
     }
 
-    $format = (string) ($schedule['format'] ?? 'csv');
+    $format = (string) ($schedule['format'] ?? 'xlsx');
     $query = $settings->filtersToQuery($filters);
     $links = [
-        'admin_actions' => "/platform/dashboard/export/admin-actions?{$query}&format={$format}",
-        'delivery_trends' => "/platform/dashboard/export/delivery-trends?{$query}&format={$format}",
+        'admin_actions' => "/platform/reports/export/admin-actions?{$query}&format={$format}",
+        'delivery_trends' => "/platform/reports/export/invite-delivery-trends?{$query}&format={$format}",
     ];
 
     $presetId = $schedule['preset_id'] ?? null;

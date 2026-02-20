@@ -74,16 +74,13 @@ test('superadmin can export filtered admin actions report', function () {
         ->get(route('platform.dashboard.export.admin-actions', [
             'admin_action' => 'updated',
             'admin_actor_id' => $actor->id,
-            'format' => 'csv',
+            'format' => 'pdf',
         ]));
 
-    $response->assertOk();
+    $response->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 
-    $content = $response->streamedContent();
-
-    expect($content)->toContain('"Created At",Action,"Record Type","Record ID",Company,Actor');
-    expect($content)->toContain(',updated,');
-    expect($content)->not->toContain(',created,');
+    expect(substr((string) $response->getContent(), 0, 4))->toBe('%PDF');
 });
 
 test('superadmin can update notification governance and severity rules are enforced', function () {
@@ -158,21 +155,14 @@ test('superadmin can export delivery trend report', function () {
     $response = actingAs($superAdmin)
         ->get(route('platform.dashboard.export.delivery-trends', [
             'trend_window' => 30,
-            'format' => 'json',
+            'format' => 'xlsx',
         ]));
 
     $response->assertOk()
-        ->assertJsonStructure([
-            'summary' => [
-                'window_days',
-                'sent',
-                'failed',
-                'pending',
-                'total',
-                'failure_rate',
-            ],
-            'rows',
-        ]);
+        ->assertHeader(
+            'content-type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
 });
 
 test('superadmin can save and delete operations report presets and update schedule', function () {
@@ -201,7 +191,7 @@ test('superadmin can save and delete operations report presets and update schedu
         ->put(route('platform.dashboard.report-delivery-schedule.update'), [
             'enabled' => true,
             'preset_id' => $presetId,
-            'format' => 'csv',
+            'format' => 'xlsx',
             'frequency' => 'weekly',
             'day_of_week' => 2,
             'time' => '08:30',
@@ -272,7 +262,7 @@ test('scheduled operations report delivery command sends notifications', functio
     $settings->setDeliverySchedule([
         'enabled' => true,
         'preset_id' => $preset['id'],
-        'format' => 'csv',
+        'format' => 'xlsx',
         'frequency' => 'weekly',
         'day_of_week' => 1,
         'time' => '08:00',
@@ -351,6 +341,20 @@ test('platform governance page returns governance settings payload', function ()
             ->has('analyticsFilters.trend_window')
             ->has('notificationGovernance')
             ->has('operationsReportDeliverySchedule')
+            ->has('operationsReportPresets')
+        );
+});
+
+test('platform reports page returns report catalog payload', function () {
+    $superAdmin = createSuperAdmin();
+
+    actingAs($superAdmin)
+        ->get(route('platform.reports'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('platform/reports')
+            ->has('reportCatalog')
+            ->has('adminFilterOptions')
             ->has('operationsReportPresets')
         );
 });
