@@ -1,8 +1,13 @@
+import DeliveryStatusDonut from '@/components/platform/dashboard/delivery-status-donut';
+import DeliveryTrendChart from '@/components/platform/dashboard/delivery-trend-chart';
+import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
+import OperationsExportMenu from '@/components/platform/dashboard/operations-export-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Settings2 } from 'lucide-react';
 
 type Props = {
     stats: {
@@ -66,17 +71,6 @@ type Props = {
             name: string;
         }[];
     };
-    notificationGovernance: {
-        min_severity: 'low' | 'medium' | 'high' | 'critical';
-        escalation_enabled: boolean;
-        escalation_severity: 'low' | 'medium' | 'high' | 'critical';
-        escalation_delay_minutes: number;
-        digest_enabled: boolean;
-        digest_frequency: 'daily' | 'weekly';
-        digest_day_of_week: number;
-        digest_time: string;
-        digest_timezone: string;
-    };
     notificationGovernanceAnalytics: {
         window_days: number;
         escalations: {
@@ -110,26 +104,18 @@ type Props = {
         };
         created_at?: string | null;
     }[];
-    operationsReportDeliverySchedule: {
-        enabled: boolean;
-        preset_id?: string | null;
-        format: 'csv' | 'json';
-        frequency: 'daily' | 'weekly';
-        day_of_week: number;
-        time: string;
-        timezone: string;
-        last_sent_at?: string | null;
-    };
 };
 
 const formatDate = (value?: string | null) =>
-    value ? new Date(value).toLocaleString() : '—';
+    value ? new Date(value).toLocaleString() : '-';
 
 const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
 const formatAction = (action: string) =>
     action.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatPercent = (value: number) => `${value}%`;
 
 export default function PlatformDashboard({
     stats,
@@ -140,10 +126,8 @@ export default function PlatformDashboard({
     deliveryTrend,
     operationsFilters,
     adminFilterOptions,
-    notificationGovernance,
     notificationGovernanceAnalytics,
     operationsReportPresets,
-    operationsReportDeliverySchedule,
 }: Props) {
     const form = useForm({
         trend_window: String(operationsFilters.trend_window ?? 30),
@@ -151,18 +135,6 @@ export default function PlatformDashboard({
         admin_actor_id: operationsFilters.admin_actor_id ?? '',
         admin_start_date: operationsFilters.admin_start_date ?? '',
         admin_end_date: operationsFilters.admin_end_date ?? '',
-    });
-    const governanceForm = useForm({
-        min_severity: notificationGovernance.min_severity ?? 'low',
-        escalation_enabled: notificationGovernance.escalation_enabled ? '1' : '0',
-        escalation_severity: notificationGovernance.escalation_severity ?? 'high',
-        escalation_delay_minutes:
-            notificationGovernance.escalation_delay_minutes ?? 30,
-        digest_enabled: notificationGovernance.digest_enabled ? '1' : '0',
-        digest_frequency: notificationGovernance.digest_frequency ?? 'daily',
-        digest_day_of_week: notificationGovernance.digest_day_of_week ?? 1,
-        digest_time: notificationGovernance.digest_time ?? '08:00',
-        digest_timezone: notificationGovernance.digest_timezone ?? 'UTC',
     });
     const deletePresetForm = useForm({});
     const presetForm = useForm({
@@ -173,17 +145,8 @@ export default function PlatformDashboard({
         admin_start_date: operationsFilters.admin_start_date ?? '',
         admin_end_date: operationsFilters.admin_end_date ?? '',
     });
-    const deliveryScheduleForm = useForm({
-        enabled: operationsReportDeliverySchedule.enabled ? '1' : '0',
-        preset_id: operationsReportDeliverySchedule.preset_id ?? '',
-        format: operationsReportDeliverySchedule.format ?? 'csv',
-        frequency: operationsReportDeliverySchedule.frequency ?? 'weekly',
-        day_of_week: operationsReportDeliverySchedule.day_of_week ?? 1,
-        time: operationsReportDeliverySchedule.time ?? '08:00',
-        timezone: operationsReportDeliverySchedule.timezone ?? 'UTC',
-    });
 
-    const trendRows = [...deliveryTrend].reverse().slice(0, 14);
+    const trendRows = [...deliveryTrend].reverse();
     const exportParams = new URLSearchParams({
         trend_window: form.data.trend_window,
         admin_action: form.data.admin_action,
@@ -192,14 +155,10 @@ export default function PlatformDashboard({
         admin_end_date: form.data.admin_end_date,
     });
     const exportQuery = exportParams.toString();
-    const exportAdminActionsCsvUrl =
-        `/platform/dashboard/export/admin-actions?${exportQuery}&format=csv`;
-    const exportAdminActionsJsonUrl =
-        `/platform/dashboard/export/admin-actions?${exportQuery}&format=json`;
-    const exportDeliveryTrendsCsvUrl =
-        `/platform/dashboard/export/delivery-trends?${exportQuery}&format=csv`;
-    const exportDeliveryTrendsJsonUrl =
-        `/platform/dashboard/export/delivery-trends?${exportQuery}&format=json`;
+    const exportAdminActionsCsvUrl = `/platform/dashboard/export/admin-actions?${exportQuery}&format=csv`;
+    const exportAdminActionsJsonUrl = `/platform/dashboard/export/admin-actions?${exportQuery}&format=json`;
+    const exportDeliveryTrendsCsvUrl = `/platform/dashboard/export/delivery-trends?${exportQuery}&format=csv`;
+    const exportDeliveryTrendsJsonUrl = `/platform/dashboard/export/delivery-trends?${exportQuery}&format=json`;
 
     const presetQuery = (preset: Props['operationsReportPresets'][number]) => {
         const params = new URLSearchParams({
@@ -219,13 +178,65 @@ export default function PlatformDashboard({
         >
             <Head title="Platform Dashboard" />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-semibold">
                         Platform dashboard
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Overview of platform activity and recent companies.
+                        Monitor platform health, delivery quality, and admin
+                        activity.
+                    </p>
+                </div>
+                <Button variant="outline" asChild>
+                    <Link href="/platform/governance">
+                        <Settings2 className="size-4" />
+                        Governance settings
+                    </Link>
+                </Button>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border bg-card p-4">
+                    <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                        Companies
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">
+                        {stats.companies}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        Active: {stats.active_companies}
+                    </p>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                    <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                        Users
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">{stats.users}</p>
+                    <p className="text-xs text-muted-foreground">
+                        Platform and company members
+                    </p>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                    <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                        Audit logs
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">
+                        {stats.audit_logs}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        Total tracked platform events
+                    </p>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                    <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                        Invite failure rate
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">
+                        {formatPercent(deliverySummary.failure_rate)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        Last {deliverySummary.window_days} days
                     </p>
                 </div>
             </div>
@@ -246,8 +257,8 @@ export default function PlatformDashboard({
                             Operations reporting filters
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            Filter admin actions and adjust invite delivery
-                            trend windows.
+                            Filter admin actions and refresh delivery reporting
+                            in one place.
                         </p>
                     </div>
                 </div>
@@ -363,52 +374,242 @@ export default function PlatformDashboard({
                                 presetForm.processing ||
                                 presetForm.data.name.trim() === ''
                             }
-                            onClick={() =>
-                                {
-                                    presetForm.transform((data) => ({
-                                        ...data,
-                                        trend_window: form.data.trend_window,
-                                        admin_action: form.data.admin_action,
-                                        admin_actor_id: form.data.admin_actor_id,
-                                        admin_start_date: form.data.admin_start_date,
-                                        admin_end_date: form.data.admin_end_date,
-                                    }));
+                            onClick={() => {
+                                presetForm.transform((data) => ({
+                                    ...data,
+                                    trend_window: form.data.trend_window,
+                                    admin_action: form.data.admin_action,
+                                    admin_actor_id: form.data.admin_actor_id,
+                                    admin_start_date:
+                                        form.data.admin_start_date,
+                                    admin_end_date: form.data.admin_end_date,
+                                }));
 
-                                    presetForm.post(
-                                        '/platform/dashboard/report-presets',
-                                        {
+                                presetForm.post(
+                                    '/platform/dashboard/report-presets',
+                                    {
                                         preserveScroll: true,
-                                        onSuccess: () => presetForm.reset('name'),
+                                        onSuccess: () =>
+                                            presetForm.reset('name'),
                                     },
-                                    );
-                                }
-                            }
+                                );
+                            }}
                         >
                             Save preset
                         </Button>
                     </div>
-                    <Button variant="outline" asChild>
-                        <a href={exportAdminActionsCsvUrl}>
-                            Export admin actions CSV
-                        </a>
-                    </Button>
-                    <Button variant="outline" asChild>
-                        <a href={exportAdminActionsJsonUrl}>
-                            Export admin actions JSON
-                        </a>
-                    </Button>
-                    <Button variant="outline" asChild>
-                        <a href={exportDeliveryTrendsCsvUrl}>
-                            Export delivery trends CSV
-                        </a>
-                    </Button>
-                    <Button variant="outline" asChild>
-                        <a href={exportDeliveryTrendsJsonUrl}>
-                            Export delivery trends JSON
-                        </a>
-                    </Button>
+                    <OperationsExportMenu
+                        adminActionsCsvUrl={exportAdminActionsCsvUrl}
+                        adminActionsJsonUrl={exportAdminActionsJsonUrl}
+                        deliveryTrendsCsvUrl={exportDeliveryTrendsCsvUrl}
+                        deliveryTrendsJsonUrl={exportDeliveryTrendsJsonUrl}
+                    />
                 </div>
             </form>
+
+            <div className="mt-6 rounded-xl border p-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Delivery performance
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Invite delivery outcomes for the last{' '}
+                            {deliverySummary.window_days} days.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                    <div className="rounded-xl border p-4 xl:col-span-2">
+                        <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                            Delivery trend
+                        </p>
+                        <div className="mt-3">
+                            <DeliveryTrendChart rows={trendRows} />
+                        </div>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                        <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                            Status mix
+                        </p>
+                        <div className="mt-3">
+                            <DeliveryStatusDonut
+                                sent={deliverySummary.sent}
+                                failed={deliverySummary.failed}
+                                pending={deliverySummary.pending}
+                            />
+                        </div>
+                        <div className="mt-4 space-y-2 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">
+                                    Sent
+                                </span>
+                                <span className="font-medium">
+                                    {deliverySummary.sent}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">
+                                    Failed
+                                </span>
+                                <span className="font-medium">
+                                    {deliverySummary.failed}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">
+                                    Pending
+                                </span>
+                                <span className="font-medium">
+                                    {deliverySummary.pending}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">
+                                    Total
+                                </span>
+                                <span className="font-medium">
+                                    {deliverySummary.total}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border p-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Governance analytics snapshot
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Escalation outcomes and digest coverage for the
+                            current reporting window (
+                            {notificationGovernanceAnalytics.window_days} days).
+                        </p>
+                    </div>
+                    <Button variant="outline" asChild>
+                        <Link href="/platform/governance">
+                            Open governance controls
+                        </Link>
+                    </Button>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Escalations
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {
+                                notificationGovernanceAnalytics.escalations
+                                    .triggered
+                            }
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Ack:{' '}
+                            {
+                                notificationGovernanceAnalytics.escalations
+                                    .acknowledged
+                            }{' '}
+                            | Pending:{' '}
+                            {
+                                notificationGovernanceAnalytics.escalations
+                                    .pending
+                            }{' '}
+                            | Ack rate:{' '}
+                            {formatPercent(
+                                notificationGovernanceAnalytics.escalations
+                                    .acknowledgement_rate,
+                            )}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Digest coverage
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {
+                                notificationGovernanceAnalytics.digest_coverage
+                                    .sent
+                            }
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Opened:{' '}
+                            {
+                                notificationGovernanceAnalytics.digest_coverage
+                                    .opened
+                            }{' '}
+                            | Open rate:{' '}
+                            {formatPercent(
+                                notificationGovernanceAnalytics.digest_coverage
+                                    .open_rate,
+                            )}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Notifications summarized
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {
+                                notificationGovernanceAnalytics.digest_coverage
+                                    .total_notifications_summarized
+                            }
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Included in digest payloads.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                    <div className="rounded-xl border p-4 xl:col-span-2">
+                        <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                            Top noisy events
+                        </p>
+                        <div className="mt-3">
+                            <NoisyEventsChart
+                                rows={
+                                    notificationGovernanceAnalytics.noisy_events
+                                }
+                            />
+                        </div>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                        <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                            Event details
+                        </p>
+                        <div className="mt-3 space-y-3">
+                            {notificationGovernanceAnalytics.noisy_events
+                                .slice(0, 5)
+                                .map((event) => (
+                                    <div
+                                        className="rounded-lg border p-3"
+                                        key={event.event}
+                                    >
+                                        <p className="line-clamp-2 text-sm font-medium">
+                                            {event.event}
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Count: {event.count} | Unread:{' '}
+                                            {event.unread} | High/Critical:{' '}
+                                            {event.high_or_critical}
+                                        </p>
+                                    </div>
+                                ))}
+                            {notificationGovernanceAnalytics.noisy_events
+                                .length === 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    No noisy events detected.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="mt-6 rounded-xl border p-4">
                 <div className="flex items-center justify-between gap-4">
@@ -417,8 +618,7 @@ export default function PlatformDashboard({
                             Saved operations presets
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            Reapply common filter combinations and use them for
-                            scheduled deliveries.
+                            Reapply common filter combinations.
                         </p>
                     </div>
                 </div>
@@ -474,7 +674,7 @@ export default function PlatformDashboard({
                                         {formatDate(preset.created_at)}
                                     </td>
                                     <td className="px-3 py-2 text-right">
-                                        <div className="flex justify-end gap-2">
+                                        <div className="inline-flex items-center gap-2">
                                             <Button variant="outline" asChild>
                                                 <Link
                                                     href={`/platform/dashboard?${presetQuery(preset)}`}
@@ -483,8 +683,8 @@ export default function PlatformDashboard({
                                                 </Link>
                                             </Button>
                                             <Button
-                                                type="button"
                                                 variant="destructive"
+                                                type="button"
                                                 onClick={() =>
                                                     deletePresetForm.delete(
                                                         `/platform/dashboard/report-presets/${preset.id}`,
@@ -501,619 +701,6 @@ export default function PlatformDashboard({
                                             </Button>
                                         </div>
                                     </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <form
-                className="mt-6 rounded-xl border p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    deliveryScheduleForm.put(
-                        '/platform/dashboard/report-delivery-schedule',
-                        {
-                            preserveScroll: true,
-                        },
-                    );
-                }}
-            >
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-sm font-semibold">
-                            Scheduled export delivery
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            Deliver report exports to platform admins on a
-                            daily or weekly cadence.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_enabled">Delivery</Label>
-                        <select
-                            id="delivery_enabled"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={deliveryScheduleForm.data.enabled}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'enabled',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="0">Disabled</option>
-                            <option value="1">Enabled</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_preset">Preset</Label>
-                        <select
-                            id="delivery_preset"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={deliveryScheduleForm.data.preset_id}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'preset_id',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="">Use current defaults</option>
-                            {operationsReportPresets.map((preset) => (
-                                <option key={preset.id} value={preset.id}>
-                                    {preset.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_format">Export format</Label>
-                        <select
-                            id="delivery_format"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={deliveryScheduleForm.data.format}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'format',
-                                    event.target.value as 'csv' | 'json',
-                                )
-                            }
-                        >
-                            <option value="csv">CSV</option>
-                            <option value="json">JSON</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_frequency">Frequency</Label>
-                        <select
-                            id="delivery_frequency"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={deliveryScheduleForm.data.frequency}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'frequency',
-                                    event.target.value as 'daily' | 'weekly',
-                                )
-                            }
-                        >
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_day_of_week">
-                            Weekday (weekly)
-                        </Label>
-                        <select
-                            id="delivery_day_of_week"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={String(deliveryScheduleForm.data.day_of_week)}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'day_of_week',
-                                    Number(event.target.value),
-                                )
-                            }
-                        >
-                            <option value="1">Monday</option>
-                            <option value="2">Tuesday</option>
-                            <option value="3">Wednesday</option>
-                            <option value="4">Thursday</option>
-                            <option value="5">Friday</option>
-                            <option value="6">Saturday</option>
-                            <option value="7">Sunday</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_time">Time</Label>
-                        <Input
-                            id="delivery_time"
-                            type="time"
-                            value={deliveryScheduleForm.data.time}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'time',
-                                    event.target.value,
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="delivery_timezone">Timezone</Label>
-                        <Input
-                            id="delivery_timezone"
-                            value={deliveryScheduleForm.data.timezone}
-                            onChange={(event) =>
-                                deliveryScheduleForm.setData(
-                                    'timezone',
-                                    event.target.value,
-                                )
-                            }
-                            placeholder="UTC"
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label>Last delivery</Label>
-                        <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
-                            {formatDate(
-                                operationsReportDeliverySchedule.last_sent_at ??
-                                    null,
-                            )}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="mt-4">
-                    <Button
-                        type="submit"
-                        disabled={deliveryScheduleForm.processing}
-                    >
-                        Save delivery schedule
-                    </Button>
-                </div>
-            </form>
-
-            <form
-                className="mt-6 rounded-xl border p-4"
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    governanceForm.put(
-                        '/platform/dashboard/notification-governance',
-                        {
-                            preserveScroll: true,
-                        },
-                    );
-                }}
-            >
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-sm font-semibold">
-                            Notification governance controls
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            Configure minimum severity, escalation rules, and
-                            digest policy.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <div className="grid gap-2">
-                        <Label htmlFor="min_severity">Minimum severity</Label>
-                        <select
-                            id="min_severity"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={governanceForm.data.min_severity}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'min_severity',
-                                    event.target.value as
-                                        | 'low'
-                                        | 'medium'
-                                        | 'high'
-                                        | 'critical',
-                                )
-                            }
-                        >
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="escalation_enabled">
-                            Escalation
-                        </Label>
-                        <select
-                            id="escalation_enabled"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={governanceForm.data.escalation_enabled}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'escalation_enabled',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="0">Disabled</option>
-                            <option value="1">Enabled</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="escalation_severity">
-                            Escalation severity
-                        </Label>
-                        <select
-                            id="escalation_severity"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={governanceForm.data.escalation_severity}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'escalation_severity',
-                                    event.target.value as
-                                        | 'low'
-                                        | 'medium'
-                                        | 'high'
-                                        | 'critical',
-                                )
-                            }
-                        >
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="escalation_delay_minutes">
-                            Escalation delay (minutes)
-                        </Label>
-                        <Input
-                            id="escalation_delay_minutes"
-                            type="number"
-                            min={1}
-                            max={1440}
-                            value={String(
-                                governanceForm.data.escalation_delay_minutes,
-                            )}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'escalation_delay_minutes',
-                                    Number(event.target.value || 1),
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="digest_enabled">Digest policy</Label>
-                        <select
-                            id="digest_enabled"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={governanceForm.data.digest_enabled}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'digest_enabled',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="0">Disabled</option>
-                            <option value="1">Enabled</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="digest_frequency">
-                            Digest frequency
-                        </Label>
-                        <select
-                            id="digest_frequency"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={governanceForm.data.digest_frequency}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'digest_frequency',
-                                    event.target.value as 'daily' | 'weekly',
-                                )
-                            }
-                        >
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="digest_day_of_week">
-                            Digest weekday (weekly)
-                        </Label>
-                        <select
-                            id="digest_day_of_week"
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                            value={String(governanceForm.data.digest_day_of_week)}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'digest_day_of_week',
-                                    Number(event.target.value),
-                                )
-                            }
-                        >
-                            <option value="1">Monday</option>
-                            <option value="2">Tuesday</option>
-                            <option value="3">Wednesday</option>
-                            <option value="4">Thursday</option>
-                            <option value="5">Friday</option>
-                            <option value="6">Saturday</option>
-                            <option value="7">Sunday</option>
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="digest_time">Digest time</Label>
-                        <Input
-                            id="digest_time"
-                            type="time"
-                            value={governanceForm.data.digest_time}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'digest_time',
-                                    event.target.value,
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="digest_timezone">Digest timezone</Label>
-                        <Input
-                            id="digest_timezone"
-                            value={governanceForm.data.digest_timezone}
-                            onChange={(event) =>
-                                governanceForm.setData(
-                                    'digest_timezone',
-                                    event.target.value,
-                                )
-                            }
-                            placeholder="UTC"
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-4 flex items-center gap-3">
-                    <Button type="submit" disabled={governanceForm.processing}>
-                        Save governance controls
-                    </Button>
-                </div>
-            </form>
-
-            <div className="mt-6 rounded-xl border p-4">
-                <div>
-                    <h2 className="text-sm font-semibold">
-                        Notification governance analytics
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Escalation outcomes, digest engagement, and noisy events
-                        for the current reporting window (
-                        {notificationGovernanceAnalytics.window_days} days).
-                    </p>
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <div className="rounded-lg border p-3">
-                        <p className="text-xs text-muted-foreground">
-                            Escalations
-                        </p>
-                        <p className="mt-1 text-xl font-semibold">
-                            {notificationGovernanceAnalytics.escalations.triggered}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            Ack:{' '}
-                            {notificationGovernanceAnalytics.escalations.acknowledged}{' '}
-                            | Pending:{' '}
-                            {notificationGovernanceAnalytics.escalations.pending}{' '}
-                            | Ack rate:{' '}
-                            {
-                                notificationGovernanceAnalytics.escalations
-                                    .acknowledgement_rate
-                            }
-                            %
-                        </p>
-                    </div>
-                    <div className="rounded-lg border p-3">
-                        <p className="text-xs text-muted-foreground">
-                            Digest coverage
-                        </p>
-                        <p className="mt-1 text-xl font-semibold">
-                            {notificationGovernanceAnalytics.digest_coverage.sent}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            Opened:{' '}
-                            {notificationGovernanceAnalytics.digest_coverage.opened}{' '}
-                            | Open rate:{' '}
-                            {
-                                notificationGovernanceAnalytics.digest_coverage
-                                    .open_rate
-                            }
-                            %
-                        </p>
-                    </div>
-                    <div className="rounded-lg border p-3">
-                        <p className="text-xs text-muted-foreground">
-                            Notifications summarized
-                        </p>
-                        <p className="mt-1 text-xl font-semibold">
-                            {
-                                notificationGovernanceAnalytics.digest_coverage
-                                    .total_notifications_summarized
-                            }
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            Included in digest payloads in this window.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="mt-4 overflow-x-auto rounded-md border">
-                    <table className="w-full min-w-max text-sm">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-3 py-2 font-medium">Event</th>
-                                <th className="px-3 py-2 font-medium">Count</th>
-                                <th className="px-3 py-2 font-medium">
-                                    High/Critical
-                                </th>
-                                <th className="px-3 py-2 font-medium">Unread</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {notificationGovernanceAnalytics.noisy_events
-                                .length === 0 && (
-                                <tr>
-                                    <td
-                                        className="px-3 py-6 text-center text-muted-foreground"
-                                        colSpan={4}
-                                    >
-                                        No noisy events detected.
-                                    </td>
-                                </tr>
-                            )}
-                            {notificationGovernanceAnalytics.noisy_events.map(
-                                (event) => (
-                                    <tr key={event.event}>
-                                        <td className="px-3 py-2 font-medium">
-                                            {event.event}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {event.count}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {event.high_or_critical}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {event.unread}
-                                        </td>
-                                    </tr>
-                                ),
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-4">
-                <div className="rounded-xl border p-4">
-                    <p className="text-sm text-muted-foreground">Companies</p>
-                    <p className="mt-2 text-2xl font-semibold">
-                        {stats.companies}
-                    </p>
-                </div>
-                <div className="rounded-xl border p-4">
-                    <p className="text-sm text-muted-foreground">Active</p>
-                    <p className="mt-2 text-2xl font-semibold">
-                        {stats.active_companies}
-                    </p>
-                </div>
-                <div className="rounded-xl border p-4">
-                    <p className="text-sm text-muted-foreground">Users</p>
-                    <p className="mt-2 text-2xl font-semibold">{stats.users}</p>
-                </div>
-                <div className="rounded-xl border p-4">
-                    <p className="text-sm text-muted-foreground">Audit logs</p>
-                    <p className="mt-2 text-2xl font-semibold">
-                        {stats.audit_logs}
-                    </p>
-                </div>
-            </div>
-
-            <div className="mt-8">
-                <h2 className="text-lg font-semibold">Delivery trends</h2>
-                <p className="text-sm text-muted-foreground">
-                    Invite delivery performance over the last{' '}
-                    {deliverySummary.window_days} days.
-                </p>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-5">
-                    <div className="rounded-xl border p-4">
-                        <p className="text-sm text-muted-foreground">Total</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {deliverySummary.total}
-                        </p>
-                    </div>
-                    <div className="rounded-xl border p-4">
-                        <p className="text-sm text-muted-foreground">Sent</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {deliverySummary.sent}
-                        </p>
-                    </div>
-                    <div className="rounded-xl border p-4">
-                        <p className="text-sm text-muted-foreground">Failed</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {deliverySummary.failed}
-                        </p>
-                    </div>
-                    <div className="rounded-xl border p-4">
-                        <p className="text-sm text-muted-foreground">Pending</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {deliverySummary.pending}
-                        </p>
-                    </div>
-                    <div className="rounded-xl border p-4">
-                        <p className="text-sm text-muted-foreground">
-                            Failure rate
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {deliverySummary.failure_rate}%
-                        </p>
-                    </div>
-                </div>
-
-                <div className="mt-4 overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-max text-sm">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-medium">Date</th>
-                                <th className="px-4 py-3 font-medium">Sent</th>
-                                <th className="px-4 py-3 font-medium">
-                                    Failed
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Pending
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {trendRows.length === 0 && (
-                                <tr>
-                                    <td
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                        colSpan={4}
-                                    >
-                                        No delivery trend data available.
-                                    </td>
-                                </tr>
-                            )}
-                            {trendRows.map((row) => (
-                                <tr key={row.date}>
-                                    <td className="px-4 py-3">{row.date}</td>
-                                    <td className="px-4 py-3">{row.sent}</td>
-                                    <td className="px-4 py-3">{row.failed}</td>
-                                    <td className="px-4 py-3">{row.pending}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -1163,7 +750,7 @@ export default function PlatformDashboard({
                                         {company.name}
                                     </td>
                                     <td className="px-4 py-3">
-                                        {company.owner ?? '—'}
+                                        {company.owner ?? '-'}
                                     </td>
                                     <td className="px-4 py-3">
                                         {company.is_active
@@ -1230,7 +817,7 @@ export default function PlatformDashboard({
                                                 {invite.email}
                                             </div>
                                             <div className="text-xs text-muted-foreground">
-                                                {invite.company ?? '—'}
+                                                {invite.company ?? '-'}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">

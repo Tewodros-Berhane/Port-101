@@ -144,6 +144,24 @@ class DashboardController extends Controller
                 'actions' => $adminActionOptions,
                 'actors' => $adminActors,
             ],
+            'notificationGovernanceAnalytics' => $notificationGovernance->getAnalytics($trendWindow),
+            'operationsReportPresets' => $operationsSettings->getPresets(),
+        ]);
+    }
+
+    public function governance(
+        Request $request,
+        NotificationGovernanceService $notificationGovernance,
+        OperationsReportingSettingsService $operationsSettings
+    ): Response {
+        $validatedFilters = $this->validatedOperationsFilters($request);
+        $normalizedFilters = $operationsSettings->normalizeFilters($validatedFilters);
+        $trendWindow = (int) ($normalizedFilters['trend_window'] ?? 30);
+
+        return Inertia::render('platform/governance', [
+            'analyticsFilters' => [
+                'trend_window' => $trendWindow,
+            ],
             'notificationGovernance' => $notificationGovernance->getSettings(),
             'notificationGovernanceAnalytics' => $notificationGovernance->getAnalytics($trendWindow),
             'operationsReportPresets' => $operationsSettings->getPresets(),
@@ -173,7 +191,7 @@ class DashboardController extends Controller
         );
 
         return redirect()
-            ->route('platform.dashboard')
+            ->route('platform.governance')
             ->with('success', 'Notification governance controls updated.');
     }
 
@@ -241,7 +259,7 @@ class DashboardController extends Controller
 
         if (! $presetExists) {
             return redirect()
-                ->route('platform.dashboard')
+                ->route('platform.governance')
                 ->withErrors([
                     'delivery_schedule.preset_id' => 'Selected preset was not found.',
                 ]);
@@ -258,7 +276,7 @@ class DashboardController extends Controller
         ], $request->user()?->id);
 
         return redirect()
-            ->route('platform.dashboard')
+            ->route('platform.governance')
             ->with('success', 'Operations report delivery schedule updated.');
     }
 

@@ -173,6 +173,11 @@ const platformAdminNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Governance',
+        href: '/platform/governance',
+        icon: Settings,
+    },
+    {
         title: 'Companies',
         href: '/platform/companies',
         icon: Building2,
@@ -248,7 +253,10 @@ export function AppSidebar() {
             <SidebarContent>
                 {!isSuperAdmin && (
                     <>
-                        <NavMain items={resolvedCompanyNavItems} label="Company" />
+                        <NavMain
+                            items={resolvedCompanyNavItems}
+                            label="Company"
+                        />
                         <NavMain
                             items={companyModuleNavItems}
                             label="Modules"

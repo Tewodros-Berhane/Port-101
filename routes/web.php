@@ -1,29 +1,29 @@
 <?php
 
+use App\Http\Controllers\Company\ModulesController as CompanyModulesController;
+use App\Http\Controllers\Company\RolesController as CompanyRolesController;
+use App\Http\Controllers\Company\SettingsController as CompanySettingsController;
+use App\Http\Controllers\Company\UsersController as CompanyUsersController;
+use App\Http\Controllers\Core\AddressesController;
+use App\Http\Controllers\Core\AttachmentsController;
 use App\Http\Controllers\Core\AuditLogsController;
 use App\Http\Controllers\Core\CompanyInvitesController;
 use App\Http\Controllers\Core\CompanySwitchController;
-use App\Http\Controllers\Core\AddressesController;
 use App\Http\Controllers\Core\ContactsController;
 use App\Http\Controllers\Core\CurrenciesController;
-use App\Http\Controllers\Core\AttachmentsController;
 use App\Http\Controllers\Core\NotificationsController;
 use App\Http\Controllers\Core\PartnersController;
 use App\Http\Controllers\Core\PriceListsController;
 use App\Http\Controllers\Core\ProductsController;
 use App\Http\Controllers\Core\TaxesController;
 use App\Http\Controllers\Core\UomsController;
-use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
-use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
-use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
-use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
 use App\Http\Controllers\InviteAcceptanceController;
-use App\Http\Controllers\Company\ModulesController as CompanyModulesController;
-use App\Http\Controllers\Company\RolesController as CompanyRolesController;
-use App\Http\Controllers\Company\SettingsController as CompanySettingsController;
-use App\Http\Controllers\Company\UsersController as CompanyUsersController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
+use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
+use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -160,6 +160,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name('platform.')->group(function () {
     Route::get('dashboard', [PlatformDashboardController::class, 'index'])
         ->name('dashboard');
+    Route::get('governance', [PlatformDashboardController::class, 'governance'])
+        ->name('governance');
     Route::get('dashboard/export/admin-actions', [PlatformDashboardController::class, 'exportAdminActions'])
         ->name('dashboard.export.admin-actions');
     Route::get('dashboard/export/delivery-trends', [PlatformDashboardController::class, 'exportDeliveryTrends'])

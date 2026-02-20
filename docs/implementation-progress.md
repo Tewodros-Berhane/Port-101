@@ -56,6 +56,7 @@
 - API v1 auth moved to token-based access with Sanctum (`auth:sanctum`) including bearer token coverage tests.
 - Superadmin operations reporting now supports saved filter presets and scheduled export delivery notifications.
 - Notification governance analytics implemented on the platform dashboard (escalation outcomes, digest open coverage, noisy-event detection).
+- Superadmin dashboard Sprint 1 modernization completed: chart-based delivery/governance visuals, consolidated export menu, and governance controls moved to dedicated `/platform/governance`.
 
 ## Not Yet Implemented
 
@@ -79,6 +80,7 @@
 - Platform superadmin area: dashboard, companies (list/create/show/update), platform admins, platform invites.
 - Platform dashboard operations reporting now supports filtered CSV/JSON exports for admin actions and invite delivery trends.
 - Platform dashboard operations reporting now supports saved presets and scheduled export delivery policies.
+- Platform governance settings are now managed from `/platform/governance` (delivery schedule + notification governance controls), while the dashboard stays monitoring-focused.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.

@@ -12,8 +12,9 @@ use App\Notifications\InviteDeliveryFailedNotification;
 use App\Notifications\NotificationGovernanceEscalationNotification;
 use App\Notifications\PlatformNotificationDigestNotification;
 use App\Notifications\PlatformOperationsReportDeliveryNotification;
-use Inertia\Testing\AssertableInertia as Assert;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
+
 use function Pest\Laravel\actingAs;
 
 function createSuperAdmin(): User
@@ -100,7 +101,7 @@ test('superadmin can update notification governance and severity rules are enfor
             'digest_time' => '09:30',
             'digest_timezone' => 'UTC',
         ])
-        ->assertRedirect(route('platform.dashboard'));
+        ->assertRedirect(route('platform.governance'));
 
     $stored = Setting::query()
         ->where('key', 'platform.notifications.min_severity')
@@ -205,7 +206,7 @@ test('superadmin can save and delete operations report presets and update schedu
             'time' => '08:30',
             'timezone' => 'UTC',
         ])
-        ->assertRedirect(route('platform.dashboard'));
+        ->assertRedirect(route('platform.governance'));
 
     $schedule = Setting::query()
         ->where('key', OperationsReportingSettingsService::DELIVERY_SCHEDULE_KEY)
@@ -335,5 +336,20 @@ test('platform dashboard returns governance analytics payload', function () {
             ->has('notificationGovernanceAnalytics.digest_coverage')
             ->has('notificationGovernanceAnalytics.noisy_events')
             ->where('notificationGovernanceAnalytics.digest_coverage.sent', 1)
+        );
+});
+
+test('platform governance page returns governance settings payload', function () {
+    $superAdmin = createSuperAdmin();
+
+    actingAs($superAdmin)
+        ->get(route('platform.governance'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('platform/governance')
+            ->has('analyticsFilters.trend_window')
+            ->has('notificationGovernance')
+            ->has('operationsReportDeliverySchedule')
+            ->has('operationsReportPresets')
         );
 });
