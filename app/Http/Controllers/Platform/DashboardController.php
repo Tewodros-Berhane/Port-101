@@ -6,6 +6,7 @@ use App\Core\Access\Models\Invite;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
+use App\Core\Platform\OperationsReportingSettingsService;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -19,11 +20,13 @@ class DashboardController extends Controller
 {
     public function index(
         Request $request,
-        NotificationGovernanceService $notificationGovernance
+        NotificationGovernanceService $notificationGovernance,
+        OperationsReportingSettingsService $operationsSettings
     ): Response {
         $validatedFilters = $this->validatedOperationsFilters($request);
-        $trendWindow = (int) ($validatedFilters['trend_window'] ?? 30);
-        $adminFilters = $this->normalizedAdminFilters($validatedFilters);
+        $normalizedFilters = $operationsSettings->normalizeFilters($validatedFilters);
+        $trendWindow = (int) ($normalizedFilters['trend_window'] ?? 30);
+        $adminFilters = $this->normalizedAdminFilters($normalizedFilters);
 
         $stats = [
             'companies' => Company::query()->count(),
@@ -142,6 +145,9 @@ class DashboardController extends Controller
                 'actors' => $adminActors,
             ],
             'notificationGovernance' => $notificationGovernance->getSettings(),
+            'notificationGovernanceAnalytics' => $notificationGovernance->getAnalytics($trendWindow),
+            'operationsReportPresets' => $operationsSettings->getPresets(),
+            'operationsReportDeliverySchedule' => $operationsSettings->getDeliverySchedule(),
         ]);
     }
 
@@ -169,6 +175,91 @@ class DashboardController extends Controller
         return redirect()
             ->route('platform.dashboard')
             ->with('success', 'Notification governance controls updated.');
+    }
+
+    public function storeReportPreset(
+        Request $request,
+        OperationsReportingSettingsService $operationsSettings
+    ): RedirectResponse {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'trend_window' => ['nullable', 'integer', 'in:7,30,90'],
+            'admin_action' => ['nullable', 'string', 'max:32'],
+            'admin_actor_id' => ['nullable', 'uuid', 'exists:users,id'],
+            'admin_start_date' => ['nullable', 'date_format:Y-m-d'],
+            'admin_end_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $operationsSettings->savePreset(
+            name: (string) $data['name'],
+            filters: $data,
+            actorId: $request->user()?->id
+        );
+
+        return redirect()
+            ->route('platform.dashboard')
+            ->with('success', 'Operations report preset saved.');
+    }
+
+    public function destroyReportPreset(
+        Request $request,
+        string $presetId,
+        OperationsReportingSettingsService $operationsSettings
+    ): RedirectResponse {
+        $deleted = $operationsSettings->deletePreset(
+            presetId: $presetId,
+            actorId: $request->user()?->id
+        );
+
+        return redirect()
+            ->route('platform.dashboard')
+            ->with($deleted ? 'success' : 'warning', $deleted
+                ? 'Operations report preset deleted.'
+                : 'Preset was not found.');
+    }
+
+    public function updateReportDeliverySchedule(
+        Request $request,
+        OperationsReportingSettingsService $operationsSettings
+    ): RedirectResponse {
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'preset_id' => ['nullable', 'string', 'max:80'],
+            'format' => ['required', 'string', 'in:csv,json'],
+            'frequency' => ['required', 'string', 'in:daily,weekly'],
+            'day_of_week' => ['required', 'integer', 'min:1', 'max:7'],
+            'time' => ['required', 'date_format:H:i'],
+            'timezone' => ['required', 'string', 'max:64'],
+        ]);
+
+        $presetId = $data['preset_id'] ?? null;
+        $presetExists = $presetId === null
+            || $presetId === ''
+            || collect($operationsSettings->getPresets())->contains(
+                fn (array $preset) => $preset['id'] === $presetId
+            );
+
+        if (! $presetExists) {
+            return redirect()
+                ->route('platform.dashboard')
+                ->withErrors([
+                    'delivery_schedule.preset_id' => 'Selected preset was not found.',
+                ]);
+        }
+
+        $operationsSettings->setDeliverySchedule([
+            'enabled' => (bool) $data['enabled'],
+            'preset_id' => $presetId ?: null,
+            'format' => $data['format'],
+            'frequency' => $data['frequency'],
+            'day_of_week' => (int) $data['day_of_week'],
+            'time' => $data['time'],
+            'timezone' => $data['timezone'],
+        ], $request->user()?->id);
+
+        return redirect()
+            ->route('platform.dashboard')
+            ->with('success', 'Operations report delivery schedule updated.');
     }
 
     public function exportAdminActions(Request $request)
@@ -463,4 +554,3 @@ class DashboardController extends Controller
         return $normalized;
     }
 }
-

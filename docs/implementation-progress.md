@@ -54,6 +54,8 @@
 - Company-scoped foreign-key validation hardening implemented for core request references (`partner_id`, `uom_id`, `default_tax_id`, `currency_id`) with coverage tests.
 - Attachments module coverage expanded across supported master-data edit pages (contacts, addresses, taxes, currencies, units, and price lists).
 - API v1 auth moved to token-based access with Sanctum (`auth:sanctum`) including bearer token coverage tests.
+- Superadmin operations reporting now supports saved filter presets and scheduled export delivery notifications.
+- Notification governance analytics implemented on the platform dashboard (escalation outcomes, digest open coverage, noisy-event detection).
 
 ## Not Yet Implemented
 
@@ -76,6 +78,7 @@
 - Multi-company context resolution, company switching, and inactive-company safeguards.
 - Platform superadmin area: dashboard, companies (list/create/show/update), platform admins, platform invites.
 - Platform dashboard operations reporting now supports filtered CSV/JSON exports for admin actions and invite delivery trends.
+- Platform dashboard operations reporting now supports saved presets and scheduled export delivery policies.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
@@ -85,9 +88,11 @@
 - In-app notifications center is live at `/core/notifications` with unread counters, mark-read, mark-all-read, and delete actions.
 - Notifications now emit for company settings updates, role changes, invite acceptance, company status changes, and invite delivery failures.
 - Notification governance is now configurable from platform dashboard (minimum severity, escalation behavior, digest policy) and enforced by the notification service.
+- Notification governance analytics are now available from platform dashboard with escalation acknowledgement rates, digest open rates, and top noisy events.
 - Attachment upload/download/delete flows are live via `/core/attachments`, with attachments panels across partner, product, contact, address, tax, currency, unit, and price-list edit pages.
 - Audit retention command now prunes with company-specific settings fallback and is scheduled daily.
 - Scheduled platform digest dispatch is available via `platform:notifications:send-digest` and wired into the scheduler.
+- Scheduled operations report delivery is available via `platform:operations-reports:deliver-scheduled` and wired into the scheduler.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
 
 ### Present but placeholder-only
@@ -95,12 +100,12 @@
 - Company dashboard (`/company/dashboard`) is still a placeholder layout.
 - Company modules are placeholders only: Sales, Inventory, Purchasing, Accounting, Approvals, Reports.
 
-### Test run result (2026-02-19)
+### Test run result (2026-02-20)
 
 - Command executed: `php artisan test` (requested with long timeout).
 - Test runtime now uses PostgreSQL test DB (`phpunit.xml` updated to `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Current status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `93` passed, `0` failed.
+- Result summary after latest implementation: `103` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 
@@ -113,8 +118,8 @@
 
 ## Next Steps (Superadmin)
 
-- Saved operations-report filter presets and scheduled export delivery.
-- Notification governance analytics (escalation outcomes, digest send/open coverage, noisy-event detection).
+- Export delivery channel expansion (email attachments/webhooks/Slack) and recipient targeting beyond all superadmins.
+- Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
 
 ## Next Steps (Owner + Modules)
 

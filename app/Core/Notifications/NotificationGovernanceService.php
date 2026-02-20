@@ -5,7 +5,9 @@ namespace App\Core\Notifications;
 use App\Core\Settings\SettingsService;
 use App\Models\User;
 use App\Notifications\NotificationGovernanceEscalationNotification;
+use App\Notifications\PlatformNotificationDigestNotification;
 use Carbon\CarbonImmutable;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
@@ -208,6 +210,128 @@ class NotificationGovernanceService
     }
 
     /**
+     * @return array{
+     *  window_days: int,
+     *  escalations: array{triggered: int, acknowledged: int, pending: int, acknowledgement_rate: float},
+     *  digest_coverage: array{sent: int, opened: int, open_rate: float, total_notifications_summarized: int},
+     *  noisy_events: array<int, array{event: string, count: int, unread: int, high_or_critical: int}>
+     * }
+     */
+    public function getAnalytics(int $windowDays = 30): array
+    {
+        $window = in_array($windowDays, [7, 30, 90], true)
+            ? $windowDays
+            : 30;
+        $start = CarbonImmutable::now()->startOfDay()->subDays($window - 1);
+
+        $superAdminIds = User::query()
+            ->where('is_super_admin', true)
+            ->pluck('id');
+
+        if ($superAdminIds->isEmpty()) {
+            return [
+                'window_days' => $window,
+                'escalations' => [
+                    'triggered' => 0,
+                    'acknowledged' => 0,
+                    'pending' => 0,
+                    'acknowledgement_rate' => 0.0,
+                ],
+                'digest_coverage' => [
+                    'sent' => 0,
+                    'opened' => 0,
+                    'open_rate' => 0.0,
+                    'total_notifications_summarized' => 0,
+                ],
+                'noisy_events' => [],
+            ];
+        }
+
+        $notifications = DatabaseNotification::query()
+            ->where('notifiable_type', User::class)
+            ->whereIn('notifiable_id', $superAdminIds->all())
+            ->where('created_at', '>=', $start)
+            ->get(['type', 'data', 'read_at']);
+
+        $escalations = $notifications
+            ->where('type', NotificationGovernanceEscalationNotification::class);
+        $escalationTotal = $escalations->count();
+        $escalationAcknowledged = $escalations
+            ->filter(fn (DatabaseNotification $notification) => $notification->read_at !== null)
+            ->count();
+        $escalationPending = $escalationTotal - $escalationAcknowledged;
+        $escalationRate = $escalationTotal > 0
+            ? round(($escalationAcknowledged / $escalationTotal) * 100, 2)
+            : 0.0;
+
+        $digests = $notifications
+            ->where('type', PlatformNotificationDigestNotification::class);
+        $digestSent = $digests->count();
+        $digestOpened = $digests
+            ->filter(fn (DatabaseNotification $notification) => $notification->read_at !== null)
+            ->count();
+        $digestOpenRate = $digestSent > 0
+            ? round(($digestOpened / $digestSent) * 100, 2)
+            : 0.0;
+        $digestTotalSummarized = $digests
+            ->sum(function (DatabaseNotification $notification) {
+                $payload = is_array($notification->data)
+                    ? $notification->data
+                    : [];
+
+                return (int) (($payload['meta']['total'] ?? 0));
+            });
+
+        $events = $notifications
+            ->reject(fn (DatabaseNotification $notification) => $notification->type === PlatformNotificationDigestNotification::class)
+            ->map(function (DatabaseNotification $notification) {
+                $payload = is_array($notification->data)
+                    ? $notification->data
+                    : [];
+                $event = (string) ($payload['meta']['event']
+                    ?? $payload['title']
+                    ?? class_basename($notification->type));
+                $severity = strtolower((string) ($payload['severity'] ?? 'low'));
+
+                return [
+                    'event' => trim($event) !== '' ? trim($event) : 'Notification event',
+                    'unread' => $notification->read_at === null ? 1 : 0,
+                    'high_or_critical' => in_array($severity, ['high', 'critical'], true) ? 1 : 0,
+                ];
+            })
+            ->groupBy('event')
+            ->map(function (Collection $group, string $event) {
+                return [
+                    'event' => $event,
+                    'count' => $group->count(),
+                    'unread' => (int) $group->sum('unread'),
+                    'high_or_critical' => (int) $group->sum('high_or_critical'),
+                ];
+            })
+            ->sortByDesc('count')
+            ->take(5)
+            ->values()
+            ->all();
+
+        return [
+            'window_days' => $window,
+            'escalations' => [
+                'triggered' => $escalationTotal,
+                'acknowledged' => $escalationAcknowledged,
+                'pending' => $escalationPending,
+                'acknowledgement_rate' => $escalationRate,
+            ],
+            'digest_coverage' => [
+                'sent' => $digestSent,
+                'opened' => $digestOpened,
+                'open_rate' => $digestOpenRate,
+                'total_notifications_summarized' => (int) $digestTotalSummarized,
+            ],
+            'noisy_events' => $events,
+        ];
+    }
+
+    /**
      * @param  iterable<int, User>|Collection<int, User>  $recipients
      * @return Collection<int, User>
      */
@@ -281,4 +405,3 @@ class NotificationGovernanceService
         return $value;
     }
 }
-

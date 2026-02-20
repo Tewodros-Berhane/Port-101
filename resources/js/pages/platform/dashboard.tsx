@@ -77,6 +77,49 @@ type Props = {
         digest_time: string;
         digest_timezone: string;
     };
+    notificationGovernanceAnalytics: {
+        window_days: number;
+        escalations: {
+            triggered: number;
+            acknowledged: number;
+            pending: number;
+            acknowledgement_rate: number;
+        };
+        digest_coverage: {
+            sent: number;
+            opened: number;
+            open_rate: number;
+            total_notifications_summarized: number;
+        };
+        noisy_events: {
+            event: string;
+            count: number;
+            unread: number;
+            high_or_critical: number;
+        }[];
+    };
+    operationsReportPresets: {
+        id: string;
+        name: string;
+        filters: {
+            trend_window: number;
+            admin_action?: string | null;
+            admin_actor_id?: string | null;
+            admin_start_date?: string | null;
+            admin_end_date?: string | null;
+        };
+        created_at?: string | null;
+    }[];
+    operationsReportDeliverySchedule: {
+        enabled: boolean;
+        preset_id?: string | null;
+        format: 'csv' | 'json';
+        frequency: 'daily' | 'weekly';
+        day_of_week: number;
+        time: string;
+        timezone: string;
+        last_sent_at?: string | null;
+    };
 };
 
 const formatDate = (value?: string | null) =>
@@ -98,6 +141,9 @@ export default function PlatformDashboard({
     operationsFilters,
     adminFilterOptions,
     notificationGovernance,
+    notificationGovernanceAnalytics,
+    operationsReportPresets,
+    operationsReportDeliverySchedule,
 }: Props) {
     const form = useForm({
         trend_window: String(operationsFilters.trend_window ?? 30),
@@ -118,6 +164,24 @@ export default function PlatformDashboard({
         digest_time: notificationGovernance.digest_time ?? '08:00',
         digest_timezone: notificationGovernance.digest_timezone ?? 'UTC',
     });
+    const deletePresetForm = useForm({});
+    const presetForm = useForm({
+        name: '',
+        trend_window: String(operationsFilters.trend_window ?? 30),
+        admin_action: operationsFilters.admin_action ?? '',
+        admin_actor_id: operationsFilters.admin_actor_id ?? '',
+        admin_start_date: operationsFilters.admin_start_date ?? '',
+        admin_end_date: operationsFilters.admin_end_date ?? '',
+    });
+    const deliveryScheduleForm = useForm({
+        enabled: operationsReportDeliverySchedule.enabled ? '1' : '0',
+        preset_id: operationsReportDeliverySchedule.preset_id ?? '',
+        format: operationsReportDeliverySchedule.format ?? 'csv',
+        frequency: operationsReportDeliverySchedule.frequency ?? 'weekly',
+        day_of_week: operationsReportDeliverySchedule.day_of_week ?? 1,
+        time: operationsReportDeliverySchedule.time ?? '08:00',
+        timezone: operationsReportDeliverySchedule.timezone ?? 'UTC',
+    });
 
     const trendRows = [...deliveryTrend].reverse().slice(0, 14);
     const exportParams = new URLSearchParams({
@@ -136,6 +200,18 @@ export default function PlatformDashboard({
         `/platform/dashboard/export/delivery-trends?${exportQuery}&format=csv`;
     const exportDeliveryTrendsJsonUrl =
         `/platform/dashboard/export/delivery-trends?${exportQuery}&format=json`;
+
+    const presetQuery = (preset: Props['operationsReportPresets'][number]) => {
+        const params = new URLSearchParams({
+            trend_window: String(preset.filters.trend_window ?? 30),
+            admin_action: preset.filters.admin_action ?? '',
+            admin_actor_id: preset.filters.admin_actor_id ?? '',
+            admin_start_date: preset.filters.admin_start_date ?? '',
+            admin_end_date: preset.filters.admin_end_date ?? '',
+        });
+
+        return params.toString();
+    };
 
     return (
         <AppLayout
@@ -272,6 +348,45 @@ export default function PlatformDashboard({
                     <Button variant="ghost" asChild>
                         <Link href="/platform/dashboard">Reset</Link>
                     </Button>
+                    <div className="flex min-w-[260px] flex-1 items-center gap-2">
+                        <Input
+                            value={presetForm.data.name}
+                            onChange={(event) =>
+                                presetForm.setData('name', event.target.value)
+                            }
+                            placeholder="Preset name"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={
+                                presetForm.processing ||
+                                presetForm.data.name.trim() === ''
+                            }
+                            onClick={() =>
+                                {
+                                    presetForm.transform((data) => ({
+                                        ...data,
+                                        trend_window: form.data.trend_window,
+                                        admin_action: form.data.admin_action,
+                                        admin_actor_id: form.data.admin_actor_id,
+                                        admin_start_date: form.data.admin_start_date,
+                                        admin_end_date: form.data.admin_end_date,
+                                    }));
+
+                                    presetForm.post(
+                                        '/platform/dashboard/report-presets',
+                                        {
+                                        preserveScroll: true,
+                                        onSuccess: () => presetForm.reset('name'),
+                                    },
+                                    );
+                                }
+                            }
+                        >
+                            Save preset
+                        </Button>
+                    </div>
                     <Button variant="outline" asChild>
                         <a href={exportAdminActionsCsvUrl}>
                             Export admin actions CSV
@@ -291,6 +406,281 @@ export default function PlatformDashboard({
                         <a href={exportDeliveryTrendsJsonUrl}>
                             Export delivery trends JSON
                         </a>
+                    </Button>
+                </div>
+            </form>
+
+            <div className="mt-6 rounded-xl border p-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Saved operations presets
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Reapply common filter combinations and use them for
+                            scheduled deliveries.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border">
+                    <table className="w-full min-w-max text-sm">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">
+                                    Preset
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Filters
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Created
+                                </th>
+                                <th className="px-3 py-2 text-right font-medium">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {operationsReportPresets.length === 0 && (
+                                <tr>
+                                    <td
+                                        className="px-3 py-6 text-center text-muted-foreground"
+                                        colSpan={4}
+                                    >
+                                        No saved presets yet.
+                                    </td>
+                                </tr>
+                            )}
+                            {operationsReportPresets.map((preset) => (
+                                <tr key={preset.id}>
+                                    <td className="px-3 py-2 font-medium">
+                                        {preset.name}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                                        Window: {preset.filters.trend_window}d
+                                        {' | '}Action:{' '}
+                                        {preset.filters.admin_action
+                                            ? formatAction(
+                                                  preset.filters.admin_action,
+                                              )
+                                            : 'All'}
+                                        {' | '}Actor:{' '}
+                                        {preset.filters.admin_actor_id
+                                            ? 'Specific'
+                                            : 'All'}
+                                    </td>
+                                    <td className="px-3 py-2 text-muted-foreground">
+                                        {formatDate(preset.created_at)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="outline" asChild>
+                                                <Link
+                                                    href={`/platform/dashboard?${presetQuery(preset)}`}
+                                                >
+                                                    Apply
+                                                </Link>
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    deletePresetForm.delete(
+                                                        `/platform/dashboard/report-presets/${preset.id}`,
+                                                        {
+                                                            preserveScroll: true,
+                                                        },
+                                                    )
+                                                }
+                                                disabled={
+                                                    deletePresetForm.processing
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <form
+                className="mt-6 rounded-xl border p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    deliveryScheduleForm.put(
+                        '/platform/dashboard/report-delivery-schedule',
+                        {
+                            preserveScroll: true,
+                        },
+                    );
+                }}
+            >
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Scheduled export delivery
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Deliver report exports to platform admins on a
+                            daily or weekly cadence.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_enabled">Delivery</Label>
+                        <select
+                            id="delivery_enabled"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={deliveryScheduleForm.data.enabled}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'enabled',
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="0">Disabled</option>
+                            <option value="1">Enabled</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_preset">Preset</Label>
+                        <select
+                            id="delivery_preset"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={deliveryScheduleForm.data.preset_id}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'preset_id',
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="">Use current defaults</option>
+                            {operationsReportPresets.map((preset) => (
+                                <option key={preset.id} value={preset.id}>
+                                    {preset.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_format">Export format</Label>
+                        <select
+                            id="delivery_format"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={deliveryScheduleForm.data.format}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'format',
+                                    event.target.value as 'csv' | 'json',
+                                )
+                            }
+                        >
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_frequency">Frequency</Label>
+                        <select
+                            id="delivery_frequency"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={deliveryScheduleForm.data.frequency}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'frequency',
+                                    event.target.value as 'daily' | 'weekly',
+                                )
+                            }
+                        >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_day_of_week">
+                            Weekday (weekly)
+                        </Label>
+                        <select
+                            id="delivery_day_of_week"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={String(deliveryScheduleForm.data.day_of_week)}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'day_of_week',
+                                    Number(event.target.value),
+                                )
+                            }
+                        >
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="7">Sunday</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_time">Time</Label>
+                        <Input
+                            id="delivery_time"
+                            type="time"
+                            value={deliveryScheduleForm.data.time}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'time',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="delivery_timezone">Timezone</Label>
+                        <Input
+                            id="delivery_timezone"
+                            value={deliveryScheduleForm.data.timezone}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'timezone',
+                                    event.target.value,
+                                )
+                            }
+                            placeholder="UTC"
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>Last delivery</Label>
+                        <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
+                            {formatDate(
+                                operationsReportDeliverySchedule.last_sent_at ??
+                                    null,
+                            )}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4">
+                    <Button
+                        type="submit"
+                        disabled={deliveryScheduleForm.processing}
+                    >
+                        Save delivery schedule
                     </Button>
                 </div>
             </form>
@@ -511,6 +901,120 @@ export default function PlatformDashboard({
                     </Button>
                 </div>
             </form>
+
+            <div className="mt-6 rounded-xl border p-4">
+                <div>
+                    <h2 className="text-sm font-semibold">
+                        Notification governance analytics
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        Escalation outcomes, digest engagement, and noisy events
+                        for the current reporting window (
+                        {notificationGovernanceAnalytics.window_days} days).
+                    </p>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Escalations
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {notificationGovernanceAnalytics.escalations.triggered}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Ack:{' '}
+                            {notificationGovernanceAnalytics.escalations.acknowledged}{' '}
+                            | Pending:{' '}
+                            {notificationGovernanceAnalytics.escalations.pending}{' '}
+                            | Ack rate:{' '}
+                            {
+                                notificationGovernanceAnalytics.escalations
+                                    .acknowledgement_rate
+                            }
+                            %
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Digest coverage
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {notificationGovernanceAnalytics.digest_coverage.sent}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Opened:{' '}
+                            {notificationGovernanceAnalytics.digest_coverage.opened}{' '}
+                            | Open rate:{' '}
+                            {
+                                notificationGovernanceAnalytics.digest_coverage
+                                    .open_rate
+                            }
+                            %
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Notifications summarized
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {
+                                notificationGovernanceAnalytics.digest_coverage
+                                    .total_notifications_summarized
+                            }
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Included in digest payloads in this window.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 overflow-x-auto rounded-md border">
+                    <table className="w-full min-w-max text-sm">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Event</th>
+                                <th className="px-3 py-2 font-medium">Count</th>
+                                <th className="px-3 py-2 font-medium">
+                                    High/Critical
+                                </th>
+                                <th className="px-3 py-2 font-medium">Unread</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {notificationGovernanceAnalytics.noisy_events
+                                .length === 0 && (
+                                <tr>
+                                    <td
+                                        className="px-3 py-6 text-center text-muted-foreground"
+                                        colSpan={4}
+                                    >
+                                        No noisy events detected.
+                                    </td>
+                                </tr>
+                            )}
+                            {notificationGovernanceAnalytics.noisy_events.map(
+                                (event) => (
+                                    <tr key={event.event}>
+                                        <td className="px-3 py-2 font-medium">
+                                            {event.event}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {event.count}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {event.high_or_critical}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {event.unread}
+                                        </td>
+                                    </tr>
+                                ),
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-xl border p-4">

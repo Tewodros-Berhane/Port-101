@@ -1,13 +1,18 @@
 <?php
 
+use App\Core\Access\Models\Invite;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
+use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Settings\Models\Setting;
 use App\Models\User;
 use App\Notifications\InviteAcceptedNotification;
 use App\Notifications\InviteDeliveryFailedNotification;
 use App\Notifications\NotificationGovernanceEscalationNotification;
+use App\Notifications\PlatformNotificationDigestNotification;
+use App\Notifications\PlatformOperationsReportDeliveryNotification;
+use Inertia\Testing\AssertableInertia as Assert;
 use Illuminate\Support\Str;
 use function Pest\Laravel\actingAs;
 
@@ -166,4 +171,169 @@ test('superadmin can export delivery trend report', function () {
             ],
             'rows',
         ]);
+});
+
+test('superadmin can save and delete operations report presets and update schedule', function () {
+    $superAdmin = createSuperAdmin();
+
+    actingAs($superAdmin)
+        ->post(route('platform.dashboard.report-presets.store'), [
+            'name' => 'Weekly operations',
+            'trend_window' => 30,
+            'admin_action' => 'updated',
+            'admin_actor_id' => '',
+            'admin_start_date' => '',
+            'admin_end_date' => '',
+        ])
+        ->assertRedirect(route('platform.dashboard'));
+
+    $presetsSetting = Setting::query()
+        ->where('key', OperationsReportingSettingsService::PRESETS_KEY)
+        ->first();
+
+    $presetId = $presetsSetting?->value[0]['id'] ?? null;
+
+    expect($presetId)->not->toBeNull();
+
+    actingAs($superAdmin)
+        ->put(route('platform.dashboard.report-delivery-schedule.update'), [
+            'enabled' => true,
+            'preset_id' => $presetId,
+            'format' => 'csv',
+            'frequency' => 'weekly',
+            'day_of_week' => 2,
+            'time' => '08:30',
+            'timezone' => 'UTC',
+        ])
+        ->assertRedirect(route('platform.dashboard'));
+
+    $schedule = Setting::query()
+        ->where('key', OperationsReportingSettingsService::DELIVERY_SCHEDULE_KEY)
+        ->first();
+
+    expect($schedule?->value['enabled'])->toBeTrue();
+    expect($schedule?->value['preset_id'])->toBe($presetId);
+
+    actingAs($superAdmin)
+        ->delete(route('platform.dashboard.report-presets.destroy', $presetId))
+        ->assertRedirect(route('platform.dashboard'));
+
+    $updatedSchedule = Setting::query()
+        ->where('key', OperationsReportingSettingsService::DELIVERY_SCHEDULE_KEY)
+        ->first();
+
+    expect($updatedSchedule?->value['preset_id'] ?? null)->toBeNull();
+});
+
+test('scheduled operations report delivery command sends notifications', function () {
+    $superAdmin = createSuperAdmin();
+    $actor = createSuperAdmin();
+    $settings = app(OperationsReportingSettingsService::class);
+
+    $company = Company::create([
+        'name' => 'Scheduled Ops Co',
+        'slug' => 'scheduled-ops-co-'.Str::lower(Str::random(4)),
+        'timezone' => 'UTC',
+        'is_active' => true,
+        'owner_id' => $superAdmin->id,
+    ]);
+
+    AuditLog::create([
+        'company_id' => $company->id,
+        'user_id' => $actor->id,
+        'auditable_type' => User::class,
+        'auditable_id' => (string) Str::uuid(),
+        'action' => 'updated',
+        'changes' => ['after' => ['name' => 'Ops']],
+        'metadata' => ['source' => 'test'],
+        'created_at' => now()->subHour(),
+    ]);
+
+    Invite::create([
+        'email' => 'scheduled@example.com',
+        'name' => 'Scheduled Invite',
+        'token' => Str::random(40),
+        'role' => 'company_member',
+        'company_id' => $company->id,
+        'created_by' => $superAdmin->id,
+        'expires_at' => now()->addDays(7),
+        'delivery_status' => Invite::DELIVERY_SENT,
+        'delivery_attempts' => 1,
+    ]);
+
+    $preset = $settings->savePreset('Scheduled preset', [
+        'trend_window' => 30,
+        'admin_action' => 'updated',
+        'admin_actor_id' => $actor->id,
+    ]);
+
+    $settings->setDeliverySchedule([
+        'enabled' => true,
+        'preset_id' => $preset['id'],
+        'format' => 'csv',
+        'frequency' => 'weekly',
+        'day_of_week' => 1,
+        'time' => '08:00',
+        'timezone' => 'UTC',
+    ]);
+
+    $this->artisan('platform:operations-reports:deliver-scheduled', ['--force' => true])
+        ->assertSuccessful();
+
+    expect(
+        $superAdmin->fresh()
+            ->notifications()
+            ->where('type', PlatformOperationsReportDeliveryNotification::class)
+            ->count()
+    )->toBe(1);
+
+    $updatedSchedule = $settings->getDeliverySchedule();
+    expect($updatedSchedule['last_sent_at'])->not->toBeNull();
+});
+
+test('platform dashboard returns governance analytics payload', function () {
+    $superAdmin = createSuperAdmin();
+
+    $superAdmin->notify(new NotificationGovernanceEscalationNotification(
+        eventName: 'Invite delivery failed',
+        severity: 'critical',
+        source: 'tests',
+        escalationDelayMinutes: 15
+    ));
+
+    $digest = new PlatformNotificationDigestNotification(
+        periodLabel: 'daily digest',
+        totalNotifications: 12,
+        severityCounts: [
+            'low' => 5,
+            'medium' => 4,
+            'high' => 2,
+            'critical' => 1,
+        ]
+    );
+
+    $superAdmin->notify($digest);
+
+    $superAdmin->notify(new InviteDeliveryFailedNotification(
+        inviteEmail: 'noisy@example.com',
+        contextLabel: 'Platform',
+        errorMessage: 'SMTP timeout',
+        isPlatformInvite: true
+    ));
+    $superAdmin->notify(new InviteDeliveryFailedNotification(
+        inviteEmail: 'noisy2@example.com',
+        contextLabel: 'Platform',
+        errorMessage: 'SMTP timeout',
+        isPlatformInvite: true
+    ));
+
+    actingAs($superAdmin)
+        ->get(route('platform.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('notificationGovernanceAnalytics.escalations')
+            ->has('notificationGovernanceAnalytics.digest_coverage')
+            ->has('notificationGovernanceAnalytics.noisy_events')
+            ->where('notificationGovernanceAnalytics.digest_coverage.sent', 1)
+        );
 });

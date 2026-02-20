@@ -164,6 +164,12 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('platform')->name(
         ->name('dashboard.export.admin-actions');
     Route::get('dashboard/export/delivery-trends', [PlatformDashboardController::class, 'exportDeliveryTrends'])
         ->name('dashboard.export.delivery-trends');
+    Route::post('dashboard/report-presets', [PlatformDashboardController::class, 'storeReportPreset'])
+        ->name('dashboard.report-presets.store');
+    Route::delete('dashboard/report-presets/{presetId}', [PlatformDashboardController::class, 'destroyReportPreset'])
+        ->name('dashboard.report-presets.destroy');
+    Route::put('dashboard/report-delivery-schedule', [PlatformDashboardController::class, 'updateReportDeliverySchedule'])
+        ->name('dashboard.report-delivery-schedule.update');
     Route::put('dashboard/notification-governance', [PlatformDashboardController::class, 'updateNotificationGovernance'])
         ->name('dashboard.notification-governance.update');
     Route::resource('companies', PlatformCompaniesController::class)

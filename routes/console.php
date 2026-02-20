@@ -2,10 +2,12 @@
 
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Notifications\NotificationGovernanceService;
+use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
 use App\Models\User;
 use App\Notifications\PlatformNotificationDigestNotification;
+use App\Notifications\PlatformOperationsReportDeliveryNotification;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Notifications\DatabaseNotification;
@@ -210,5 +212,173 @@ Artisan::command('platform:notifications:send-digest {--force}', function () {
     return self::SUCCESS;
 })->purpose('Send platform notification digests based on governance policy');
 
+Artisan::command('platform:operations-reports:deliver-scheduled {--force}', function () {
+    $settings = app(OperationsReportingSettingsService::class);
+    $schedule = $settings->getDeliverySchedule();
+    $force = (bool) $this->option('force');
+
+    if (! $force && ! $settings->shouldSendScheduledDeliveryNow($schedule)) {
+        $this->line('Operations report schedule not due yet.');
+
+        return self::SUCCESS;
+    }
+
+    $filters = $settings->filtersForPreset($schedule['preset_id'] ?? null);
+    $trendWindow = (int) ($filters['trend_window'] ?? 30);
+
+    $adminActionsQuery = AuditLog::query()
+        ->with(['actor:id,name,is_super_admin', 'company:id,name'])
+        ->whereHas('actor', function ($query) {
+            $query->where('is_super_admin', true);
+        });
+
+    $action = $filters['admin_action'] ?? null;
+    $actorId = $filters['admin_actor_id'] ?? null;
+    $startDate = $filters['admin_start_date'] ?? null;
+    $endDate = $filters['admin_end_date'] ?? null;
+
+    if ($action) {
+        $adminActionsQuery->where('action', $action);
+    }
+
+    if ($actorId) {
+        $adminActionsQuery->where('user_id', $actorId);
+    }
+
+    $start = null;
+    $end = null;
+    if (is_string($startDate) && $startDate !== '') {
+        try {
+            $start = CarbonImmutable::createFromFormat('Y-m-d', $startDate)->startOfDay();
+        } catch (\Throwable) {
+            $start = null;
+        }
+    }
+    if (is_string($endDate) && $endDate !== '') {
+        try {
+            $end = CarbonImmutable::createFromFormat('Y-m-d', $endDate)->endOfDay();
+        } catch (\Throwable) {
+            $end = null;
+        }
+    }
+
+    if ($start && $end && $start->gt($end)) {
+        [$start, $end] = [$end->startOfDay(), $start->endOfDay()];
+    }
+
+    if ($start && $end) {
+        $adminActionsQuery->whereBetween('created_at', [$start, $end]);
+    } elseif ($start) {
+        $adminActionsQuery->where('created_at', '>=', $start);
+    } elseif ($end) {
+        $adminActionsQuery->where('created_at', '<=', $end);
+    }
+
+    $adminActionsCount = $adminActionsQuery->count();
+
+    $today = CarbonImmutable::now()->startOfDay();
+    $trendStart = $today->subDays($trendWindow - 1);
+    $trendRows = [];
+
+    for ($day = $trendStart; $day->lte($today); $day = $day->addDay()) {
+        $trendRows[$day->toDateString()] = [
+            'sent' => 0,
+            'failed' => 0,
+            'pending' => 0,
+        ];
+    }
+
+    $invites = \App\Core\Access\Models\Invite::query()
+        ->whereBetween('created_at', [$trendStart, $today->endOfDay()])
+        ->get(['delivery_status', 'created_at']);
+
+    foreach ($invites as $invite) {
+        $date = $invite->created_at?->toDateString();
+
+        if (! $date || ! isset($trendRows[$date])) {
+            continue;
+        }
+
+        if ($invite->delivery_status === \App\Core\Access\Models\Invite::DELIVERY_SENT) {
+            $trendRows[$date]['sent'] += 1;
+
+            continue;
+        }
+
+        if ($invite->delivery_status === \App\Core\Access\Models\Invite::DELIVERY_FAILED) {
+            $trendRows[$date]['failed'] += 1;
+
+            continue;
+        }
+
+        $trendRows[$date]['pending'] += 1;
+    }
+
+    $sent = (int) collect($trendRows)->sum('sent');
+    $failed = (int) collect($trendRows)->sum('failed');
+    $pending = (int) collect($trendRows)->sum('pending');
+    $deliveryTotal = $sent + $failed + $pending;
+    $attempted = $sent + $failed;
+    $failureRate = $attempted > 0
+        ? round(($failed / $attempted) * 100, 2)
+        : 0.0;
+
+    if (! $force && $adminActionsCount === 0 && $deliveryTotal === 0) {
+        $this->line('No operations activity in the scheduled window.');
+
+        return self::SUCCESS;
+    }
+
+    $recipients = User::query()
+        ->where('is_super_admin', true)
+        ->get(['id', 'name', 'email']);
+
+    if ($recipients->isEmpty()) {
+        $this->line('No platform admins available for report delivery.');
+
+        return self::SUCCESS;
+    }
+
+    $format = (string) ($schedule['format'] ?? 'csv');
+    $query = $settings->filtersToQuery($filters);
+    $links = [
+        'admin_actions' => "/platform/dashboard/export/admin-actions?{$query}&format={$format}",
+        'delivery_trends' => "/platform/dashboard/export/delivery-trends?{$query}&format={$format}",
+    ];
+
+    $presetId = $schedule['preset_id'] ?? null;
+    $presetName = 'Default filters';
+    if ($presetId) {
+        $preset = collect($settings->getPresets())
+            ->first(fn (array $row) => $row['id'] === $presetId);
+        $presetName = (string) ($preset['name'] ?? $presetName);
+    }
+
+    Notification::send(
+        $recipients,
+        new PlatformOperationsReportDeliveryNotification(
+            presetName: $presetName,
+            periodLabel: "{$trendWindow}-day window",
+            format: $format,
+            links: $links,
+            summary: [
+                'admin_actions' => $adminActionsCount,
+                'delivery_total' => $deliveryTotal,
+                'sent' => $sent,
+                'failed' => $failed,
+                'pending' => $pending,
+                'failure_rate' => $failureRate,
+            ]
+        )
+    );
+
+    $settings->markDeliverySent();
+
+    $this->info("Scheduled operations report delivered to {$recipients->count()} platform admin(s).");
+
+    return self::SUCCESS;
+})->purpose('Deliver scheduled operations report exports to platform admins');
+
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:notifications:send-digest')->everyMinute();
+Schedule::command('platform:operations-reports:deliver-scheduled')->everyMinute();
