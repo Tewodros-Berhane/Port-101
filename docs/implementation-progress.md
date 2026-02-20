@@ -69,6 +69,7 @@
 - Removed operations filter/export controls from the platform dashboard and linked dashboard reporting actions to the new reports center.
 - Updated platform dashboard chart styling with richer multi-color palettes for dark mode readability (delivery trend, status donut, noisy events).
 - Fixed dashboard chart token rendering in dark mode by using native theme color variables (`--chart-*`) instead of invalid `hsl(...)` wrappers over OKLCH tokens.
+- Moved the reports-center CTA to the platform dashboard header beside governance controls and removed the redundant reporting card.
 
 ## Not Yet Implemented
 

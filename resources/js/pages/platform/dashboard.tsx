@@ -263,12 +263,17 @@ export default function PlatformDashboard({
                         activity.
                     </p>
                 </div>
-                <Button variant="outline" asChild>
-                    <Link href="/platform/governance">
-                        <Settings2 className="size-4" />
-                        Governance settings
-                    </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/platform/governance">
+                            <Settings2 className="size-4" />
+                            Governance settings
+                        </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <Link href="/platform/reports">Open reports center</Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -332,23 +337,6 @@ export default function PlatformDashboard({
                         Open failed invites drill-down
                     </p>
                 </Link>
-            </div>
-
-            <div className="mt-6 rounded-xl border p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-sm font-semibold">
-                            Reporting and exports
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            Filters, presets, and PDF/Excel downloads are now
-                            managed in the dedicated Reports page.
-                        </p>
-                    </div>
-                    <Button variant="outline" asChild>
-                        <Link href="/platform/reports">Open reports center</Link>
-                    </Button>
-                </div>
             </div>
 
             <div className="mt-6 flex flex-col gap-6">
