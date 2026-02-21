@@ -44,6 +44,48 @@ Key flows:
 - Add users and assign roles
 - Configure products and taxes
 
+### Company Owner Invite and User Creation Flow (Current Implementation)
+
+This is how user onboarding currently works in the code today.
+
+#### Who can create company users?
+
+- Superadmin can bootstrap the company and its first owner from platform screens.
+- After that, company owners (or any user with `core.users.manage`) can invite users directly from the company workspace.
+- Public self-registration is disabled; onboarding is invite-only.
+
+#### Where company owners send invites
+
+- Company owner opens `Company -> Users` then `Manage invites` (goes to `/core/invites`).
+- Click `New invite` (`/core/invites/create`).
+- Enter:
+  - email
+  - optional name
+  - role (`company_member` or `company_owner`)
+  - optional expiry date
+- Submit creates an invite record and queues email delivery.
+
+#### What happens when the invite is accepted
+
+- Recipient opens `/invites/{token}` and sets password.
+- If no user exists for that email, user is created automatically.
+- If user already exists, that existing account is used.
+- System marks email verified, attaches user to the target company, and assigns role:
+  - `company_owner` -> owner membership (`is_owner = true`)
+  - `company_member` -> member membership (`is_owner = false`)
+- User is signed in and redirected to dashboard.
+
+#### Is superadmin required for every new employee?
+
+- No. Superadmin is mainly for platform-level setup/governance.
+- Day-to-day hiring/onboarding inside a company is handled by company owner via company invites.
+
+#### If the company needs a "Sales Manager" role
+
+- Current seeded roles are mainly `Owner` and `Member` by default.
+- Invite flow can onboard the person as `company_member`, then owner can update their role from `/company/users` if that role exists in the roles table.
+- Dedicated business roles (Sales Manager, Inventory Manager, Finance Manager) with tailored permissions are still part of the remaining role/module roadmap.
+
 ### 2) Finance / Accounting User
 
 Primary goal: invoices, payments, and financial statements.
