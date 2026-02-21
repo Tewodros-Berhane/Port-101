@@ -4,6 +4,7 @@ use App\Http\Controllers\Company\ModulesController as CompanyModulesController;
 use App\Http\Controllers\Company\RolesController as CompanyRolesController;
 use App\Http\Controllers\Company\SettingsController as CompanySettingsController;
 use App\Http\Controllers\Company\UsersController as CompanyUsersController;
+use App\Http\Controllers\Company\DashboardController as CompanyDashboardController;
 use App\Http\Controllers\Core\AddressesController;
 use App\Http\Controllers\Core\AttachmentsController;
 use App\Http\Controllers\Core\AuditLogsController;
@@ -83,9 +84,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     })->name('dashboard');
 
     Route::middleware('company.workspace')->group(function () {
-        Route::get('company/dashboard', function () {
-            return Inertia::render('company/dashboard');
-        })->name('company.dashboard');
+        Route::get('company/dashboard', [CompanyDashboardController::class, 'index'])
+            ->name('company.dashboard');
 
         Route::prefix('company')->name('company.')->group(function () {
             Route::get('settings', [CompanySettingsController::class, 'show'])

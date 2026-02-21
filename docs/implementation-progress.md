@@ -74,12 +74,13 @@
 - Refined header notification dropdown UX to compact card-style items with stronger spacing, timestamp-first metadata, and truncated one-line titles to prevent horizontal overflow/clutter.
 - Added role-segregated route middleware enforcement for direct URL protection (`company.workspace`) so superadmins are redirected away from `/company/*` workspace routes while platform routes remain restricted to superadmins.
 - Fixed notifications breadcrumbs to show `Platform > Notifications` for superadmins (and retain `Company > Notifications` for company users).
+- Replaced company dashboard placeholder with a real KPI dashboard (`/company/dashboard`) including trend charts, invite status visualization, quick actions, master-data summary, and recent activity feed.
 
 ## Not Yet Implemented
 
 - Ownership-mode config wiring (`APP_OWNERSHIP_MODE`) described in docs is not yet implemented in code.
 - Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
-- Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
+- Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
 - Accounting lite: invoices and payments flow.
@@ -103,6 +104,7 @@
 - Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`) and are managed from `/settings/dashboard-personalization`.
 - Header actions now include in-place notification preview dropdowns and a dedicated logout button before the company switcher.
 - Direct URL route protection now enforces workspace separation: superadmins cannot open company workspace routes, and company users remain blocked from platform routes.
+- Company owner dashboard now delivers real KPIs, trend charts, quick actions, and recent activity insights at `/company/dashboard`.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
@@ -122,7 +124,6 @@
 
 ### Present but placeholder-only
 
-- Company dashboard (`/company/dashboard`) is still a placeholder layout.
 - Company modules are placeholders only: Sales, Inventory, Purchasing, Accounting, Approvals, Reports.
 
 ### Test run result (2026-02-20)
@@ -134,12 +135,11 @@
 
 ## Next Steps (Priority Order)
 
-1. Implement company dashboards with real KPIs and quick actions.
-2. Build Phase 1 module slices:
+1. Build Phase 1 module slices:
     - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
-3. Build Phase 2 purchasing slice:
+2. Build Phase 2 purchasing slice:
     - Vendors, RFQs, POs, receipts, and vendor bill handoff.
-4. Implement approvals queue and reporting views.
+3. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
 
@@ -149,7 +149,7 @@
 ## Next Steps (Owner + Modules)
 
 - Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
-- Role dashboards with KPI cards and quick actions (Owner, Sales, Inventory, Finance).
+- Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
 - Accounting lite: invoices and payments flow.
