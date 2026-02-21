@@ -70,6 +70,7 @@
 - Updated platform dashboard chart styling with richer multi-color palettes for dark mode readability (delivery trend, status donut, noisy events).
 - Fixed dashboard chart token rendering in dark mode by using native theme color variables (`--chart-*`) instead of invalid `hsl(...)` wrappers over OKLCH tokens.
 - Moved the reports-center CTA to the platform dashboard header beside governance controls and removed the redundant reporting card.
+- Updated global header controls so the notification bell opens a recent-notifications dropdown with a `See all` action, moved logout to a standalone header button, and reduced the sidebar user menu to settings-only.
 
 ## Not Yet Implemented
 
@@ -97,6 +98,7 @@
 - Platform governance settings are now managed from `/platform/governance` (delivery schedule + notification governance controls), while the dashboard stays monitoring-focused.
 - Platform dashboard now supports invite-delivery drill-down filtering and applies user-level default filter presets when no explicit filter query is provided.
 - Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`) and are managed from `/settings/dashboard-personalization`.
+- Header actions now include in-place notification preview dropdowns and a dedicated logout button before the company switcher.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.

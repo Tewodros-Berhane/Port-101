@@ -14,6 +14,15 @@ export type SharedData = {
     permissions: string[];
     notifications?: {
         unread_count: number;
+        recent: Array<{
+            id: string;
+            title: string;
+            message: string;
+            url?: string | null;
+            severity: string;
+            read_at?: string | null;
+            created_at?: string | null;
+        }>;
     };
     flash?: {
         success?: string | null;

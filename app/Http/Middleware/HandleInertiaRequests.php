@@ -37,6 +37,35 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $company = $user?->currentCompany;
+        $permissions = $user
+            ? $user->permissionsForCompany($company)
+            : [];
+        $canViewNotifications = in_array('core.notifications.view', $permissions, true);
+
+        $recentNotifications = [];
+        if ($user && $canViewNotifications) {
+            $recentNotifications = $user->notifications()
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(function ($notification) {
+                    $payload = is_array($notification->data)
+                        ? $notification->data
+                        : [];
+
+                    return [
+                        'id' => $notification->id,
+                        'title' => $payload['title'] ?? 'Notification',
+                        'message' => $payload['message'] ?? '',
+                        'url' => $payload['url'] ?? null,
+                        'severity' => $payload['severity'] ?? 'low',
+                        'read_at' => $notification->read_at?->toIso8601String(),
+                        'created_at' => $notification->created_at?->toIso8601String(),
+                    ];
+                })
+                ->values()
+                ->all();
+        }
 
         return [
             ...parent::share($request),
@@ -68,11 +97,10 @@ class HandleInertiaRequests extends Middleware
                         ];
                     })
                 : [],
-            'permissions' => $user
-                ? $user->permissionsForCompany($company)
-                : [],
+            'permissions' => $permissions,
             'notifications' => [
                 'unread_count' => $user ? $user->unreadNotifications()->count() : 0,
+                'recent' => $recentNotifications,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
