@@ -76,10 +76,10 @@
 - Fixed notifications breadcrumbs to show `Platform > Notifications` for superadmins (and retain `Company > Notifications` for company users).
 - Replaced company dashboard placeholder with a real KPI dashboard (`/company/dashboard`) including trend charts, invite status visualization, quick actions, master-data summary, and recent activity feed.
 - Expanded company settings persistence/UI for tax periods, approval policy defaults, and numbering sequences (company-scoped settings keys + API exposure).
+- Added final delivery planning doc at `docs/final-module-delivery-plan.md` covering expanded role architecture, module-by-module workflow states, rollout phases, and production-readiness gates (research-backed with Odoo/Dynamics references).
 
 ## Not Yet Implemented
 
-- Ownership-mode config wiring (`APP_OWNERSHIP_MODE`) described in docs is not yet implemented in code.
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
@@ -87,6 +87,10 @@
 - Purchasing slice: vendors, RFQs, purchase orders, receipts.
 - Approvals queue implementation.
 - Reports implementation (financial + operational views).
+
+## Deferred / Out of Scope
+
+- Ownership-mode runtime switching (`APP_OWNERSHIP_MODE`) is intentionally deferred and excluded from the current delivery scope.
 
 ## Functional Status (Audit)
 
