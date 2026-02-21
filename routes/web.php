@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\InviteAcceptanceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -9,11 +8,7 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::get('invites/{token}', [InviteAcceptanceController::class, 'show'])
-    ->name('invites.accept.show');
-Route::post('invites/{token}/accept', [InviteAcceptanceController::class, 'store'])
-    ->middleware('guest')
-    ->name('invites.accept.store');
+require __DIR__.'/auth.php';
 
 require __DIR__.'/company.php';
 require __DIR__.'/modules.php';

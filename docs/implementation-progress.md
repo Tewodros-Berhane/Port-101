@@ -78,6 +78,7 @@
 - Expanded company settings persistence/UI for tax periods, approval policy defaults, and numbering sequences (company-scoped settings keys + API exposure).
 - Added final delivery planning doc at `docs/final-module-delivery-plan.md` covering expanded role architecture, module-by-module workflow states, rollout phases, and production-readiness gates (research-backed with Odoo/Dynamics references).
 - Refactored route registration for maintainability by splitting `routes/web.php` into compact grouped files: `routes/company.php`, `routes/modules.php`, `routes/masterdata.php`, and `routes/platform.php` (loaded via `require` from `routes/web.php`).
+- Moved authentication-related invite acceptance routes into dedicated `routes/auth.php` and wired it through `routes/web.php` for cleaner route organization.
 
 ## Not Yet Implemented
 
