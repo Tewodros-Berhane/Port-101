@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import type { SharedData } from '@/types';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 type AppNotification = {
     id: string;
@@ -27,6 +28,8 @@ const formatDate = (value?: string | null) =>
 
 export default function NotificationsIndex({ notifications }: Props) {
     const { hasPermission } = usePermissions();
+    const { auth } = usePage<SharedData>().props;
+    const isSuperAdmin = Boolean(auth?.user?.is_super_admin);
     const canManage = hasPermission('core.notifications.manage');
 
     const markReadForm = useForm({});
@@ -52,7 +55,12 @@ export default function NotificationsIndex({ notifications }: Props) {
     return (
         <AppLayout
             breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
+                {
+                    title: isSuperAdmin ? 'Platform' : 'Company',
+                    href: isSuperAdmin
+                        ? '/platform/dashboard'
+                        : '/company/dashboard',
+                },
                 { title: 'Notifications', href: '/core/notifications' },
             ]}
         >
@@ -81,7 +89,9 @@ export default function NotificationsIndex({ notifications }: Props) {
                 <table className="w-full min-w-max text-sm">
                     <thead className="bg-muted/60 text-left">
                         <tr>
-                            <th className="px-4 py-3 font-medium">Notification</th>
+                            <th className="px-4 py-3 font-medium">
+                                Notification
+                            </th>
                             <th className="px-4 py-3 font-medium">When</th>
                             <th className="px-4 py-3 font-medium">Severity</th>
                             <th className="px-4 py-3 font-medium">Status</th>
@@ -107,9 +117,7 @@ export default function NotificationsIndex({ notifications }: Props) {
                             <tr
                                 key={notification.id}
                                 className={
-                                    notification.read_at
-                                        ? ''
-                                        : 'bg-primary/5'
+                                    notification.read_at ? '' : 'bg-primary/5'
                                 }
                             >
                                 <td className="px-4 py-3">

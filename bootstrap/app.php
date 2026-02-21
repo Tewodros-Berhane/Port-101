@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureCompanyMembership;
+use App\Http\Middleware\EnsureCompanyWorkspaceUser;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'company' => EnsureCompanyMembership::class,
+            'company.workspace' => EnsureCompanyWorkspaceUser::class,
             'company.context' => ResolveCompanyContext::class,
             'superadmin' => EnsureSuperAdmin::class,
         ]);

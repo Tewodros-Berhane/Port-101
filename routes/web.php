@@ -67,6 +67,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('company.inactive');
 
     Route::post('company/switch', [CompanySwitchController::class, 'update'])
+        ->middleware('company.workspace')
         ->name('company.switch');
 });
 
@@ -81,35 +82,37 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         return redirect()->route('company.dashboard');
     })->name('dashboard');
 
-    Route::get('company/dashboard', function () {
-        return Inertia::render('company/dashboard');
-    })->name('company.dashboard');
+    Route::middleware('company.workspace')->group(function () {
+        Route::get('company/dashboard', function () {
+            return Inertia::render('company/dashboard');
+        })->name('company.dashboard');
 
-    Route::prefix('company')->name('company.')->group(function () {
-        Route::get('settings', [CompanySettingsController::class, 'show'])
-            ->name('settings.show');
-        Route::put('settings', [CompanySettingsController::class, 'update'])
-            ->name('settings.update');
+        Route::prefix('company')->name('company.')->group(function () {
+            Route::get('settings', [CompanySettingsController::class, 'show'])
+                ->name('settings.show');
+            Route::put('settings', [CompanySettingsController::class, 'update'])
+                ->name('settings.update');
 
-        Route::get('users', [CompanyUsersController::class, 'index'])
-            ->name('users.index');
-        Route::put('users/{membership}/role', [CompanyUsersController::class, 'updateRole'])
-            ->name('users.update-role');
-        Route::get('roles', [CompanyRolesController::class, 'index'])
-            ->name('roles.index');
+            Route::get('users', [CompanyUsersController::class, 'index'])
+                ->name('users.index');
+            Route::put('users/{membership}/role', [CompanyUsersController::class, 'updateRole'])
+                ->name('users.update-role');
+            Route::get('roles', [CompanyRolesController::class, 'index'])
+                ->name('roles.index');
 
-        Route::get('sales', [CompanyModulesController::class, 'sales'])
-            ->name('modules.sales');
-        Route::get('inventory', [CompanyModulesController::class, 'inventory'])
-            ->name('modules.inventory');
-        Route::get('purchasing', [CompanyModulesController::class, 'purchasing'])
-            ->name('modules.purchasing');
-        Route::get('accounting', [CompanyModulesController::class, 'accounting'])
-            ->name('modules.accounting');
-        Route::get('reports', [CompanyModulesController::class, 'reports'])
-            ->name('modules.reports');
-        Route::get('approvals', [CompanyModulesController::class, 'approvals'])
-            ->name('modules.approvals');
+            Route::get('sales', [CompanyModulesController::class, 'sales'])
+                ->name('modules.sales');
+            Route::get('inventory', [CompanyModulesController::class, 'inventory'])
+                ->name('modules.inventory');
+            Route::get('purchasing', [CompanyModulesController::class, 'purchasing'])
+                ->name('modules.purchasing');
+            Route::get('accounting', [CompanyModulesController::class, 'accounting'])
+                ->name('modules.accounting');
+            Route::get('reports', [CompanyModulesController::class, 'reports'])
+                ->name('modules.reports');
+            Route::get('approvals', [CompanyModulesController::class, 'approvals'])
+                ->name('modules.approvals');
+        });
     });
 
     Route::prefix('core')->name('core.')->group(function () {

@@ -71,6 +71,8 @@
 - Fixed dashboard chart token rendering in dark mode by using native theme color variables (`--chart-*`) instead of invalid `hsl(...)` wrappers over OKLCH tokens.
 - Moved the reports-center CTA to the platform dashboard header beside governance controls and removed the redundant reporting card.
 - Updated global header controls so the notification bell opens a recent-notifications dropdown with a `See all` action, moved logout to a standalone header button, and reduced the sidebar user menu to settings-only.
+- Added role-segregated route middleware enforcement for direct URL protection (`company.workspace`) so superadmins are redirected away from `/company/*` workspace routes while platform routes remain restricted to superadmins.
+- Fixed notifications breadcrumbs to show `Platform > Notifications` for superadmins (and retain `Company > Notifications` for company users).
 
 ## Not Yet Implemented
 
@@ -99,6 +101,7 @@
 - Platform dashboard now supports invite-delivery drill-down filtering and applies user-level default filter presets when no explicit filter query is provided.
 - Platform dashboard personalization preferences persist per superadmin via settings (`platform.dashboard.preferences`) and are managed from `/settings/dashboard-personalization`.
 - Header actions now include in-place notification preview dropdowns and a dedicated logout button before the company switcher.
+- Direct URL route protection now enforces workspace separation: superadmins cannot open company workspace routes, and company users remain blocked from platform routes.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
