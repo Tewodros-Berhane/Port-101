@@ -15,8 +15,35 @@ import type { BreadcrumbItem as BreadcrumbItemType, SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, LogOut } from 'lucide-react';
 
-const formatNotificationDate = (value?: string | null) =>
-    value ? new Date(value).toLocaleString() : '-';
+const formatNotificationDate = (value?: string | null) => {
+    if (!value) {
+        return '-';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '-';
+    }
+
+    const elapsed = Date.now() - date.getTime();
+    const minute = 60_000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+
+    if (elapsed < minute) {
+        return 'Just now';
+    }
+
+    if (elapsed < hour) {
+        return `${Math.floor(elapsed / minute)}m ago`;
+    }
+
+    if (elapsed < day) {
+        return `${Math.floor(elapsed / hour)}h ago`;
+    }
+
+    return date.toLocaleString();
+};
 
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -60,8 +87,11 @@ export function AppSidebarHeader({
                                 )}
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-80 p-0">
-                            <DropdownMenuLabel className="space-y-0.5 px-3 py-2">
+                        <DropdownMenuContent
+                            align="end"
+                            className="w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+                        >
+                            <DropdownMenuLabel className="space-y-0.5 px-4 py-3">
                                 <div className="text-sm font-semibold">
                                     Notifications
                                 </div>
@@ -72,7 +102,7 @@ export function AppSidebarHeader({
                                 </div>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator className="my-0" />
-                            <div className="max-h-80 overflow-y-auto p-1">
+                            <div className="max-h-96 space-y-2 overflow-x-hidden overflow-y-auto px-2 py-2">
                                 {recentNotifications.length === 0 && (
                                     <p className="px-2 py-3 text-xs text-muted-foreground">
                                         No notifications yet.
@@ -82,44 +112,41 @@ export function AppSidebarHeader({
                                     <DropdownMenuItem
                                         key={notification.id}
                                         asChild
-                                        className="items-start px-2 py-2"
+                                        className="cursor-pointer rounded-lg p-0 focus:bg-transparent"
                                     >
                                         <Link
                                             href={
                                                 notification.url ??
                                                 '/core/notifications'
                                             }
-                                            className="block w-full min-w-0"
+                                            className="block w-full rounded-lg border border-border/60 bg-background/60 px-3 py-2.5 transition-colors hover:bg-accent/35"
                                         >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <span className="truncate text-sm font-medium">
-                                                    {notification.title}
-                                                </span>
+                                            <div className="flex items-start gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm leading-5 font-medium">
+                                                        {notification.title}
+                                                    </p>
+                                                    <p className="mt-1 text-[11px] text-muted-foreground">
+                                                        {formatNotificationDate(
+                                                            notification.created_at,
+                                                        )}
+                                                    </p>
+                                                </div>
                                                 {!notification.read_at && (
                                                     <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" />
                                                 )}
                                             </div>
-                                            {notification.message && (
-                                                <p className="mt-1 text-xs text-muted-foreground">
-                                                    {notification.message}
-                                                </p>
-                                            )}
-                                            <p className="mt-1 text-[11px] text-muted-foreground">
-                                                {formatNotificationDate(
-                                                    notification.created_at,
-                                                )}
-                                            </p>
                                         </Link>
                                     </DropdownMenuItem>
                                 ))}
                             </div>
                             <DropdownMenuSeparator className="my-0" />
-                            <DropdownMenuItem asChild className="rounded-none">
+                            <DropdownMenuItem asChild className="m-2 mb-2 p-0">
                                 <Link
                                     href="/core/notifications"
-                                    className="block w-full px-2 py-1.5 text-sm font-medium"
+                                    className="block w-full rounded-md border border-border/60 px-3 py-2 text-center text-sm font-medium"
                                 >
-                                    See all
+                                    See all notifications
                                 </Link>
                             </DropdownMenuItem>
                         </DropdownMenuContent>

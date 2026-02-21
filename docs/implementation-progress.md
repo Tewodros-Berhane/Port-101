@@ -71,6 +71,7 @@
 - Fixed dashboard chart token rendering in dark mode by using native theme color variables (`--chart-*`) instead of invalid `hsl(...)` wrappers over OKLCH tokens.
 - Moved the reports-center CTA to the platform dashboard header beside governance controls and removed the redundant reporting card.
 - Updated global header controls so the notification bell opens a recent-notifications dropdown with a `See all` action, moved logout to a standalone header button, and reduced the sidebar user menu to settings-only.
+- Refined header notification dropdown UX to compact card-style items with stronger spacing, timestamp-first metadata, and truncated one-line titles to prevent horizontal overflow/clutter.
 - Added role-segregated route middleware enforcement for direct URL protection (`company.workspace`) so superadmins are redirected away from `/company/*` workspace routes while platform routes remain restricted to superadmins.
 - Fixed notifications breadcrumbs to show `Platform > Notifications` for superadmins (and retain `Company > Notifications` for company users).
 
@@ -135,9 +136,9 @@
 
 1. Implement company dashboards with real KPIs and quick actions.
 2. Build Phase 1 module slices:
-   - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
+    - Sales (lead -> quote -> order), Inventory (stock/receipts/deliveries), Accounting lite (invoices/payments).
 3. Build Phase 2 purchasing slice:
-   - Vendors, RFQs, POs, receipts, and vendor bill handoff.
+    - Vendors, RFQs, POs, receipts, and vendor bill handoff.
 4. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
