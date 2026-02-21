@@ -74,6 +74,18 @@ test('company settings update persists scoped settings and notifies other users'
             'date_format' => 'd/m/Y',
             'number_format' => '1.234,56',
             'audit_retention_days' => 180,
+            'tax_period' => 'quarterly',
+            'tax_submission_day' => 20,
+            'approval_enabled' => true,
+            'approval_policy' => 'amount_based',
+            'approval_threshold_amount' => 25000.75,
+            'approval_escalation_hours' => 48,
+            'sales_order_prefix' => 'SO-NEW',
+            'sales_order_next_number' => 2201,
+            'purchase_order_prefix' => 'PO-NEW',
+            'purchase_order_next_number' => 3301,
+            'invoice_prefix' => 'INV-NEW',
+            'invoice_next_number' => 4401,
         ])
         ->assertRedirect(route('company.settings.show'));
 
@@ -89,6 +101,18 @@ test('company settings update persists scoped settings and notifies other users'
         'company.date_format',
         'company.number_format',
         'core.audit_logs.retention_days',
+        'company.tax_period',
+        'company.tax_submission_day',
+        'company.approvals.enabled',
+        'company.approvals.policy',
+        'company.approvals.threshold_amount',
+        'company.approvals.escalation_hours',
+        'company.numbering.sales_order_prefix',
+        'company.numbering.sales_order_next',
+        'company.numbering.purchase_order_prefix',
+        'company.numbering.purchase_order_next',
+        'company.numbering.invoice_prefix',
+        'company.numbering.invoice_next',
     ], $company->id);
 
     expect($settings['company.fiscal_year_start'])->toBe('2026-01-01');
@@ -96,10 +120,21 @@ test('company settings update persists scoped settings and notifies other users'
     expect($settings['company.date_format'])->toBe('d/m/Y');
     expect($settings['company.number_format'])->toBe('1.234,56');
     expect((int) $settings['core.audit_logs.retention_days'])->toBe(180);
+    expect($settings['company.tax_period'])->toBe('quarterly');
+    expect((int) $settings['company.tax_submission_day'])->toBe(20);
+    expect((bool) $settings['company.approvals.enabled'])->toBeTrue();
+    expect($settings['company.approvals.policy'])->toBe('amount_based');
+    expect((float) $settings['company.approvals.threshold_amount'])->toBe(25000.75);
+    expect((int) $settings['company.approvals.escalation_hours'])->toBe(48);
+    expect($settings['company.numbering.sales_order_prefix'])->toBe('SO-NEW');
+    expect((int) $settings['company.numbering.sales_order_next'])->toBe(2201);
+    expect($settings['company.numbering.purchase_order_prefix'])->toBe('PO-NEW');
+    expect((int) $settings['company.numbering.purchase_order_next'])->toBe(3301);
+    expect($settings['company.numbering.invoice_prefix'])->toBe('INV-NEW');
+    expect((int) $settings['company.numbering.invoice_next'])->toBe(4401);
 
     $notification = $teammate->fresh()->notifications()->latest()->first();
 
     expect($notification)->not->toBeNull();
     expect($notification?->data['title'] ?? null)->toBe('Company settings updated');
 });
-

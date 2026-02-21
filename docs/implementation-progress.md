@@ -75,11 +75,11 @@
 - Added role-segregated route middleware enforcement for direct URL protection (`company.workspace`) so superadmins are redirected away from `/company/*` workspace routes while platform routes remain restricted to superadmins.
 - Fixed notifications breadcrumbs to show `Platform > Notifications` for superadmins (and retain `Company > Notifications` for company users).
 - Replaced company dashboard placeholder with a real KPI dashboard (`/company/dashboard`) including trend charts, invite status visualization, quick actions, master-data summary, and recent activity feed.
+- Expanded company settings persistence/UI for tax periods, approval policy defaults, and numbering sequences (company-scoped settings keys + API exposure).
 
 ## Not Yet Implemented
 
 - Ownership-mode config wiring (`APP_OWNERSHIP_MODE`) described in docs is not yet implemented in code.
-- Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.
@@ -106,6 +106,7 @@
 - Direct URL route protection now enforces workspace separation: superadmins cannot open company workspace routes, and company users remain blocked from platform routes.
 - Company owner dashboard now delivers real KPIs, trend charts, quick actions, and recent activity insights at `/company/dashboard`.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
+- Company settings now include tax cadence defaults, approval-policy defaults, and numbering sequence controls beyond profile/localization fields.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
 - Permission-based UI and route/controller authorization for master data and governance.
@@ -148,7 +149,6 @@
 
 ## Next Steps (Owner + Modules)
 
-- Company settings expansion beyond current defaults (tax periods, approval policies, numbering sequences).
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
 - Sales workflow slice: leads -> quotes -> sales orders (list/create/edit).
 - Inventory slice: warehouses/locations, stock levels, receipts/deliveries.

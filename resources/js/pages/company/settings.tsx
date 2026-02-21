@@ -21,6 +21,18 @@ type Props = {
         date_format?: string | null;
         number_format?: string | null;
         audit_retention_days?: number | null;
+        tax_period?: 'monthly' | 'quarterly' | 'annual' | null;
+        tax_submission_day?: number | null;
+        approval_enabled?: boolean | null;
+        approval_policy?: 'none' | 'amount_based' | 'always' | null;
+        approval_threshold_amount?: number | null;
+        approval_escalation_hours?: number | null;
+        sales_order_prefix?: string | null;
+        sales_order_next_number?: number | null;
+        purchase_order_prefix?: string | null;
+        purchase_order_next_number?: number | null;
+        invoice_prefix?: string | null;
+        invoice_next_number?: number | null;
     };
 };
 
@@ -34,6 +46,18 @@ export default function CompanySettings({ company, settings }: Props) {
         date_format: settings.date_format ?? 'Y-m-d',
         number_format: settings.number_format ?? '1,234.56',
         audit_retention_days: settings.audit_retention_days ?? 365,
+        tax_period: settings.tax_period ?? 'monthly',
+        tax_submission_day: settings.tax_submission_day ?? 15,
+        approval_enabled: settings.approval_enabled ?? false,
+        approval_policy: settings.approval_policy ?? 'none',
+        approval_threshold_amount: settings.approval_threshold_amount ?? 10000,
+        approval_escalation_hours: settings.approval_escalation_hours ?? 24,
+        sales_order_prefix: settings.sales_order_prefix ?? 'SO',
+        sales_order_next_number: settings.sales_order_next_number ?? 1001,
+        purchase_order_prefix: settings.purchase_order_prefix ?? 'PO',
+        purchase_order_next_number: settings.purchase_order_next_number ?? 1001,
+        invoice_prefix: settings.invoice_prefix ?? 'INV',
+        invoice_next_number: settings.invoice_next_number ?? 1001,
     });
 
     return (
@@ -115,7 +139,9 @@ export default function CompanySettings({ company, settings }: Props) {
                 </div>
 
                 <div className="rounded-xl border p-4">
-                    <h2 className="text-sm font-semibold">Operational defaults</h2>
+                    <h2 className="text-sm font-semibold">
+                        Operational defaults
+                    </h2>
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="fiscal_year_start">
@@ -211,6 +237,286 @@ export default function CompanySettings({ company, settings }: Props) {
                 </div>
 
                 <div className="rounded-xl border p-4">
+                    <h2 className="text-sm font-semibold">Tax periods</h2>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="tax_period">Tax period</Label>
+                            <select
+                                id="tax_period"
+                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                                value={form.data.tax_period}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'tax_period',
+                                        event.target.value as
+                                            | 'monthly'
+                                            | 'quarterly'
+                                            | 'annual',
+                                    )
+                                }
+                            >
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="annual">Annual</option>
+                            </select>
+                            <InputError message={form.errors.tax_period} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="tax_submission_day">
+                                Filing day of month
+                            </Label>
+                            <Input
+                                id="tax_submission_day"
+                                type="number"
+                                min={1}
+                                max={28}
+                                value={String(form.data.tax_submission_day)}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'tax_submission_day',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.tax_submission_day}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                    <h2 className="text-sm font-semibold">
+                        Approval policy defaults
+                    </h2>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="approval_enabled">
+                                Approval workflow
+                            </Label>
+                            <select
+                                id="approval_enabled"
+                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                                value={form.data.approval_enabled ? '1' : '0'}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'approval_enabled',
+                                        event.target.value === '1',
+                                    )
+                                }
+                            >
+                                <option value="1">Enabled</option>
+                                <option value="0">Disabled</option>
+                            </select>
+                            <InputError
+                                message={form.errors.approval_enabled}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="approval_policy">
+                                Default policy
+                            </Label>
+                            <select
+                                id="approval_policy"
+                                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                                value={form.data.approval_policy}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'approval_policy',
+                                        event.target.value as
+                                            | 'none'
+                                            | 'amount_based'
+                                            | 'always',
+                                    )
+                                }
+                            >
+                                <option value="none">No approvals</option>
+                                <option value="amount_based">
+                                    Amount-based approvals
+                                </option>
+                                <option value="always">
+                                    Always require approval
+                                </option>
+                            </select>
+                            <InputError message={form.errors.approval_policy} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="approval_threshold_amount">
+                                Approval threshold amount
+                            </Label>
+                            <Input
+                                id="approval_threshold_amount"
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={String(
+                                    form.data.approval_threshold_amount,
+                                )}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'approval_threshold_amount',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.approval_threshold_amount}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="approval_escalation_hours">
+                                Escalation SLA (hours)
+                            </Label>
+                            <Input
+                                id="approval_escalation_hours"
+                                type="number"
+                                min={1}
+                                max={168}
+                                value={String(
+                                    form.data.approval_escalation_hours,
+                                )}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'approval_escalation_hours',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.approval_escalation_hours}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                    <h2 className="text-sm font-semibold">
+                        Numbering sequences
+                    </h2>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-2">
+                            <Label htmlFor="sales_order_prefix">
+                                Sales order prefix
+                            </Label>
+                            <Input
+                                id="sales_order_prefix"
+                                value={form.data.sales_order_prefix}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'sales_order_prefix',
+                                        event.target.value.toUpperCase(),
+                                    )
+                                }
+                                maxLength={12}
+                            />
+                            <InputError
+                                message={form.errors.sales_order_prefix}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="sales_order_next_number">
+                                Sales order next number
+                            </Label>
+                            <Input
+                                id="sales_order_next_number"
+                                type="number"
+                                min={1}
+                                value={String(
+                                    form.data.sales_order_next_number,
+                                )}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'sales_order_next_number',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.sales_order_next_number}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="purchase_order_prefix">
+                                Purchase order prefix
+                            </Label>
+                            <Input
+                                id="purchase_order_prefix"
+                                value={form.data.purchase_order_prefix}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'purchase_order_prefix',
+                                        event.target.value.toUpperCase(),
+                                    )
+                                }
+                                maxLength={12}
+                            />
+                            <InputError
+                                message={form.errors.purchase_order_prefix}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="purchase_order_next_number">
+                                Purchase order next number
+                            </Label>
+                            <Input
+                                id="purchase_order_next_number"
+                                type="number"
+                                min={1}
+                                value={String(
+                                    form.data.purchase_order_next_number,
+                                )}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'purchase_order_next_number',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.purchase_order_next_number}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="invoice_prefix">
+                                Invoice prefix
+                            </Label>
+                            <Input
+                                id="invoice_prefix"
+                                value={form.data.invoice_prefix}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'invoice_prefix',
+                                        event.target.value.toUpperCase(),
+                                    )
+                                }
+                                maxLength={12}
+                            />
+                            <InputError message={form.errors.invoice_prefix} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="invoice_next_number">
+                                Invoice next number
+                            </Label>
+                            <Input
+                                id="invoice_next_number"
+                                type="number"
+                                min={1}
+                                value={String(form.data.invoice_next_number)}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'invoice_next_number',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.invoice_next_number}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
                     <h2 className="text-sm font-semibold">Ownership</h2>
                     <div className="mt-3 text-sm text-muted-foreground">
                         <p>Owner: {company.owner ?? '-'}</p>
@@ -227,4 +533,3 @@ export default function CompanySettings({ company, settings }: Props) {
         </AppLayout>
     );
 }
-

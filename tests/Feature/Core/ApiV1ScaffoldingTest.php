@@ -130,15 +130,32 @@ test('api v1 settings endpoint persists company settings', function () {
     putJson('/api/v1/settings', [
         'locale' => 'en_US',
         'audit_retention_days' => 120,
+        'tax_period' => 'monthly',
+        'tax_submission_day' => 18,
+        'approval_enabled' => true,
+        'approval_policy' => 'amount_based',
+        'approval_threshold_amount' => 9000.5,
+        'sales_order_prefix' => 'SOA',
+        'sales_order_next_number' => 1200,
     ])
         ->assertOk()
         ->assertJsonPath('data.locale', 'en_US')
-        ->assertJsonPath('data.audit_retention_days', 120);
+        ->assertJsonPath('data.audit_retention_days', 120)
+        ->assertJsonPath('data.tax_period', 'monthly')
+        ->assertJsonPath('data.tax_submission_day', 18)
+        ->assertJsonPath('data.approval_enabled', true)
+        ->assertJsonPath('data.approval_policy', 'amount_based')
+        ->assertJsonPath('data.approval_threshold_amount', 9000.5)
+        ->assertJsonPath('data.sales_order_prefix', 'SOA')
+        ->assertJsonPath('data.sales_order_next_number', 1200);
 
     getJson('/api/v1/settings')
         ->assertOk()
         ->assertJsonPath('data.locale', 'en_US')
-        ->assertJsonPath('data.audit_retention_days', 120);
+        ->assertJsonPath('data.audit_retention_days', 120)
+        ->assertJsonPath('data.tax_period', 'monthly')
+        ->assertJsonPath('data.approval_enabled', true)
+        ->assertJsonPath('data.sales_order_prefix', 'SOA');
 
     $setting = Setting::query()
         ->where('company_id', $company->id)
@@ -146,4 +163,11 @@ test('api v1 settings endpoint persists company settings', function () {
         ->first();
 
     expect((int) $setting?->value)->toBe(120);
+
+    $taxPeriod = Setting::query()
+        ->where('company_id', $company->id)
+        ->where('key', 'company.tax_period')
+        ->first();
+
+    expect($taxPeriod?->value)->toBe('monthly');
 });
