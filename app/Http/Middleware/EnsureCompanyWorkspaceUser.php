@@ -29,14 +29,14 @@ class EnsureCompanyWorkspaceUser
         if ($user->is_super_admin) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
-                    'message' => 'Company workspace routes are not available to super admins.',
+                    'message' => 'Access Denied.',
                     'code' => 'company_workspace_forbidden',
                 ], 403);
             }
 
             return redirect()
                 ->route('platform.dashboard')
-                ->with('warning', 'Super admins cannot access company workspace routes.');
+                ->with('warning', 'Access Denied.');
         }
 
         return $next($request);
