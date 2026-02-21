@@ -79,6 +79,7 @@
 - Added final delivery planning doc at `docs/final-module-delivery-plan.md` covering expanded role architecture, module-by-module workflow states, rollout phases, and production-readiness gates (research-backed with Odoo/Dynamics references).
 - Refactored route registration for maintainability by splitting `routes/web.php` into compact grouped files: `routes/company.php`, `routes/modules.php`, `routes/masterdata.php`, and `routes/platform.php` (loaded via `require` from `routes/web.php`).
 - Moved authentication-related invite acceptance routes into dedicated `routes/auth.php` and wired it through `routes/web.php` for cleaner route organization.
+- Hardened logout/back-button behavior: authenticated web responses now send no-store cache headers, logout redirect also sends no-cache headers, and app bootstrap adds a BFCache `pageshow` reload guard on authenticated pages to prevent viewing stale protected screens after logout.
 
 ## Not Yet Implemented
 

@@ -10,6 +10,43 @@ import type { SharedData } from './types';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Port-101';
 
+type BackForwardGuardWindow = Window & {
+    __portBackForwardGuardInstalled?: boolean;
+};
+
+const installBackForwardGuard = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const guardedWindow = window as BackForwardGuardWindow;
+
+    if (guardedWindow.__portBackForwardGuardInstalled) {
+        return;
+    }
+
+    window.addEventListener('pageshow', (event) => {
+        const isAuthenticatedPage =
+            document.documentElement.dataset.authenticated === '1';
+
+        if (!isAuthenticatedPage) {
+            return;
+        }
+
+        const navigationEntry = performance.getEntriesByType(
+            'navigation',
+        )[0] as PerformanceNavigationTiming | undefined;
+        const isBackForwardNavigation =
+            navigationEntry?.type === 'back_forward';
+
+        if (event.persisted || isBackForwardNavigation) {
+            window.location.reload();
+        }
+    });
+
+    guardedWindow.__portBackForwardGuardInstalled = true;
+};
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
@@ -41,3 +78,4 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+installBackForwardGuard();

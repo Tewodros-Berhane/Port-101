@@ -65,9 +65,33 @@ test('users can logout', function () {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->post(route('logout'));
+    $cacheControl = (string) $response->headers->get('Cache-Control');
 
     $this->assertGuest();
     $response->assertRedirect(route('login'));
+    $response->assertHeader('Pragma', 'no-cache');
+    $response->assertHeader('Expires', 'Fri, 01 Jan 1990 00:00:00 GMT');
+    expect($cacheControl)
+        ->toContain('no-store')
+        ->toContain('no-cache')
+        ->toContain('must-revalidate')
+        ->toContain('max-age=0');
+});
+
+test('authenticated pages send no-cache headers', function () {
+    [$user] = makeActiveCompanyMember();
+
+    $response = $this->actingAs($user)->get(route('company.dashboard'));
+    $cacheControl = (string) $response->headers->get('Cache-Control');
+
+    $response->assertOk();
+    $response->assertHeader('Pragma', 'no-cache');
+    $response->assertHeader('Expires', 'Fri, 01 Jan 1990 00:00:00 GMT');
+    expect($cacheControl)
+        ->toContain('no-store')
+        ->toContain('no-cache')
+        ->toContain('must-revalidate')
+        ->toContain('max-age=0');
 });
 
 test('users are rate limited', function () {

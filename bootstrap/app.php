@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureCompanyWorkspaceUser;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\PreventAuthenticatedPageCache;
 use App\Http\Middleware\ResolveCompanyContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             ResolveCompanyContext::class,
             HandleInertiaRequests::class,
+            PreventAuthenticatedPageCache::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
     })
