@@ -77,6 +77,7 @@
 - Replaced company dashboard placeholder with a real KPI dashboard (`/company/dashboard`) including trend charts, invite status visualization, quick actions, master-data summary, and recent activity feed.
 - Expanded company settings persistence/UI for tax periods, approval policy defaults, and numbering sequences (company-scoped settings keys + API exposure).
 - Added final delivery planning doc at `docs/final-module-delivery-plan.md` covering expanded role architecture, module-by-module workflow states, rollout phases, and production-readiness gates (research-backed with Odoo/Dynamics references).
+- Refactored route registration for maintainability by splitting `routes/web.php` into compact grouped files: `routes/company.php`, `routes/modules.php`, `routes/masterdata.php`, and `routes/platform.php` (loaded via `require` from `routes/web.php`).
 
 ## Not Yet Implemented
 
