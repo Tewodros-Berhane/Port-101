@@ -1,9 +1,3 @@
-import ActivityTrendChart from '@/components/company/dashboard/activity-trend-chart';
-import InviteStatusChart from '@/components/company/dashboard/invite-status-chart';
-import { Button } from '@/components/ui/button';
-import { usePermissions } from '@/hooks/use-permissions';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import {
     Bell,
@@ -15,6 +9,13 @@ import {
     UserPlus,
     Users,
 } from 'lucide-react';
+import type { ComponentType } from 'react';
+import ActivityTrendChart from '@/components/company/dashboard/activity-trend-chart';
+import InviteStatusChart from '@/components/company/dashboard/invite-status-chart';
+import { Button } from '@/components/ui/button';
+import { usePermissions } from '@/hooks/use-permissions';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -22,6 +23,19 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/company/dashboard',
     },
 ];
+
+type DashboardMetric = {
+    label: string;
+    value: number;
+    format: string;
+};
+
+type RoleQuickAction = {
+    title: string;
+    description: string;
+    href: string;
+    permission?: string;
+};
 
 type Props = {
     companySummary: {
@@ -39,6 +53,16 @@ type Props = {
         activity_events_change_pct: number;
         invites_created_7d: number;
         invites_created_change_pct: number;
+    };
+    roleDashboard: {
+        variant: string;
+        role_slug: string;
+        role_name: string;
+        title: string;
+        summary: string;
+        kpis: DashboardMetric[];
+        focus: DashboardMetric[];
+        quick_actions: RoleQuickAction[];
     };
     activityTrend: {
         date: string;
@@ -69,7 +93,7 @@ type QuickAction = {
     description: string;
     href: string;
     permission?: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: ComponentType<{ className?: string }>;
 };
 
 const quickActions: QuickAction[] = [
@@ -133,16 +157,76 @@ const formatPercent = (value: number) =>
 const formatAction = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatMetricValue = (
+    value: number,
+    format: string,
+    currencyCode?: string | null,
+) => {
+    if (format === 'currency') {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: currencyCode ?? 'USD',
+            maximumFractionDigits: 2,
+        }).format(value);
+    }
+
+    return new Intl.NumberFormat().format(value);
+};
+
+const resolveRoleActionIcon = (
+    permission?: string,
+    href?: string,
+): ComponentType<{ className?: string }> => {
+    if (
+        permission?.startsWith('sales.')
+        || href?.startsWith('/company/sales')
+    ) {
+        return MailPlus;
+    }
+
+    if (
+        permission?.startsWith('inventory.')
+        || href?.startsWith('/company/inventory')
+    ) {
+        return PackagePlus;
+    }
+
+    if (
+        permission?.startsWith('accounting.')
+        || href?.startsWith('/company/accounting')
+    ) {
+        return ChartLine;
+    }
+
+    if (permission?.startsWith('reports.')) {
+        return ChartLine;
+    }
+
+    return UserPlus;
+};
+
 export default function CompanyDashboard({
     companySummary,
     kpis,
+    roleDashboard,
     activityTrend,
     inviteStatusMix,
     masterDataBreakdown,
     recentActivity,
 }: Props) {
     const { hasPermission } = usePermissions();
-    const availableQuickActions = quickActions.filter(
+    const isRoleFocusedView =
+        roleDashboard.variant !== 'owner' && roleDashboard.kpis.length > 0;
+
+    const roleQuickActions: QuickAction[] = roleDashboard.quick_actions.map(
+        (action) => ({
+            ...action,
+            icon: resolveRoleActionIcon(action.permission, action.href),
+        }),
+    );
+
+    const actionSource = isRoleFocusedView ? roleQuickActions : quickActions;
+    const availableQuickActions = actionSource.filter(
         (item) => !item.permission || hasPermission(item.permission),
     );
 
@@ -158,10 +242,18 @@ export default function CompanyDashboard({
                                 Company command center
                             </h1>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                {companySummary.name} • Timezone{' '}
-                                {companySummary.timezone ?? 'UTC'} • Currency{' '}
+                                {companySummary.name} - Timezone{' '}
+                                {companySummary.timezone ?? 'UTC'} - Currency{' '}
                                 {companySummary.currency_code ?? '-'}
                             </p>
+                            {isRoleFocusedView && (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    <span className="rounded-md border border-sidebar-border/70 bg-background/70 px-2 py-1">
+                                        {roleDashboard.role_name}
+                                    </span>{' '}
+                                    {roleDashboard.summary}
+                                </p>
+                            )}
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {availableQuickActions
@@ -184,64 +276,120 @@ export default function CompanyDashboard({
                     </div>
                 </section>
 
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Team members
-                        </p>
-                        <p className="mt-2 text-3xl font-semibold">
-                            {kpis.team_members}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            {kpis.owners} owner
-                            {kpis.owners === 1 ? '' : 's'} in this workspace
-                        </p>
-                    </div>
+                {isRoleFocusedView ? (
+                    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        {roleDashboard.kpis.map((metric) => (
+                            <div key={metric.label} className="rounded-xl border p-4">
+                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                    {metric.label}
+                                </p>
+                                <p className="mt-2 text-3xl font-semibold">
+                                    {formatMetricValue(
+                                        metric.value,
+                                        metric.format,
+                                        companySummary.currency_code,
+                                    )}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {roleDashboard.title}
+                                </p>
+                            </div>
+                        ))}
+                    </section>
+                ) : (
+                    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-xl border p-4">
+                            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Team members
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold">
+                                {kpis.team_members}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {kpis.owners} owner
+                                {kpis.owners === 1 ? '' : 's'} in this workspace
+                            </p>
+                        </div>
 
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Pending invites
-                        </p>
-                        <p className="mt-2 text-3xl font-semibold">
-                            {kpis.pending_invites}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            {kpis.failed_invite_deliveries} failed deliveries
-                            awaiting retry
-                        </p>
-                    </div>
+                        <div className="rounded-xl border p-4">
+                            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Pending invites
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold">
+                                {kpis.pending_invites}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {kpis.failed_invite_deliveries} failed deliveries
+                                awaiting retry
+                            </p>
+                        </div>
 
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Master data records
-                        </p>
-                        <p className="mt-2 text-3xl font-semibold">
-                            {kpis.master_data_records}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            Partners, catalog, pricing, and tax baselines
-                        </p>
-                    </div>
+                        <div className="rounded-xl border p-4">
+                            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Master data records
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold">
+                                {kpis.master_data_records}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Partners, catalog, pricing, and tax baselines
+                            </p>
+                        </div>
 
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Activity (7 days)
-                        </p>
-                        <p className="mt-2 text-3xl font-semibold">
-                            {kpis.activity_events_7d}
-                        </p>
-                        <p
-                            className={`mt-1 text-xs ${
-                                kpis.activity_events_change_pct < 0
-                                    ? 'text-destructive'
-                                    : 'text-emerald-600 dark:text-emerald-400'
-                            }`}
-                        >
-                            {formatPercent(kpis.activity_events_change_pct)} vs
-                            previous 7 days
-                        </p>
-                    </div>
-                </section>
+                        <div className="rounded-xl border p-4">
+                            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Activity (7 days)
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold">
+                                {kpis.activity_events_7d}
+                            </p>
+                            <p
+                                className={`mt-1 text-xs ${
+                                    kpis.activity_events_change_pct < 0
+                                        ? 'text-destructive'
+                                        : 'text-emerald-600 dark:text-emerald-400'
+                                }`}
+                            >
+                                {formatPercent(kpis.activity_events_change_pct)} vs
+                                previous 7 days
+                            </p>
+                        </div>
+                    </section>
+                )}
+
+                {isRoleFocusedView && roleDashboard.focus.length > 0 && (
+                    <section className="rounded-2xl border p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-base font-semibold">
+                                    Role focus
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Priority checks for {roleDashboard.role_name}.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {roleDashboard.focus.map((metric) => (
+                                <div
+                                    key={metric.label}
+                                    className="rounded-xl border bg-muted/20 px-3 py-2"
+                                >
+                                    <p className="text-xs text-muted-foreground">
+                                        {metric.label}
+                                    </p>
+                                    <p className="mt-1 text-xl font-semibold">
+                                        {formatMetricValue(
+                                            metric.value,
+                                            metric.format,
+                                            companySummary.currency_code,
+                                        )}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 <section className="grid gap-4 xl:grid-cols-3">
                     <div className="rounded-2xl border p-4 xl:col-span-2">
@@ -257,8 +405,7 @@ export default function CompanyDashboard({
                             </div>
                             <div className="rounded-md border bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
                                 {kpis.invites_created_7d} invites this week (
-                                {formatPercent(kpis.invites_created_change_pct)}
-                                )
+                                {formatPercent(kpis.invites_created_change_pct)})
                             </div>
                         </div>
 
@@ -266,9 +413,7 @@ export default function CompanyDashboard({
                     </div>
 
                     <div className="rounded-2xl border p-4">
-                        <h2 className="text-base font-semibold">
-                            Invite status
-                        </h2>
+                        <h2 className="text-base font-semibold">Invite status</h2>
                         <p className="text-xs text-muted-foreground">
                             Snapshot across pending, accepted, and expired
                             invites.
@@ -312,14 +457,22 @@ export default function CompanyDashboard({
                 <section className="grid gap-4 xl:grid-cols-3">
                     <div className="rounded-2xl border p-4 xl:col-span-2">
                         <h2 className="text-base font-semibold">
-                            Quick actions
+                            {isRoleFocusedView
+                                ? `${roleDashboard.role_name} quick actions`
+                                : 'Quick actions'}
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            High-frequency operations for day-to-day workspace
-                            management.
+                            {isRoleFocusedView
+                                ? 'High-frequency workflows tailored to this role.'
+                                : 'High-frequency operations for day-to-day workspace management.'}
                         </p>
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            {availableQuickActions.length === 0 && (
+                                <div className="rounded-md border border-dashed px-3 py-6 text-center text-xs text-muted-foreground sm:col-span-2">
+                                    No quick actions available for current permissions.
+                                </div>
+                            )}
                             {availableQuickActions.map((action) => (
                                 <Link
                                     key={action.title}
@@ -345,9 +498,7 @@ export default function CompanyDashboard({
                     </div>
 
                     <div className="rounded-2xl border p-4">
-                        <h2 className="text-base font-semibold">
-                            Recent activity
-                        </h2>
+                        <h2 className="text-base font-semibold">Recent activity</h2>
                         <p className="text-xs text-muted-foreground">
                             Latest audit events in this company.
                         </p>
@@ -371,7 +522,7 @@ export default function CompanyDashboard({
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {(item.actor ?? 'System') +
-                                            ' • ' +
+                                            ' - ' +
                                             formatDate(item.created_at)}
                                     </p>
                                 </div>

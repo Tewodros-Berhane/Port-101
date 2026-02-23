@@ -2,7 +2,9 @@
 
 use App\Core\Access\Models\Invite;
 use App\Core\Audit\Models\AuditLog;
+use App\Core\RBAC\Models\Role;
 use App\Models\User;
+use Database\Seeders\CoreRolesSeeder;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -88,7 +90,45 @@ test('company dashboard returns real kpi and activity payload', function () {
             ->where('inviteStatusMix.expired', 1)
             ->has('activityTrend', 14)
             ->has('masterDataBreakdown', 8)
+            ->where('roleDashboard.variant', 'owner')
+            ->where('roleDashboard.role_slug', 'member')
             ->has('recentActivity')
         );
 });
 
+test('company dashboard resolves role-focused variants for module roles', function (
+    string $roleSlug,
+    string $expectedVariant
+) {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$member, $company] = makeActiveCompanyMember();
+
+    $role = Role::query()
+        ->where('slug', $roleSlug)
+        ->firstOrFail();
+
+    $company->memberships()
+        ->where('user_id', $member->id)
+        ->update([
+            'role_id' => $role->id,
+            'is_owner' => false,
+        ]);
+
+    actingAs($member)
+        ->get(route('company.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('company/dashboard')
+            ->where('roleDashboard.variant', $expectedVariant)
+            ->where('roleDashboard.role_slug', $roleSlug)
+            ->where('roleDashboard.role_name', $role->name)
+            ->has('roleDashboard.kpis', 4)
+            ->has('roleDashboard.quick_actions', 3)
+            ->has('roleDashboard.focus')
+        );
+})->with([
+    ['sales_manager', 'sales'],
+    ['inventory_manager', 'inventory'],
+    ['finance_manager', 'finance'],
+]);

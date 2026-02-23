@@ -94,10 +94,12 @@
 - Phase F Approvals module implemented: `approval_requests` + `approval_steps` persistence, cross-module queue sync (sales quote/order + purchase order), authority-aware approve/reject actions, and approval SLA metrics at `/company/approvals`.
 - Phase F Reports module implemented: company reports center at `/company/reports` with operational/financial catalog coverage, shared filters/presets, and PDF/XLSX exports.
 - Company scheduled report delivery implemented (`company:reports:deliver-scheduled`) with per-company schedule settings, preset/report selection, and in-app delivery notifications.
+- Role-specific company dashboards implemented on `/company/dashboard` for Sales, Inventory, and Finance roles, with tailored KPI cards, role-focused quick actions, and module-priority focus signals.
 
 ## Not Yet Implemented
 
-- Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
+- Export delivery channel expansion (email attachments/webhooks/Slack) and recipient targeting beyond all superadmins.
+- Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
 
 ## Deferred / Out of Scope
 
@@ -120,6 +122,7 @@
 - Header actions now include in-place notification preview dropdowns and a dedicated logout button before the company switcher.
 - Direct URL route protection now enforces workspace separation: superadmins cannot open company workspace routes, and company users remain blocked from platform routes.
 - Company owner dashboard now delivers real KPIs, trend charts, quick actions, and recent activity insights at `/company/dashboard`.
+- Company dashboard now auto-switches to role-focused variants for Sales, Inventory, and Finance users, with module-specific KPIs and quick actions while preserving owner baseline behavior.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
 - Phase A role architecture baseline is live: functional module roles are seeded with module permission bundles and role-level data scopes.
 - Master-data policies now enforce record-level data scope boundaries for non-owner company users.
@@ -150,7 +153,7 @@
 
 ### Present but placeholder-only
 
-- Company modules still placeholder-only: Approvals, Reports.
+- None in current scope.
 
 ### Test run result (2026-02-23)
 
@@ -161,17 +164,15 @@
 
 ## Next Steps (Priority Order)
 
-1. Expand role dashboards beyond owner baseline:
-    - Sales, Inventory, Finance role-focused KPI and quick-action variants.
+1. Export delivery channel expansion:
+    - Email attachments/webhooks/Slack channels and recipient targeting beyond all superadmins.
+2. Governance analytics drill-downs:
+    - Time-series trends, per-source segmentation, and configurable noisy-event thresholds.
 
 ## Next Steps (Superadmin)
 
 - Export delivery channel expansion (email attachments/webhooks/Slack) and recipient targeting beyond all superadmins.
 - Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
-
-## Next Steps (Owner + Modules)
-
-- Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
 
 ## Suggestions
 
