@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Core\Company\Models\Company;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Audit\Models\AuditLog;
+use App\Modules\Accounting\Models\AccountingInvoice;
+use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
@@ -23,6 +25,8 @@ use App\Modules\Sales\Models\SalesQuote;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Policies\CompanyPolicy;
+use App\Policies\AccountingInvoicePolicy;
+use App\Policies\AccountingPaymentPolicy;
 use App\Policies\AttachmentPolicy;
 use App\Policies\AuditLogPolicy;
 use App\Policies\AddressPolicy;
@@ -68,6 +72,8 @@ class AuthServiceProvider extends ServiceProvider
         SalesLead::class => SalesLeadPolicy::class,
         SalesQuote::class => SalesQuotePolicy::class,
         SalesOrder::class => SalesOrderPolicy::class,
+        AccountingInvoice::class => AccountingInvoicePolicy::class,
+        AccountingPayment::class => AccountingPaymentPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
         InventoryStockLevel::class => InventoryStockLevelPolicy::class,

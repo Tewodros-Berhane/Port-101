@@ -89,11 +89,11 @@
 - Added module placeholder route permission gating (`sales.*`, `inventory.*`, `purchasing.*`, `accounting.*`, `approvals.*`, `reports.*`) plus feature coverage for allowed/forbidden access.
 - Phase B Sales MVP implemented: company Sales module now supports lead -> quote -> order workflow with lifecycle actions, company-scoped permissions/policies, approval-threshold enforcement, numbering sequences, and order-confirmation event emission for downstream inventory/accounting handoffs.
 - Phase C Inventory MVP implemented: warehouses/locations CRUD, stock levels, receipts/deliveries/transfers workflow actions (reserve/complete/cancel), inventory dashboard KPIs, and automatic stock-move reservation on sales-order confirmation.
+- Phase D Accounting Lite MVP implemented: accounting invoices/payments schema, dashboard + invoice/payment workflows, posting/reconciliation/reversal actions, sales/inventory event handoff wiring, accounting policies/requests/controllers, and end-to-end feature coverage.
 
 ## Not Yet Implemented
 
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
-- Accounting lite: invoices and payments flow.
 - Purchasing slice: vendors, RFQs, purchase orders, receipts.
 - Approvals queue implementation.
 - Reports implementation (financial + operational views).
@@ -125,7 +125,8 @@
 - Approval authority profile model/service foundation and SoD checks are available for upcoming module approval flows.
 - Sales module is now live at `/company/sales` with leads/quotes/orders CRUD, quote+order approvals, and conversion/confirmation workflow actions.
 - Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, and stock-move lifecycle controls.
-- Purchasing, Accounting, Approvals, and Reports module pages currently remain placeholders with module-view permission enforcement.
+- Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, reconciliation, reversal, and sales/inventory handoff support.
+- Purchasing, Approvals, and Reports module pages currently remain placeholders with module-view permission enforcement.
 - Company settings now include tax cadence defaults, approval-policy defaults, and numbering sequence controls beyond profile/localization fields.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
@@ -145,22 +146,20 @@
 
 ### Present but placeholder-only
 
-- Company modules still placeholder-only: Purchasing, Accounting, Approvals, Reports.
+- Company modules still placeholder-only: Purchasing, Approvals, Reports.
 
 ### Test run result (2026-02-23)
 
 - Command executed: `php artisan test` (requested with long timeout).
 - Test runtime now uses PostgreSQL test DB (`phpunit.xml` updated to `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Current status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `135` passed, `0` failed.
+- Result summary after latest implementation: `137` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 
-1. Build Phase D accounting lite slice:
-    - Invoices, payments, and accounting handoff from sales/inventory events.
-2. Build Phase E purchasing slice:
+1. Build Phase E purchasing slice:
     - Vendors, RFQs, POs, receipts, and vendor bill handoff.
-3. Implement approvals queue and reporting views.
+2. Implement approvals queue and reporting views.
 
 ## Next Steps (Superadmin)
 
@@ -170,7 +169,6 @@
 ## Next Steps (Owner + Modules)
 
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
-- Accounting lite: invoices and payments flow.
 - Purchasing slice: vendors, RFQs, purchase orders, receipts.
 - Approvals queue implementation.
 - Reports implementation (financial + operational views).
@@ -181,7 +179,6 @@
 - Implement shared request helpers/rules for company-scoped `exists` validations to avoid cross-company reference leaks.
 - Add feature tests for platform/company management flows that are currently lightly covered: company switch, inactive-company redirects, role updates, and platform company ownership changes.
 - Introduce a reusable CRUD abstraction (or shared table/form components) for master-data modules to reduce repeated controller/page logic and keep behavior consistent.
-- Wire the documented ownership mode config into runtime behavior so platform-only/company-only behaviors are explicit and testable.
 - Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).

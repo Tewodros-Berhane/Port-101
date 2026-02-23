@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Modules\Accounting\AccountingInvoiceWorkflowService;
+use App\Modules\Inventory\Events\StockDelivered;
 use App\Modules\Inventory\InventoryStockWorkflowService;
 use App\Modules\Sales\Events\SalesOrderConfirmed;
+use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
 use App\Core\Support\CompanyContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -57,6 +60,22 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(SalesOrderConfirmed::class, function (SalesOrderConfirmed $event): void {
             app(InventoryStockWorkflowService::class)
                 ->reserveSalesOrder(
+                    companyId: $event->companyId,
+                    orderId: $event->orderId,
+                );
+        });
+
+        Event::listen(SalesOrderReadyForInvoice::class, function (SalesOrderReadyForInvoice $event): void {
+            app(AccountingInvoiceWorkflowService::class)
+                ->createOrRefreshFromSalesOrder(
+                    companyId: $event->companyId,
+                    orderId: $event->orderId,
+                );
+        });
+
+        Event::listen(StockDelivered::class, function (StockDelivered $event): void {
+            app(AccountingInvoiceWorkflowService::class)
+                ->markDeliveryReadyForSalesOrder(
                     companyId: $event->companyId,
                     orderId: $event->orderId,
                 );
