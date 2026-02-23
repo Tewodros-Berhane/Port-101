@@ -3,6 +3,7 @@
 namespace App\Modules\Accounting;
 
 use App\Modules\Accounting\Models\AccountingInvoice;
+use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Support\Facades\DB;
 
@@ -331,6 +332,124 @@ class AccountingInvoiceWorkflowService
                     ])
                     ->all()
             );
+
+            return $invoice->fresh(['lines']);
+        });
+    }
+
+    public function createOrRefreshVendorBillFromPurchaseOrder(
+        string $companyId,
+        string $orderId
+    ): ?AccountingInvoice {
+        $order = PurchaseOrder::query()
+            ->with(['company:id,currency_code', 'lines'])
+            ->where('company_id', $companyId)
+            ->find($orderId);
+
+        if (! $order) {
+            return null;
+        }
+
+        $billableLines = $order->lines
+            ->filter(fn ($line) => (float) $line->received_quantity > 0);
+
+        if ($billableLines->isEmpty()) {
+            return null;
+        }
+
+        $linePayload = $billableLines
+            ->map(fn ($line) => [
+                'product_id' => $line->product_id,
+                'description' => $line->description,
+                'quantity' => (float) $line->received_quantity,
+                'unit_price' => (float) $line->unit_cost,
+                'tax_rate' => (float) $line->tax_rate,
+            ])
+            ->values()
+            ->all();
+
+        $calculated = $this->totalsService->calculate($linePayload);
+        $totals = $calculated['totals'];
+
+        return DB::transaction(function () use ($order, $companyId, $calculated, $totals) {
+            $lockedOrder = PurchaseOrder::query()
+                ->lockForUpdate()
+                ->where('company_id', $companyId)
+                ->findOrFail($order->id);
+
+            $invoice = AccountingInvoice::query()
+                ->lockForUpdate()
+                ->where('company_id', $companyId)
+                ->where('purchase_order_id', $lockedOrder->id)
+                ->where('document_type', AccountingInvoice::TYPE_VENDOR_BILL)
+                ->first();
+
+            if ($invoice && $invoice->status !== AccountingInvoice::STATUS_DRAFT) {
+                return $invoice;
+            }
+
+            if (! $invoice) {
+                $invoice = AccountingInvoice::create([
+                    'company_id' => $companyId,
+                    'partner_id' => $lockedOrder->partner_id,
+                    'sales_order_id' => null,
+                    'purchase_order_id' => $lockedOrder->id,
+                    'document_type' => AccountingInvoice::TYPE_VENDOR_BILL,
+                    'invoice_number' => $this->numberingService->nextInvoiceNumber(
+                        companyId: $companyId,
+                        documentType: AccountingInvoice::TYPE_VENDOR_BILL,
+                        actorId: $lockedOrder->created_by,
+                    ),
+                    'status' => AccountingInvoice::STATUS_DRAFT,
+                    'delivery_status' => AccountingInvoice::DELIVERY_STATUS_NOT_REQUIRED,
+                    'invoice_date' => $lockedOrder->order_date?->toDateString() ?? now()->toDateString(),
+                    'due_date' => $lockedOrder->order_date?->copy()->addDays(30)->toDateString(),
+                    'currency_code' => $lockedOrder->company?->currency_code,
+                    'subtotal' => $totals['subtotal'],
+                    'tax_total' => $totals['tax_total'],
+                    'grand_total' => $totals['grand_total'],
+                    'paid_total' => 0,
+                    'balance_due' => $totals['grand_total'],
+                    'notes' => 'Auto-generated from purchase order '.$lockedOrder->order_number,
+                    'created_by' => $lockedOrder->created_by,
+                    'updated_by' => $lockedOrder->updated_by ?? $lockedOrder->created_by,
+                ]);
+            } else {
+                $invoice->update([
+                    'partner_id' => $lockedOrder->partner_id,
+                    'invoice_date' => $lockedOrder->order_date?->toDateString() ?? $invoice->invoice_date?->toDateString(),
+                    'due_date' => $lockedOrder->order_date?->copy()->addDays(30)->toDateString(),
+                    'currency_code' => $lockedOrder->company?->currency_code,
+                    'subtotal' => $totals['subtotal'],
+                    'tax_total' => $totals['tax_total'],
+                    'grand_total' => $totals['grand_total'],
+                    'paid_total' => 0,
+                    'balance_due' => $totals['grand_total'],
+                    'notes' => 'Auto-generated from purchase order '.$lockedOrder->order_number,
+                    'updated_by' => $lockedOrder->updated_by ?? $lockedOrder->created_by,
+                ]);
+
+                $invoice->lines()->delete();
+            }
+
+            $invoice->lines()->createMany(
+                collect($calculated['lines'])
+                    ->map(fn (array $line) => [
+                        ...$line,
+                        'company_id' => $companyId,
+                        'created_by' => $lockedOrder->created_by,
+                        'updated_by' => $lockedOrder->updated_by ?? $lockedOrder->created_by,
+                    ])
+                    ->all()
+            );
+
+            if ($lockedOrder->status === PurchaseOrder::STATUS_RECEIVED) {
+                $lockedOrder->update([
+                    'status' => PurchaseOrder::STATUS_BILLED,
+                    'billed_at' => now(),
+                    'updated_by' => $lockedOrder->updated_by ?? $lockedOrder->created_by,
+                ]);
+            }
 
             return $invoice->fresh(['lines']);
         });

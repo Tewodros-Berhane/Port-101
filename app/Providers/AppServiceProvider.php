@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Modules\Accounting\AccountingInvoiceWorkflowService;
 use App\Modules\Inventory\Events\StockDelivered;
 use App\Modules\Inventory\InventoryStockWorkflowService;
+use App\Modules\Purchasing\Events\PurchaseReceiptCompleted;
 use App\Modules\Sales\Events\SalesOrderConfirmed;
 use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
 use App\Core\Support\CompanyContext;
@@ -76,6 +77,14 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(StockDelivered::class, function (StockDelivered $event): void {
             app(AccountingInvoiceWorkflowService::class)
                 ->markDeliveryReadyForSalesOrder(
+                    companyId: $event->companyId,
+                    orderId: $event->orderId,
+                );
+        });
+
+        Event::listen(PurchaseReceiptCompleted::class, function (PurchaseReceiptCompleted $event): void {
+            app(AccountingInvoiceWorkflowService::class)
+                ->createOrRefreshVendorBillFromPurchaseOrder(
                     companyId: $event->companyId,
                     orderId: $event->orderId,
                 );

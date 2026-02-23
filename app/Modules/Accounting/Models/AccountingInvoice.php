@@ -7,6 +7,7 @@ use App\Core\MasterData\Models\Partner;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
+use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -79,6 +80,7 @@ class AccountingInvoice extends Model
         'company_id',
         'partner_id',
         'sales_order_id',
+        'purchase_order_id',
         'document_type',
         'invoice_number',
         'status',
@@ -128,6 +130,11 @@ class AccountingInvoice extends Model
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
     public function lines(): HasMany

@@ -11,6 +11,8 @@ use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
+use App\Modules\Purchasing\Models\PurchaseOrder;
+use App\Modules\Purchasing\Models\PurchaseRfq;
 use App\Core\MasterData\Models\Address;
 use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Currency;
@@ -40,6 +42,8 @@ use App\Policies\PartnerPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\PriceListPolicy;
 use App\Policies\ProductPolicy;
+use App\Policies\PurchaseOrderPolicy;
+use App\Policies\PurchaseRfqPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SalesLeadPolicy;
 use App\Policies\SalesOrderPolicy;
@@ -72,6 +76,8 @@ class AuthServiceProvider extends ServiceProvider
         SalesLead::class => SalesLeadPolicy::class,
         SalesQuote::class => SalesQuotePolicy::class,
         SalesOrder::class => SalesOrderPolicy::class,
+        PurchaseRfq::class => PurchaseRfqPolicy::class,
+        PurchaseOrder::class => PurchaseOrderPolicy::class,
         AccountingInvoice::class => AccountingInvoicePolicy::class,
         AccountingPayment::class => AccountingPaymentPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
