@@ -79,7 +79,7 @@
 - Added final delivery planning doc at `docs/final-module-delivery-plan.md` covering expanded role architecture, module-by-module workflow states, rollout phases, and production-readiness gates (research-backed with Odoo/Dynamics references).
 - Refactored route registration for maintainability by splitting `routes/web.php` into compact grouped files: `routes/company.php`, `routes/modules.php`, `routes/masterdata.php`, and `routes/platform.php` (loaded via `require` from `routes/web.php`).
 - Moved authentication-related invite acceptance routes into dedicated `routes/auth.php` and wired it through `routes/web.php` for cleaner route organization.
-- Refactored company module route organization into `routes/moduleroutes/*` (`sales.php`, `inventory.php`, `accounting.php`, `purchasing.php`, `general.php`) and updated `routes/modules.php` to load module-specific route files.
+- Refactored company module route organization into `routes/moduleroutes/*` (`sales.php`, `inventory.php`, `accounting.php`, `purchasing.php`, `approvals.php`, `reports.php`) and updated `routes/modules.php` to load module-specific route files.
 - Moved domain module code from `app/Core/Sales` and `app/Core/Inventory` into `app/Modules/Sales` and `app/Modules/Inventory` with namespace/import rewiring to keep module boundaries explicit.
 - Hardened logout/back-button behavior: authenticated web responses now send no-store cache headers, logout redirect also sends no-cache headers, and app bootstrap adds a BFCache `pageshow` reload guard on authenticated pages to prevent viewing stale protected screens after logout.
 - Phase A role architecture foundation implemented: expanded module permission namespaces and seeded functional global roles (Operations Admin, Sales Manager/User, Inventory Manager, Warehouse Clerk, Purchasing Manager, Buyer, Finance Manager, Accountant, Approver, Auditor) while keeping owner/member compatibility.
@@ -91,12 +91,13 @@
 - Phase C Inventory MVP implemented: warehouses/locations CRUD, stock levels, receipts/deliveries/transfers workflow actions (reserve/complete/cancel), inventory dashboard KPIs, and automatic stock-move reservation on sales-order confirmation.
 - Phase D Accounting Lite MVP implemented: accounting invoices/payments schema, dashboard + invoice/payment workflows, posting/reconciliation/reversal actions, sales/inventory event handoff wiring, accounting policies/requests/controllers, and end-to-end feature coverage.
 - Phase E Purchasing MVP implemented: RFQ + purchase order schema, dashboard + RFQ/PO workflows, approval and placement controls, receipt capture with partial/full handling, and automatic vendor-bill draft handoff to accounting on receipts.
+- Phase F Approvals module implemented: `approval_requests` + `approval_steps` persistence, cross-module queue sync (sales quote/order + purchase order), authority-aware approve/reject actions, and approval SLA metrics at `/company/approvals`.
+- Phase F Reports module implemented: company reports center at `/company/reports` with operational/financial catalog coverage, shared filters/presets, and PDF/XLSX exports.
+- Company scheduled report delivery implemented (`company:reports:deliver-scheduled`) with per-company schedule settings, preset/report selection, and in-app delivery notifications.
 
 ## Not Yet Implemented
 
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
-- Approvals queue implementation.
-- Reports implementation (financial + operational views).
 
 ## Deferred / Out of Scope
 
@@ -127,7 +128,9 @@
 - Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, and stock-move lifecycle controls.
 - Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, reconciliation, reversal, and sales/inventory handoff support.
 - Purchasing module is now live at `/company/purchasing` with RFQ/PO CRUD, approval and placement lifecycle actions, receipt capture, and vendor bill handoff into accounting.
-- Approvals and Reports module pages currently remain placeholders with module-view permission enforcement.
+- Approvals module is now live at `/company/approvals` with unified queue filtering, authority-checked approve/reject actions, and cross-module request tracking.
+- Reports module is now live at `/company/reports` with operational + financial report cards, preset management, and PDF/XLSX exports.
+- Company report scheduling is live with per-company delivery policy and recurring notification dispatch via `company:reports:deliver-scheduled`.
 - Company settings now include tax cadence defaults, approval-policy defaults, and numbering sequence controls beyond profile/localization fields.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.
@@ -154,13 +157,11 @@
 - Command executed: `php artisan test` (requested with long timeout).
 - Test runtime now uses PostgreSQL test DB (`phpunit.xml` updated to `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Current status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `139` passed, `0` failed.
+- Result summary after latest implementation: `142` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 
-1. Build Phase F approvals + reporting hardening:
-    - Unified approvals queue UX, policy execution views, and module reporting surfaces.
-2. Expand role dashboards beyond owner baseline:
+1. Expand role dashboards beyond owner baseline:
     - Sales, Inventory, Finance role-focused KPI and quick-action variants.
 
 ## Next Steps (Superadmin)
@@ -171,8 +172,6 @@
 ## Next Steps (Owner + Modules)
 
 - Role dashboards beyond owner baseline (Sales, Inventory, Finance specific KPI/quick-action variants).
-- Approvals queue implementation.
-- Reports implementation (financial + operational views).
 
 ## Suggestions
 

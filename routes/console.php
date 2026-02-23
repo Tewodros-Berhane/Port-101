@@ -1,11 +1,15 @@
 <?php
 
 use App\Core\Audit\Models\AuditLog;
+use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
 use App\Models\User;
+use App\Modules\Reports\CompanyReportingSettingsService;
+use App\Modules\Reports\CompanyReportsService;
+use App\Notifications\CompanyReportDeliveryNotification;
 use App\Notifications\PlatformNotificationDigestNotification;
 use App\Notifications\PlatformOperationsReportDeliveryNotification;
 use Carbon\CarbonImmutable;
@@ -379,6 +383,108 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
     return self::SUCCESS;
 })->purpose('Deliver scheduled operations report exports to platform admins');
 
+Artisan::command('company:reports:deliver-scheduled {--force}', function () {
+    $settings = app(CompanyReportingSettingsService::class);
+    $reportsService = app(CompanyReportsService::class);
+    $force = (bool) $this->option('force');
+    $companies = Company::query()
+        ->where('is_active', true)
+        ->with('users:id,name,email')
+        ->get(['id', 'name', 'timezone', 'currency_code']);
+
+    $deliveredToUsers = 0;
+    $triggeredCompanies = 0;
+
+    foreach ($companies as $company) {
+        $schedule = $settings->getDeliverySchedule($company->id);
+
+        if (! $force && ! $settings->shouldSendScheduledDeliveryNow($schedule)) {
+            continue;
+        }
+
+        $filters = $settings->filtersForPreset(
+            $company->id,
+            $schedule['preset_id'] ?? null
+        );
+
+        $reportKey = (string) ($schedule['report_key'] ?? CompanyReportsService::REPORT_APPROVAL_GOVERNANCE);
+        $report = $reportsService->buildReport($company, $reportKey, $filters);
+
+        if (! $report) {
+            continue;
+        }
+
+        if (! $force && count($report['rows']) === 0) {
+            continue;
+        }
+
+        $format = in_array((string) ($schedule['format'] ?? 'xlsx'), ['pdf', 'xlsx'], true)
+            ? (string) $schedule['format']
+            : 'xlsx';
+        $query = $settings->filtersToQuery($filters);
+        $link = "/company/reports/export/{$reportKey}?{$query}&format={$format}";
+
+        $presetName = 'Default filters';
+
+        if ($schedule['preset_id'] ?? null) {
+            $preset = collect($settings->getPresets($company->id))
+                ->first(fn (array $row) => $row['id'] === $schedule['preset_id']);
+            $presetName = (string) ($preset['name'] ?? $presetName);
+        }
+
+        $periodLabel = ((int) ($filters['trend_window'] ?? 30)).'-day window';
+
+        if (! empty($filters['start_date']) || ! empty($filters['end_date'])) {
+            $periodLabel = sprintf(
+                '%s to %s',
+                (string) ($filters['start_date'] ?? 'start'),
+                (string) ($filters['end_date'] ?? 'end')
+            );
+        }
+
+        $recipients = $company->users
+            ->filter(fn (User $user) => $user->hasPermission('reports.view', $company))
+            ->unique('id')
+            ->values();
+
+        if ($recipients->isEmpty()) {
+            continue;
+        }
+
+        Notification::send(
+            $recipients,
+            new CompanyReportDeliveryNotification(
+                companyName: (string) $company->name,
+                reportTitle: (string) $report['title'],
+                presetName: $presetName,
+                periodLabel: $periodLabel,
+                format: $format,
+                link: $link,
+                summary: [
+                    'rows' => count($report['rows']),
+                    'columns' => count($report['columns']),
+                    'report_key' => $reportKey,
+                ],
+            )
+        );
+
+        $settings->markDeliverySent($company->id);
+        $deliveredToUsers += $recipients->count();
+        $triggeredCompanies += 1;
+    }
+
+    if ($triggeredCompanies === 0) {
+        $this->line('No company report schedules due or no data to deliver.');
+
+        return self::SUCCESS;
+    }
+
+    $this->info("Scheduled company reports delivered for {$triggeredCompanies} compan(ies) to {$deliveredToUsers} recipient(s).");
+
+    return self::SUCCESS;
+})->purpose('Deliver scheduled company report exports to company recipients');
+
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:notifications:send-digest')->everyMinute();
 Schedule::command('platform:operations-reports:deliver-scheduled')->everyMinute();
+Schedule::command('company:reports:deliver-scheduled')->everyMinute();

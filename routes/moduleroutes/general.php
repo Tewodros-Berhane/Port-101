@@ -1,9 +1,0 @@
-<?php
-
-use App\Http\Controllers\Company\ModulesController as CompanyModulesController;
-use Illuminate\Support\Facades\Route;
-
-Route::get('reports', [CompanyModulesController::class, 'reports'])
-    ->name('modules.reports');
-Route::get('approvals', [CompanyModulesController::class, 'approvals'])
-    ->name('modules.approvals');

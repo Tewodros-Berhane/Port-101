@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Core\Company\Models\Company;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Audit\Models\AuditLog;
+use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Inventory\Models\InventoryLocation;
@@ -31,6 +32,7 @@ use App\Policies\AccountingInvoicePolicy;
 use App\Policies\AccountingPaymentPolicy;
 use App\Policies\AttachmentPolicy;
 use App\Policies\AuditLogPolicy;
+use App\Policies\ApprovalRequestPolicy;
 use App\Policies\AddressPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
@@ -63,6 +65,7 @@ class AuthServiceProvider extends ServiceProvider
         Company::class => CompanyPolicy::class,
         Attachment::class => AttachmentPolicy::class,
         AuditLog::class => AuditLogPolicy::class,
+        ApprovalRequest::class => ApprovalRequestPolicy::class,
         Role::class => RolePolicy::class,
         Permission::class => PermissionPolicy::class,
         Address::class => AddressPolicy::class,

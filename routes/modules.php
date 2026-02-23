@@ -7,7 +7,8 @@ $moduleRouteFiles = [
     base_path('routes/moduleroutes/inventory.php'),
     base_path('routes/moduleroutes/accounting.php'),
     base_path('routes/moduleroutes/purchasing.php'),
-    base_path('routes/moduleroutes/general.php'),
+    base_path('routes/moduleroutes/approvals.php'),
+    base_path('routes/moduleroutes/reports.php'),
 ];
 
 foreach ($moduleRouteFiles as $moduleRouteFile) {
