@@ -7,6 +7,7 @@ type Props = {
         name: string;
         slug: string;
         description?: string | null;
+        data_scope?: string | null;
         permission_count: number;
     }[];
 };
@@ -25,7 +26,8 @@ export default function CompanyRoles({ roles }: Props) {
                 <div>
                     <h1 className="text-xl font-semibold">Roles</h1>
                     <p className="text-sm text-muted-foreground">
-                        Review role definitions and permission coverage.
+                        Review role definitions, data scopes, and permission
+                        coverage.
                     </p>
                 </div>
             </div>
@@ -36,6 +38,9 @@ export default function CompanyRoles({ roles }: Props) {
                         <tr>
                             <th className="px-4 py-3 font-medium">Name</th>
                             <th className="px-4 py-3 font-medium">Slug</th>
+                            <th className="px-4 py-3 font-medium">
+                                Data scope
+                            </th>
                             <th className="px-4 py-3 font-medium">
                                 Description
                             </th>
@@ -49,7 +54,7 @@ export default function CompanyRoles({ roles }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={4}
+                                    colSpan={5}
                                 >
                                     No roles found.
                                 </td>
@@ -63,8 +68,11 @@ export default function CompanyRoles({ roles }: Props) {
                                 <td className="px-4 py-3 text-muted-foreground">
                                     {role.slug}
                                 </td>
+                                <td className="px-4 py-3 text-muted-foreground">
+                                    {role.data_scope ?? '-'}
+                                </td>
                                 <td className="px-4 py-3">
-                                    {role.description ?? '—'}
+                                    {role.description ?? '-'}
                                 </td>
                                 <td className="px-4 py-3">
                                     {role.permission_count}

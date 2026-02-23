@@ -2,6 +2,7 @@
 
 namespace App\Core\Company\Models;
 
+use App\Core\Approvals\Models\ApprovalAuthorityProfile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -40,6 +41,11 @@ class Company extends Model
     public function memberships(): HasMany
     {
         return $this->hasMany(CompanyUser::class);
+    }
+
+    public function approvalAuthorityProfiles(): HasMany
+    {
+        return $this->hasMany(ApprovalAuthorityProfile::class);
     }
 
     public function owner(): BelongsTo

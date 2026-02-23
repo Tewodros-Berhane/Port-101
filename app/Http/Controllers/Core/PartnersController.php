@@ -18,8 +18,13 @@ class PartnersController extends Controller
     {
         $this->authorize('viewAny', Partner::class);
 
-        $partners = Partner::query()
+        $user = $request->user();
+
+        $partnersQuery = Partner::query()
             ->orderBy('name')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $partners = $partnersQuery
             ->paginate(20)
             ->withQueryString();
 

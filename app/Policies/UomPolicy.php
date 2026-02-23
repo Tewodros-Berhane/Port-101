@@ -14,7 +14,8 @@ class UomPolicy
 
     public function view(User $user, Uom $uom): bool
     {
-        return $user->hasPermission('core.uoms.view');
+        return $user->hasPermission('core.uoms.view')
+            && $user->canAccessDataScopedRecord($uom);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class UomPolicy
 
     public function update(User $user, Uom $uom): bool
     {
-        return $user->hasPermission('core.uoms.manage');
+        return $user->hasPermission('core.uoms.manage')
+            && $user->canAccessDataScopedRecord($uom);
     }
 
     public function delete(User $user, Uom $uom): bool
     {
-        return $user->hasPermission('core.uoms.manage');
+        return $user->hasPermission('core.uoms.manage')
+            && $user->canAccessDataScopedRecord($uom);
     }
 }

@@ -14,7 +14,8 @@ class PartnerPolicy
 
     public function view(User $user, Partner $partner): bool
     {
-        return $user->hasPermission('core.partners.view');
+        return $user->hasPermission('core.partners.view')
+            && $user->canAccessDataScopedRecord($partner);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class PartnerPolicy
 
     public function update(User $user, Partner $partner): bool
     {
-        return $user->hasPermission('core.partners.manage');
+        return $user->hasPermission('core.partners.manage')
+            && $user->canAccessDataScopedRecord($partner);
     }
 
     public function delete(User $user, Partner $partner): bool
     {
-        return $user->hasPermission('core.partners.manage');
+        return $user->hasPermission('core.partners.manage')
+            && $user->canAccessDataScopedRecord($partner);
     }
 }

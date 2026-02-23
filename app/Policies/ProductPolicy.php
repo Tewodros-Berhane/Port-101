@@ -14,7 +14,8 @@ class ProductPolicy
 
     public function view(User $user, Product $product): bool
     {
-        return $user->hasPermission('core.products.view');
+        return $user->hasPermission('core.products.view')
+            && $user->canAccessDataScopedRecord($product);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class ProductPolicy
 
     public function update(User $user, Product $product): bool
     {
-        return $user->hasPermission('core.products.manage');
+        return $user->hasPermission('core.products.manage')
+            && $user->canAccessDataScopedRecord($product);
     }
 
     public function delete(User $user, Product $product): bool
     {
-        return $user->hasPermission('core.products.manage');
+        return $user->hasPermission('core.products.manage')
+            && $user->canAccessDataScopedRecord($product);
     }
 }

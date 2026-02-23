@@ -78,31 +78,37 @@ const companyModuleNavItems: NavItem[] = [
         title: 'Sales',
         href: '/company/sales',
         icon: Handshake,
+        permission: 'sales.leads.view',
     },
     {
         title: 'Inventory',
         href: '/company/inventory',
         icon: Warehouse,
+        permission: 'inventory.stock.view',
     },
     {
         title: 'Purchasing',
         href: '/company/purchasing',
         icon: ShoppingCart,
+        permission: 'purchasing.rfq.view',
     },
     {
         title: 'Accounting',
         href: '/company/accounting',
         icon: FileSpreadsheet,
+        permission: 'accounting.invoices.view',
     },
     {
         title: 'Approvals',
         href: '/company/approvals',
         icon: ClipboardCheck,
+        permission: 'approvals.requests.view',
     },
     {
         title: 'Reports',
         href: '/company/reports',
         icon: BarChart3,
+        permission: 'reports.view',
     },
 ];
 

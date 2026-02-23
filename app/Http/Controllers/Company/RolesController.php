@@ -25,6 +25,7 @@ class RolesController extends Controller
                     'name' => $role->name,
                     'slug' => $role->slug,
                     'description' => $role->description,
+                    'data_scope' => $role->data_scope,
                     'permission_count' => $role->permissions->count(),
                 ];
             });

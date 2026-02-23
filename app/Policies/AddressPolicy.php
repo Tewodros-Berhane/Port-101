@@ -14,7 +14,8 @@ class AddressPolicy
 
     public function view(User $user, Address $address): bool
     {
-        return $user->hasPermission('core.addresses.view');
+        return $user->hasPermission('core.addresses.view')
+            && $user->canAccessDataScopedRecord($address);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class AddressPolicy
 
     public function update(User $user, Address $address): bool
     {
-        return $user->hasPermission('core.addresses.manage');
+        return $user->hasPermission('core.addresses.manage')
+            && $user->canAccessDataScopedRecord($address);
     }
 
     public function delete(User $user, Address $address): bool
     {
-        return $user->hasPermission('core.addresses.manage');
+        return $user->hasPermission('core.addresses.manage')
+            && $user->canAccessDataScopedRecord($address);
     }
 }

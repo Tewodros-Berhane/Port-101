@@ -16,6 +16,7 @@ type Props = {
         id: string;
         name: string;
         slug: string;
+        data_scope?: string | null;
     }[];
 };
 
@@ -103,16 +104,16 @@ export default function CompanyUsers({ members, roles }: Props) {
                         {members.map((member) => (
                             <tr key={member.id}>
                                 <td className="px-4 py-3 font-medium">
-                                    {member.name ?? '—'}
+                                    {member.name ?? '-'}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {member.email ?? '—'}
+                                    {member.email ?? '-'}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {member.role ?? '—'}
+                                    {member.role ?? '-'}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {member.is_owner ? 'Yes' : '—'}
+                                    {member.is_owner ? 'Yes' : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     {member.is_owner ? (
@@ -146,7 +147,7 @@ export default function CompanyUsers({ members, roles }: Props) {
                                                         key={role.id}
                                                         value={role.id}
                                                     >
-                                                        {role.name}
+                                                        {`${role.name} (${role.data_scope ?? 'company_records'})`}
                                                     </option>
                                                 ))}
                                             </select>

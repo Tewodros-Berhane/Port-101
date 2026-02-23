@@ -18,8 +18,13 @@ class TaxesController extends Controller
     {
         $this->authorize('viewAny', Tax::class);
 
-        $taxes = Tax::query()
+        $user = $request->user();
+
+        $taxesQuery = Tax::query()
             ->orderBy('name')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $taxes = $taxesQuery
             ->paginate(20)
             ->withQueryString();
 

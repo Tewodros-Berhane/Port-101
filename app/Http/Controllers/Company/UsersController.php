@@ -45,12 +45,13 @@ class UsersController extends Controller
                 }
             })
             ->orderBy('name')
-            ->get(['id', 'name', 'slug'])
+            ->get(['id', 'name', 'slug', 'data_scope'])
             ->map(function (Role $role) {
                 return [
                     'id' => $role->id,
                     'name' => $role->name,
                     'slug' => $role->slug,
+                    'data_scope' => $role->data_scope,
                 ];
             });
 

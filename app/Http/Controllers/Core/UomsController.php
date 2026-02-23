@@ -18,8 +18,13 @@ class UomsController extends Controller
     {
         $this->authorize('viewAny', Uom::class);
 
-        $uoms = Uom::query()
+        $user = $request->user();
+
+        $uomsQuery = Uom::query()
             ->orderBy('name')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $uoms = $uomsQuery
             ->paginate(20)
             ->withQueryString();
 

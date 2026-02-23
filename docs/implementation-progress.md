@@ -80,6 +80,11 @@
 - Refactored route registration for maintainability by splitting `routes/web.php` into compact grouped files: `routes/company.php`, `routes/modules.php`, `routes/masterdata.php`, and `routes/platform.php` (loaded via `require` from `routes/web.php`).
 - Moved authentication-related invite acceptance routes into dedicated `routes/auth.php` and wired it through `routes/web.php` for cleaner route organization.
 - Hardened logout/back-button behavior: authenticated web responses now send no-store cache headers, logout redirect also sends no-cache headers, and app bootstrap adds a BFCache `pageshow` reload guard on authenticated pages to prevent viewing stale protected screens after logout.
+- Phase A role architecture foundation implemented: expanded module permission namespaces and seeded functional global roles (Operations Admin, Sales Manager/User, Inventory Manager, Warehouse Clerk, Purchasing Manager, Buyer, Finance Manager, Accountant, Approver, Auditor) while keeping owner/member compatibility.
+- Added role-level data scope support (`own_records`, `team_records`, `company_records`, `read_all`) with helper methods and master-data policy enforcement for record-level access.
+- Added approval authority profile persistence (`approval_authority_profiles`) and baseline segregation-of-duties service checks (separate requester/approver rules, approval amount limits, risk-level caps, accounting period-close permission gate).
+- Updated company role and user management UI to surface role data scopes and module-role coverage more clearly.
+- Added module placeholder route permission gating (`sales.*`, `inventory.*`, `purchasing.*`, `accounting.*`, `approvals.*`, `reports.*`) plus feature coverage for allowed/forbidden access.
 
 ## Not Yet Implemented
 
@@ -113,6 +118,10 @@
 - Direct URL route protection now enforces workspace separation: superadmins cannot open company workspace routes, and company users remain blocked from platform routes.
 - Company owner dashboard now delivers real KPIs, trend charts, quick actions, and recent activity insights at `/company/dashboard`.
 - Company workspace management pages: settings, users (role updates), roles, company invites.
+- Phase A role architecture baseline is live: functional module roles are seeded with module permission bundles and role-level data scopes.
+- Master-data policies now enforce record-level data scope boundaries for non-owner company users.
+- Approval authority profile model/service foundation and SoD checks are available for upcoming module approval flows.
+- Company module placeholder pages now enforce module-view permissions before rendering.
 - Company settings now include tax cadence defaults, approval-policy defaults, and numbering sequence controls beyond profile/localization fields.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
 - Governance audit logs: listing, filtering, export (CSV/JSON), and delete actions.

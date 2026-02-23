@@ -20,9 +20,14 @@ class ProductsController extends Controller
     {
         $this->authorize('viewAny', Product::class);
 
-        $products = Product::query()
+        $user = $request->user();
+
+        $productsQuery = Product::query()
             ->with(['uom', 'defaultTax'])
             ->orderBy('name')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $products = $productsQuery
             ->paginate(20)
             ->withQueryString();
 

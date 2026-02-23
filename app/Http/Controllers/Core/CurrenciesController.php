@@ -18,8 +18,13 @@ class CurrenciesController extends Controller
     {
         $this->authorize('viewAny', Currency::class);
 
-        $currencies = Currency::query()
+        $user = $request->user();
+
+        $currenciesQuery = Currency::query()
             ->orderBy('code')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $currencies = $currenciesQuery
             ->paginate(20)
             ->withQueryString();
 

@@ -14,7 +14,8 @@ class PriceListPolicy
 
     public function view(User $user, PriceList $priceList): bool
     {
-        return $user->hasPermission('core.price_lists.view');
+        return $user->hasPermission('core.price_lists.view')
+            && $user->canAccessDataScopedRecord($priceList);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class PriceListPolicy
 
     public function update(User $user, PriceList $priceList): bool
     {
-        return $user->hasPermission('core.price_lists.manage');
+        return $user->hasPermission('core.price_lists.manage')
+            && $user->canAccessDataScopedRecord($priceList);
     }
 
     public function delete(User $user, PriceList $priceList): bool
     {
-        return $user->hasPermission('core.price_lists.manage');
+        return $user->hasPermission('core.price_lists.manage')
+            && $user->canAccessDataScopedRecord($priceList);
     }
 }

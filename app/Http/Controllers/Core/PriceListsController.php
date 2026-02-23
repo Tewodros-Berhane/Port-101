@@ -19,9 +19,14 @@ class PriceListsController extends Controller
     {
         $this->authorize('viewAny', PriceList::class);
 
-        $priceLists = PriceList::query()
+        $user = $request->user();
+
+        $priceListsQuery = PriceList::query()
             ->with('currency')
             ->orderBy('name')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $priceLists = $priceListsQuery
             ->paginate(20)
             ->withQueryString();
 

@@ -19,9 +19,14 @@ class AddressesController extends Controller
     {
         $this->authorize('viewAny', Address::class);
 
-        $addresses = Address::query()
+        $user = $request->user();
+
+        $addressesQuery = Address::query()
             ->with('partner')
             ->orderBy('line1')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $addresses = $addressesQuery
             ->paginate(20)
             ->withQueryString();
 

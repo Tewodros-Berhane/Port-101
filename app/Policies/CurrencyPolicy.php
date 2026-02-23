@@ -14,7 +14,8 @@ class CurrencyPolicy
 
     public function view(User $user, Currency $currency): bool
     {
-        return $user->hasPermission('core.currencies.view');
+        return $user->hasPermission('core.currencies.view')
+            && $user->canAccessDataScopedRecord($currency);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class CurrencyPolicy
 
     public function update(User $user, Currency $currency): bool
     {
-        return $user->hasPermission('core.currencies.manage');
+        return $user->hasPermission('core.currencies.manage')
+            && $user->canAccessDataScopedRecord($currency);
     }
 
     public function delete(User $user, Currency $currency): bool
     {
-        return $user->hasPermission('core.currencies.manage');
+        return $user->hasPermission('core.currencies.manage')
+            && $user->canAccessDataScopedRecord($currency);
     }
 }

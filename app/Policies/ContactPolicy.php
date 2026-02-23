@@ -14,7 +14,8 @@ class ContactPolicy
 
     public function view(User $user, Contact $contact): bool
     {
-        return $user->hasPermission('core.contacts.view');
+        return $user->hasPermission('core.contacts.view')
+            && $user->canAccessDataScopedRecord($contact);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class ContactPolicy
 
     public function update(User $user, Contact $contact): bool
     {
-        return $user->hasPermission('core.contacts.manage');
+        return $user->hasPermission('core.contacts.manage')
+            && $user->canAccessDataScopedRecord($contact);
     }
 
     public function delete(User $user, Contact $contact): bool
     {
-        return $user->hasPermission('core.contacts.manage');
+        return $user->hasPermission('core.contacts.manage')
+            && $user->canAccessDataScopedRecord($contact);
     }
 }

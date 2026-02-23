@@ -19,9 +19,14 @@ class ContactsController extends Controller
     {
         $this->authorize('viewAny', Contact::class);
 
-        $contacts = Contact::query()
+        $user = $request->user();
+
+        $contactsQuery = Contact::query()
             ->with('partner')
             ->orderBy('name')
+            ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
+
+        $contacts = $contactsQuery
             ->paginate(20)
             ->withQueryString();
 

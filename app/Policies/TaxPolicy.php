@@ -14,7 +14,8 @@ class TaxPolicy
 
     public function view(User $user, Tax $tax): bool
     {
-        return $user->hasPermission('core.taxes.view');
+        return $user->hasPermission('core.taxes.view')
+            && $user->canAccessDataScopedRecord($tax);
     }
 
     public function create(User $user): bool
@@ -24,11 +25,13 @@ class TaxPolicy
 
     public function update(User $user, Tax $tax): bool
     {
-        return $user->hasPermission('core.taxes.manage');
+        return $user->hasPermission('core.taxes.manage')
+            && $user->canAccessDataScopedRecord($tax);
     }
 
     public function delete(User $user, Tax $tax): bool
     {
-        return $user->hasPermission('core.taxes.manage');
+        return $user->hasPermission('core.taxes.manage')
+            && $user->canAccessDataScopedRecord($tax);
     }
 }
