@@ -1,16 +1,16 @@
 <?php
 
-use App\Core\Inventory\InventorySetupService;
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryStockLevel;
-use App\Core\Inventory\Models\InventoryStockMove;
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\InventorySetupService;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
-use App\Core\Sales\Models\SalesOrder;
-use App\Core\Sales\Models\SalesOrderLine;
+use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesOrderLine;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -329,3 +329,5 @@ test('confirmed sales orders auto create reserved delivery moves that can be com
     expect((float) $stockLevel?->fresh()?->on_hand_quantity)->toBe(7.0);
     expect((float) $stockLevel?->fresh()?->reserved_quantity)->toBe(0.0);
 });
+
+

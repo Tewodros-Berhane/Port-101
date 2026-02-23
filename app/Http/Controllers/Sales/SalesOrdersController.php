@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Sales;
 
 use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
-use App\Core\Sales\SalesApprovalPolicyService;
-use App\Core\Sales\SalesDocumentTotalsService;
-use App\Core\Sales\SalesNumberingService;
-use App\Core\Sales\SalesOrderWorkflowService;
-use App\Core\Sales\Models\SalesOrder;
-use App\Core\Sales\Models\SalesQuote;
+use App\Modules\Sales\SalesApprovalPolicyService;
+use App\Modules\Sales\SalesDocumentTotalsService;
+use App\Modules\Sales\SalesNumberingService;
+use App\Modules\Sales\SalesOrderWorkflowService;
+use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesQuote;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesOrderStoreRequest;
 use App\Http\Requests\Sales\SalesOrderUpdateRequest;
@@ -375,3 +375,5 @@ class SalesOrdersController extends Controller
             ->all();
     }
 }
+
+

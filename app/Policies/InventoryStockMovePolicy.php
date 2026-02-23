@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Core\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Models\User;
 
 class InventoryStockMovePolicy
@@ -63,3 +63,5 @@ class InventoryStockMovePolicy
             ], true);
     }
 }
+
+

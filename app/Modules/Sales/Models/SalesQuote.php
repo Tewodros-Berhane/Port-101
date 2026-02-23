@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Sales\Models;
+namespace App\Modules\Sales\Models;
 
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Partner;
@@ -122,3 +122,5 @@ class SalesQuote extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

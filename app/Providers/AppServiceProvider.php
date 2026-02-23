@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Core\Inventory\InventoryStockWorkflowService;
-use App\Core\Sales\Events\SalesOrderConfirmed;
+use App\Modules\Inventory\InventoryStockWorkflowService;
+use App\Modules\Sales\Events\SalesOrderConfirmed;
 use App\Core\Support\CompanyContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -63,3 +63,5 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 }
+
+

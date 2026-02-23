@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Core\Sales;
+namespace App\Modules\Sales;
 
-use App\Core\Sales\Events\SalesOrderConfirmed;
-use App\Core\Sales\Events\SalesOrderReadyForInvoice;
-use App\Core\Sales\Models\SalesOrder;
+use App\Modules\Sales\Events\SalesOrderConfirmed;
+use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
+use App\Modules\Sales\Models\SalesOrder;
 use App\Models\User;
 
 class SalesOrderWorkflowService
@@ -37,3 +37,5 @@ class SalesOrderWorkflowService
         return $order->fresh();
     }
 }
+
+

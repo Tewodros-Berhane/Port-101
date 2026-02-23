@@ -5,10 +5,10 @@ namespace App\Providers;
 use App\Core\Company\Models\Company;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Audit\Models\AuditLog;
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryStockLevel;
-use App\Core\Inventory\Models\InventoryStockMove;
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Core\MasterData\Models\Address;
 use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Currency;
@@ -17,9 +17,9 @@ use App\Core\MasterData\Models\PriceList;
 use App\Core\MasterData\Models\Product;
 use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
-use App\Core\Sales\Models\SalesLead;
-use App\Core\Sales\Models\SalesOrder;
-use App\Core\Sales\Models\SalesQuote;
+use App\Modules\Sales\Models\SalesLead;
+use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesQuote;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Policies\CompanyPolicy;
@@ -82,3 +82,5 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
     }
 }
+
+

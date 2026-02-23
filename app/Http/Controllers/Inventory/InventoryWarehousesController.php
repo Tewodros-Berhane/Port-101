@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\InventoryWarehouseStoreRequest;
 use App\Http\Requests\Inventory\InventoryWarehouseUpdateRequest;
@@ -109,3 +109,5 @@ class InventoryWarehousesController extends Controller
             ->with('success', 'Warehouse removed.');
     }
 }
+
+

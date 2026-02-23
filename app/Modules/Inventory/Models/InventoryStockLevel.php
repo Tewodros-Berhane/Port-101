@@ -1,25 +1,21 @@
 <?php
 
-namespace App\Core\Inventory\Models;
+namespace App\Modules\Inventory\Models;
 
 use App\Core\Company\Models\Company;
-use App\Core\Support\Auditable;
+use App\Core\MasterData\Models\Product;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-class InventoryWarehouse extends Model
+class InventoryStockLevel extends Model
 {
     use HasFactory;
     use HasUuids;
-    use SoftDeletes;
     use CompanyScoped;
-    use Auditable;
 
     public $incrementing = false;
 
@@ -27,9 +23,10 @@ class InventoryWarehouse extends Model
 
     protected $fillable = [
         'company_id',
-        'code',
-        'name',
-        'is_active',
+        'location_id',
+        'product_id',
+        'on_hand_quantity',
+        'reserved_quantity',
         'created_by',
         'updated_by',
     ];
@@ -37,7 +34,8 @@ class InventoryWarehouse extends Model
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
+            'on_hand_quantity' => 'decimal:4',
+            'reserved_quantity' => 'decimal:4',
         ];
     }
 
@@ -46,9 +44,14 @@ class InventoryWarehouse extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function locations(): HasMany
+    public function location(): BelongsTo
     {
-        return $this->hasMany(InventoryLocation::class, 'warehouse_id');
+        return $this->belongsTo(InventoryLocation::class, 'location_id');
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     public function createdBy(): BelongsTo
@@ -61,3 +64,5 @@ class InventoryWarehouse extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

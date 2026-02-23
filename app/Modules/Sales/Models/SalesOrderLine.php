@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Sales\Models;
+namespace App\Modules\Sales\Models;
 
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Product;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class SalesQuoteLine extends Model
+class SalesOrderLine extends Model
 {
     use HasFactory;
     use HasUuids;
@@ -23,7 +23,7 @@ class SalesQuoteLine extends Model
 
     protected $fillable = [
         'company_id',
-        'quote_id',
+        'order_id',
         'product_id',
         'description',
         'quantity',
@@ -53,9 +53,9 @@ class SalesQuoteLine extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function quote(): BelongsTo
+    public function order(): BelongsTo
     {
-        return $this->belongsTo(SalesQuote::class, 'quote_id');
+        return $this->belongsTo(SalesOrder::class, 'order_id');
     }
 
     public function product(): BelongsTo
@@ -73,3 +73,5 @@ class SalesQuoteLine extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

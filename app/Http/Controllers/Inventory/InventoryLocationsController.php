@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\InventoryLocationStoreRequest;
 use App\Http\Requests\Inventory\InventoryLocationUpdateRequest;
@@ -139,3 +139,5 @@ class InventoryLocationsController extends Controller
             ->all();
     }
 }
+
+

@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Core\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryLocation;
 use App\Models\User;
 
 class InventoryLocationPolicy
@@ -35,3 +35,5 @@ class InventoryLocationPolicy
         return $this->update($user, $location);
     }
 }
+
+

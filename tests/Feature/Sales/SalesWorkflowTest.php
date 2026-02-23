@@ -5,11 +5,11 @@ use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
-use App\Core\Sales\Events\SalesOrderConfirmed;
-use App\Core\Sales\Events\SalesOrderReadyForInvoice;
-use App\Core\Sales\Models\SalesLead;
-use App\Core\Sales\Models\SalesOrder;
-use App\Core\Sales\Models\SalesQuote;
+use App\Modules\Sales\Events\SalesOrderConfirmed;
+use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
+use App\Modules\Sales\Models\SalesLead;
+use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesQuote;
 use App\Core\Settings\SettingsService;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
@@ -249,3 +249,5 @@ test('sales quote and order approvals are enforced by company approval settings'
 
     expect($order?->fresh()->status)->toBe(SalesOrder::STATUS_CONFIRMED);
 });
+
+

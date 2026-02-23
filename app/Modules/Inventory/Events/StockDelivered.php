@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Inventory\Events;
+namespace App\Modules\Inventory\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -18,3 +18,5 @@ class StockDelivered
         public readonly float $quantity,
     ) {}
 }
+
+

@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Core\Sales\Models\SalesLead;
+use App\Modules\Sales\Models\SalesLead;
 use App\Models\User;
 
 class SalesLeadPolicy
@@ -35,3 +35,5 @@ class SalesLeadPolicy
             && $user->canAccessDataScopedRecord($lead);
     }
 }
+
+

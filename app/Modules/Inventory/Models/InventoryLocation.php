@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Inventory\Models;
+namespace App\Modules\Inventory\Models;
 
 use App\Core\Company\Models\Company;
 use App\Core\Support\Auditable;
@@ -96,3 +96,5 @@ class InventoryLocation extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

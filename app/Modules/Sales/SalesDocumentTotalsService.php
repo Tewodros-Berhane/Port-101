@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Sales;
+namespace App\Modules\Sales;
 
 class SalesDocumentTotalsService
 {
@@ -56,3 +56,5 @@ class SalesDocumentTotalsService
         ];
     }
 }
+
+

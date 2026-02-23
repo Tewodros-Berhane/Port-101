@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Core\Inventory;
+namespace App\Modules\Inventory;
 
-use App\Core\Inventory\Events\StockDelivered;
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryStockLevel;
-use App\Core\Inventory\Models\InventoryStockMove;
-use App\Core\Sales\Models\SalesOrder;
+use App\Modules\Inventory\Events\StockDelivered;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -387,3 +387,5 @@ class InventoryStockWorkflowService
         );
     }
 }
+
+

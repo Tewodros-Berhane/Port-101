@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Core\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -48,3 +48,5 @@ class InventoryStockLevelsController extends Controller
         ]);
     }
 }
+
+

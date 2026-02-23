@@ -1,21 +1,26 @@
 <?php
 
-namespace App\Core\Inventory\Models;
+namespace App\Modules\Sales\Models;
 
 use App\Core\Company\Models\Company;
-use App\Core\MasterData\Models\Product;
+use App\Core\MasterData\Models\Partner;
+use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class InventoryStockLevel extends Model
+class SalesLead extends Model
 {
     use HasFactory;
     use HasUuids;
+    use SoftDeletes;
     use CompanyScoped;
+    use Auditable;
 
     public $incrementing = false;
 
@@ -23,10 +28,13 @@ class InventoryStockLevel extends Model
 
     protected $fillable = [
         'company_id',
-        'location_id',
-        'product_id',
-        'on_hand_quantity',
-        'reserved_quantity',
+        'partner_id',
+        'title',
+        'stage',
+        'estimated_value',
+        'expected_close_date',
+        'notes',
+        'converted_at',
         'created_by',
         'updated_by',
     ];
@@ -34,8 +42,9 @@ class InventoryStockLevel extends Model
     protected function casts(): array
     {
         return [
-            'on_hand_quantity' => 'decimal:4',
-            'reserved_quantity' => 'decimal:4',
+            'estimated_value' => 'decimal:2',
+            'expected_close_date' => 'date',
+            'converted_at' => 'datetime',
         ];
     }
 
@@ -44,14 +53,14 @@ class InventoryStockLevel extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function location(): BelongsTo
+    public function partner(): BelongsTo
     {
-        return $this->belongsTo(InventoryLocation::class, 'location_id');
+        return $this->belongsTo(Partner::class);
     }
 
-    public function product(): BelongsTo
+    public function quotes(): HasMany
     {
-        return $this->belongsTo(Product::class);
+        return $this->hasMany(SalesQuote::class, 'lead_id');
     }
 
     public function createdBy(): BelongsTo
@@ -64,3 +73,5 @@ class InventoryStockLevel extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

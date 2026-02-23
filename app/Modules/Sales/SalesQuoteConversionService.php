@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Core\Sales;
+namespace App\Modules\Sales;
 
-use App\Core\Sales\Models\SalesLead;
-use App\Core\Sales\Models\SalesOrder;
-use App\Core\Sales\Models\SalesOrderLine;
-use App\Core\Sales\Models\SalesQuote;
+use App\Modules\Sales\Models\SalesLead;
+use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesOrderLine;
+use App\Modules\Sales\Models\SalesQuote;
 use App\Models\User;
 
 class SalesQuoteConversionService
@@ -81,3 +81,5 @@ class SalesQuoteConversionService
         return $order->fresh(['lines']);
     }
 }
+
+

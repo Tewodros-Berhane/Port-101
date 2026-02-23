@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Core\Inventory\InventoryStockWorkflowService;
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\InventoryStockWorkflowService;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Core\MasterData\Models\Product;
-use App\Core\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesOrder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\InventoryStockMoveStoreRequest;
 use App\Http\Requests\Inventory\InventoryStockMoveUpdateRequest;
@@ -245,3 +245,5 @@ class InventoryStockMovesController extends Controller
             ->all();
     }
 }
+
+

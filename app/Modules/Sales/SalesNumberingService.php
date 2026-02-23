@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Sales;
+namespace App\Modules\Sales;
 
 use App\Core\Settings\SettingsService;
 
@@ -63,3 +63,5 @@ class SalesNumberingService
         return sprintf('%s-%06d', strtoupper(trim($prefix)), $number);
     }
 }
+
+

@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Core\Sales\Models;
+namespace App\Modules\Inventory\Models;
 
 use App\Core\Company\Models\Company;
-use App\Core\MasterData\Models\Partner;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
@@ -14,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesLead extends Model
+class InventoryWarehouse extends Model
 {
     use HasFactory;
     use HasUuids;
@@ -28,13 +27,9 @@ class SalesLead extends Model
 
     protected $fillable = [
         'company_id',
-        'partner_id',
-        'title',
-        'stage',
-        'estimated_value',
-        'expected_close_date',
-        'notes',
-        'converted_at',
+        'code',
+        'name',
+        'is_active',
         'created_by',
         'updated_by',
     ];
@@ -42,9 +37,7 @@ class SalesLead extends Model
     protected function casts(): array
     {
         return [
-            'estimated_value' => 'decimal:2',
-            'expected_close_date' => 'date',
-            'converted_at' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -53,14 +46,9 @@ class SalesLead extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function partner(): BelongsTo
+    public function locations(): HasMany
     {
-        return $this->belongsTo(Partner::class);
-    }
-
-    public function quotes(): HasMany
-    {
-        return $this->hasMany(SalesQuote::class, 'lead_id');
+        return $this->hasMany(InventoryLocation::class, 'warehouse_id');
     }
 
     public function createdBy(): BelongsTo
@@ -73,3 +61,5 @@ class SalesLead extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Core\Inventory\Models;
+namespace App\Modules\Inventory\Models;
 
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Product;
-use App\Core\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesOrder;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
@@ -143,3 +143,5 @@ class InventoryStockMove extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
+

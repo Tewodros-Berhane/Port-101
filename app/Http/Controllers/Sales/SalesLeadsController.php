@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Sales;
 
 use App\Core\MasterData\Models\Partner;
-use App\Core\Sales\Models\SalesLead;
+use App\Modules\Sales\Models\SalesLead;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesLeadStoreRequest;
 use App\Http\Requests\Sales\SalesLeadUpdateRequest;
@@ -135,3 +135,5 @@ class SalesLeadsController extends Controller
             ->all();
     }
 }
+
+

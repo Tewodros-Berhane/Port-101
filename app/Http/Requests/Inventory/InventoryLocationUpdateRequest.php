@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Inventory;
 
-use App\Core\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryLocation;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -51,3 +51,5 @@ class InventoryLocationUpdateRequest extends FormRequest
         });
     }
 }
+
+

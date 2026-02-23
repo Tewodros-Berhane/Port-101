@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Core\Sales\Events;
+namespace App\Modules\Sales\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class SalesOrderConfirmed
+class SalesOrderReadyForInvoice
 {
     use Dispatchable;
     use SerializesModels;
@@ -16,3 +16,5 @@ class SalesOrderConfirmed
         public readonly ?string $quoteId = null,
     ) {}
 }
+
+

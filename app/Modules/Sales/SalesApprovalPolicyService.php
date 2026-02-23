@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Sales;
+namespace App\Modules\Sales;
 
 use App\Core\Settings\SettingsService;
 
@@ -45,3 +45,5 @@ class SalesApprovalPolicyService
         return $amount >= $threshold;
     }
 }
+
+

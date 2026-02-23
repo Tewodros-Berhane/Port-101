@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Core\Inventory;
+namespace App\Modules\Inventory;
 
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 
 class InventorySetupService
 {
@@ -64,3 +64,5 @@ class InventorySetupService
         }
     }
 }
+
+

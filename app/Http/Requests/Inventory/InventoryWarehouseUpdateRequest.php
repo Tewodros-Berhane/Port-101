@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Inventory;
 
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -37,3 +37,5 @@ class InventoryWarehouseUpdateRequest extends FormRequest
         ];
     }
 }
+
+

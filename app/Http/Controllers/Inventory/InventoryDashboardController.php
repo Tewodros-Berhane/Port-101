@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Core\Inventory\InventorySetupService;
-use App\Core\Inventory\Models\InventoryLocation;
-use App\Core\Inventory\Models\InventoryStockLevel;
-use App\Core\Inventory\Models\InventoryStockMove;
-use App\Core\Inventory\Models\InventoryWarehouse;
+use App\Modules\Inventory\InventorySetupService;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -117,3 +117,5 @@ class InventoryDashboardController extends Controller
         ]);
     }
 }
+
+
