@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Core\Inventory\InventoryStockWorkflowService;
+use App\Core\Sales\Events\SalesOrderConfirmed;
 use App\Core\Support\CompanyContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -27,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerDomainListeners();
     }
 
     protected function configureDefaults(): void
@@ -46,5 +50,16 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+    }
+
+    protected function registerDomainListeners(): void
+    {
+        Event::listen(SalesOrderConfirmed::class, function (SalesOrderConfirmed $event): void {
+            app(InventoryStockWorkflowService::class)
+                ->reserveSalesOrder(
+                    companyId: $event->companyId,
+                    orderId: $event->orderId,
+                );
+        });
     }
 }

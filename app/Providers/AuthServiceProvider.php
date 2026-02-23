@@ -5,6 +5,10 @@ namespace App\Providers;
 use App\Core\Company\Models\Company;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Audit\Models\AuditLog;
+use App\Core\Inventory\Models\InventoryLocation;
+use App\Core\Inventory\Models\InventoryStockLevel;
+use App\Core\Inventory\Models\InventoryStockMove;
+use App\Core\Inventory\Models\InventoryWarehouse;
 use App\Core\MasterData\Models\Address;
 use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Currency;
@@ -24,6 +28,10 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\AddressPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
+use App\Policies\InventoryLocationPolicy;
+use App\Policies\InventoryStockLevelPolicy;
+use App\Policies\InventoryStockMovePolicy;
+use App\Policies\InventoryWarehousePolicy;
 use App\Policies\PartnerPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\PriceListPolicy;
@@ -60,6 +68,10 @@ class AuthServiceProvider extends ServiceProvider
         SalesLead::class => SalesLeadPolicy::class,
         SalesQuote::class => SalesQuotePolicy::class,
         SalesOrder::class => SalesOrderPolicy::class,
+        InventoryWarehouse::class => InventoryWarehousePolicy::class,
+        InventoryLocation::class => InventoryLocationPolicy::class,
+        InventoryStockLevel::class => InventoryStockLevelPolicy::class,
+        InventoryStockMove::class => InventoryStockMovePolicy::class,
     ];
 
     /**
