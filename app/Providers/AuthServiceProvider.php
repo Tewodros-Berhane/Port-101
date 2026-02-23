@@ -13,6 +13,9 @@ use App\Core\MasterData\Models\PriceList;
 use App\Core\MasterData\Models\Product;
 use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
+use App\Core\Sales\Models\SalesLead;
+use App\Core\Sales\Models\SalesOrder;
+use App\Core\Sales\Models\SalesQuote;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Policies\CompanyPolicy;
@@ -26,6 +29,9 @@ use App\Policies\PermissionPolicy;
 use App\Policies\PriceListPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\RolePolicy;
+use App\Policies\SalesLeadPolicy;
+use App\Policies\SalesOrderPolicy;
+use App\Policies\SalesQuotePolicy;
 use App\Policies\TaxPolicy;
 use App\Policies\UomPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -51,6 +57,9 @@ class AuthServiceProvider extends ServiceProvider
         Currency::class => CurrencyPolicy::class,
         Uom::class => UomPolicy::class,
         PriceList::class => PriceListPolicy::class,
+        SalesLead::class => SalesLeadPolicy::class,
+        SalesQuote::class => SalesQuotePolicy::class,
+        SalesOrder::class => SalesOrderPolicy::class,
     ];
 
     /**
