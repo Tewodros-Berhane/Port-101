@@ -37,6 +37,7 @@ class NotificationGovernanceService
         'platform.notifications.digest_day_of_week',
         'platform.notifications.digest_time',
         'platform.notifications.digest_timezone',
+        'platform.notifications.noisy_event_threshold',
     ];
 
     public function __construct(
@@ -106,6 +107,15 @@ class NotificationGovernanceService
             'digest_day_of_week' => $digestDay,
             'digest_time' => $digestTime,
             'digest_timezone' => $digestTimezone,
+            'noisy_event_threshold' => max(
+                1,
+                min(
+                    100,
+                    (int) ($stored['platform.notifications.noisy_event_threshold']
+                        ?? $defaults['noisy_event_threshold']
+                        ?? 3)
+                )
+            ),
         ];
     }
 
@@ -141,6 +151,10 @@ class NotificationGovernanceService
                 (string) ($data['digest_time'] ?? '')
             ) ? (string) $data['digest_time'] : '08:00',
             'platform.notifications.digest_timezone' => (string) ($data['digest_timezone'] ?? 'UTC'),
+            'platform.notifications.noisy_event_threshold' => max(
+                1,
+                min(100, (int) ($data['noisy_event_threshold'] ?? 3))
+            ),
         ];
 
         foreach ($sanitized as $key => $value) {
@@ -212,17 +226,42 @@ class NotificationGovernanceService
     /**
      * @return array{
      *  window_days: int,
+     *  noisy_event_threshold: int,
      *  escalations: array{triggered: int, acknowledged: int, pending: int, acknowledgement_rate: float},
      *  digest_coverage: array{sent: int, opened: int, open_rate: float, total_notifications_summarized: int},
-     *  noisy_events: array<int, array{event: string, count: int, unread: int, high_or_critical: int}>
+     *  noisy_events: array<int, array{event: string, count: int, unread: int, high_or_critical: int, source: string}>,
+     *  source_segmentation: array<int, array{source: string, count: int, unread: int, high_or_critical: int, escalations: int}>,
+     *  time_series: array<int, array{
+     *      date: string,
+     *      notifications_total: int,
+     *      escalations_triggered: int,
+     *      escalations_acknowledged: int,
+     *      digests_sent: int,
+     *      digests_opened: int
+     *  }>
      * }
      */
     public function getAnalytics(int $windowDays = 30): array
     {
+        $settings = $this->getSettings();
+        $noisyThreshold = max(1, min(100, (int) ($settings['noisy_event_threshold'] ?? 3)));
         $window = in_array($windowDays, [7, 30, 90], true)
             ? $windowDays
             : 30;
         $start = CarbonImmutable::now()->startOfDay()->subDays($window - 1);
+        $today = CarbonImmutable::now()->startOfDay();
+
+        $timeSeries = [];
+        for ($day = $start; $day->lte($today); $day = $day->addDay()) {
+            $timeSeries[$day->toDateString()] = [
+                'date' => $day->toDateString(),
+                'notifications_total' => 0,
+                'escalations_triggered' => 0,
+                'escalations_acknowledged' => 0,
+                'digests_sent' => 0,
+                'digests_opened' => 0,
+            ];
+        }
 
         $superAdminIds = User::query()
             ->where('is_super_admin', true)
@@ -231,6 +270,7 @@ class NotificationGovernanceService
         if ($superAdminIds->isEmpty()) {
             return [
                 'window_days' => $window,
+                'noisy_event_threshold' => $noisyThreshold,
                 'escalations' => [
                     'triggered' => 0,
                     'acknowledged' => 0,
@@ -244,6 +284,8 @@ class NotificationGovernanceService
                     'total_notifications_summarized' => 0,
                 ],
                 'noisy_events' => [],
+                'source_segmentation' => [],
+                'time_series' => array_values($timeSeries),
             ];
         }
 
@@ -282,39 +324,103 @@ class NotificationGovernanceService
                 return (int) (($payload['meta']['total'] ?? 0));
             });
 
-        $events = $notifications
-            ->reject(fn (DatabaseNotification $notification) => $notification->type === PlatformNotificationDigestNotification::class)
-            ->map(function (DatabaseNotification $notification) {
-                $payload = is_array($notification->data)
-                    ? $notification->data
-                    : [];
-                $event = (string) ($payload['meta']['event']
-                    ?? $payload['title']
-                    ?? class_basename($notification->type));
-                $severity = strtolower((string) ($payload['severity'] ?? 'low'));
+        $sourceSegmentation = [];
+        $eventRows = collect();
 
-                return [
-                    'event' => trim($event) !== '' ? trim($event) : 'Notification event',
+        foreach ($notifications as $notification) {
+            $payload = is_array($notification->data)
+                ? $notification->data
+                : [];
+            $meta = is_array($payload['meta'] ?? null)
+                ? $payload['meta']
+                : [];
+            $severity = strtolower((string) ($payload['severity'] ?? 'low'));
+            $source = trim((string) ($meta['source'] ?? 'unknown'));
+            if ($source === '') {
+                $source = 'unknown';
+            }
+            $event = trim((string) ($meta['event']
+                ?? $payload['title']
+                ?? class_basename($notification->type)));
+            if ($event === '') {
+                $event = 'Notification event';
+            }
+
+            $date = $notification->created_at?->toDateString();
+            if ($date && isset($timeSeries[$date])) {
+                $timeSeries[$date]['notifications_total']++;
+                if ($notification->type === NotificationGovernanceEscalationNotification::class) {
+                    $timeSeries[$date]['escalations_triggered']++;
+                    if ($notification->read_at !== null) {
+                        $timeSeries[$date]['escalations_acknowledged']++;
+                    }
+                }
+                if ($notification->type === PlatformNotificationDigestNotification::class) {
+                    $timeSeries[$date]['digests_sent']++;
+                    if ($notification->read_at !== null) {
+                        $timeSeries[$date]['digests_opened']++;
+                    }
+                }
+            }
+
+            if ($notification->type !== PlatformNotificationDigestNotification::class) {
+                $sourceSegmentation[$source] = $sourceSegmentation[$source] ?? [
+                    'source' => $source,
+                    'count' => 0,
+                    'unread' => 0,
+                    'high_or_critical' => 0,
+                    'escalations' => 0,
+                ];
+                $sourceSegmentation[$source]['count'] += 1;
+                if ($notification->read_at === null) {
+                    $sourceSegmentation[$source]['unread'] += 1;
+                }
+                if (in_array($severity, ['high', 'critical'], true)) {
+                    $sourceSegmentation[$source]['high_or_critical'] += 1;
+                }
+                if ($notification->type === NotificationGovernanceEscalationNotification::class) {
+                    $sourceSegmentation[$source]['escalations'] += 1;
+                }
+
+                $eventRows->push([
+                    'event' => $event,
+                    'source' => $source,
                     'unread' => $notification->read_at === null ? 1 : 0,
                     'high_or_critical' => in_array($severity, ['high', 'critical'], true) ? 1 : 0,
-                ];
+                ]);
+            }
+        }
+
+        $sourceRows = collect($sourceSegmentation)
+            ->sortByDesc('count')
+            ->values()
+            ->take(12)
+            ->all();
+
+        $noisyEvents = $eventRows
+            ->groupBy(function (array $row) {
+                return $row['event'].'::'.$row['source'];
             })
-            ->groupBy('event')
-            ->map(function (Collection $group, string $event) {
+            ->map(function (Collection $group) {
+                $first = (array) $group->first();
+
                 return [
-                    'event' => $event,
+                    'event' => (string) ($first['event'] ?? 'Notification event'),
+                    'source' => (string) ($first['source'] ?? 'unknown'),
                     'count' => $group->count(),
                     'unread' => (int) $group->sum('unread'),
                     'high_or_critical' => (int) $group->sum('high_or_critical'),
                 ];
             })
             ->sortByDesc('count')
-            ->take(5)
+            ->filter(fn (array $row) => $row['count'] >= $noisyThreshold)
+            ->take(10)
             ->values()
             ->all();
 
         return [
             'window_days' => $window,
+            'noisy_event_threshold' => $noisyThreshold,
             'escalations' => [
                 'triggered' => $escalationTotal,
                 'acknowledged' => $escalationAcknowledged,
@@ -327,7 +433,9 @@ class NotificationGovernanceService
                 'open_rate' => $digestOpenRate,
                 'total_notifications_summarized' => (int) $digestTotalSummarized,
             ],
-            'noisy_events' => $events,
+            'noisy_events' => $noisyEvents,
+            'source_segmentation' => $sourceRows,
+            'time_series' => array_values($timeSeries),
         ];
     }
 

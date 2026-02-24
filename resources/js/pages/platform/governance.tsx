@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import GovernanceTimeSeriesChart from '@/components/platform/dashboard/governance-time-series-chart';
 import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,9 +20,11 @@ type Props = {
         digest_day_of_week: number;
         digest_time: string;
         digest_timezone: string;
+        noisy_event_threshold: number;
     };
     notificationGovernanceAnalytics: {
         window_days: number;
+        noisy_event_threshold: number;
         escalations: {
             triggered: number;
             acknowledged: number;
@@ -36,9 +39,25 @@ type Props = {
         };
         noisy_events: {
             event: string;
+            source: string;
             count: number;
             unread: number;
             high_or_critical: number;
+        }[];
+        source_segmentation: {
+            source: string;
+            count: number;
+            unread: number;
+            high_or_critical: number;
+            escalations: number;
+        }[];
+        time_series: {
+            date: string;
+            notifications_total: number;
+            escalations_triggered: number;
+            escalations_acknowledged: number;
+            digests_sent: number;
+            digests_opened: number;
         }[];
     };
     operationsReportPresets: {
@@ -106,6 +125,8 @@ export default function PlatformGovernance({
         digest_day_of_week: notificationGovernance.digest_day_of_week ?? 1,
         digest_time: notificationGovernance.digest_time ?? '08:00',
         digest_timezone: notificationGovernance.digest_timezone ?? 'UTC',
+        noisy_event_threshold:
+            notificationGovernance.noisy_event_threshold ?? 3,
     });
     const deliveryScheduleForm = useForm({
         enabled: operationsReportDeliverySchedule.enabled ? '1' : '0',
@@ -796,6 +817,31 @@ export default function PlatformGovernance({
                             placeholder="UTC"
                         />
                     </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="noisy_event_threshold">
+                            Noisy-event threshold
+                        </Label>
+                        <Input
+                            id="noisy_event_threshold"
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={String(
+                                governanceForm.data.noisy_event_threshold,
+                            )}
+                            onChange={(event) =>
+                                governanceForm.setData(
+                                    'noisy_event_threshold',
+                                    Number(event.target.value || 1),
+                                )
+                            }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Minimum event count required to appear in noisy-event
+                            analytics.
+                        </p>
+                    </div>
                 </div>
 
                 <div className="mt-4">
@@ -817,7 +863,7 @@ export default function PlatformGovernance({
                     </p>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="mt-4 grid gap-4 md:grid-cols-4">
                     <div className="rounded-lg border p-3">
                         <p className="text-xs text-muted-foreground">
                             Escalations
@@ -883,9 +929,117 @@ export default function PlatformGovernance({
                             Included in digest payloads.
                         </p>
                     </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Noisy-event threshold
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {
+                                notificationGovernanceAnalytics.noisy_event_threshold
+                            }
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Events must meet this count to appear in noisy-event
+                            drill-downs.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 rounded-md border p-4">
+                    <div className="mb-3">
+                        <h3 className="text-sm font-semibold">
+                            Time-series trend
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Daily escalation and digest activity over the selected
+                            analytics window.
+                        </p>
+                    </div>
+                    <GovernanceTimeSeriesChart
+                        rows={notificationGovernanceAnalytics.time_series}
+                    />
+                </div>
+
+                <div className="mt-4 rounded-md border p-4">
+                    <div className="mb-3">
+                        <h3 className="text-sm font-semibold">
+                            Source segmentation
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Notification distribution grouped by source channel.
+                        </p>
+                    </div>
+                    <div className="overflow-x-auto rounded-md border">
+                        <table className="w-full min-w-[680px] text-sm">
+                            <thead className="bg-muted/60 text-left">
+                                <tr>
+                                    <th className="px-3 py-2 font-medium">
+                                        Source
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Notifications
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Unread
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        High/Critical
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Escalations
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {notificationGovernanceAnalytics
+                                    .source_segmentation.length === 0 && (
+                                    <tr>
+                                        <td
+                                            className="px-3 py-6 text-center text-muted-foreground"
+                                            colSpan={5}
+                                        >
+                                            No source-segmentation data for this
+                                            window.
+                                        </td>
+                                    </tr>
+                                )}
+                                {notificationGovernanceAnalytics.source_segmentation.map(
+                                    (row) => (
+                                        <tr key={row.source}>
+                                            <td className="px-3 py-2 font-medium">
+                                                {row.source}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {row.count}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {row.unread}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {row.high_or_critical}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {row.escalations}
+                                            </td>
+                                        </tr>
+                                    ),
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div className="mt-4 overflow-x-auto rounded-md border p-4">
+                    <div className="mb-3">
+                        <h3 className="text-sm font-semibold">Noisy events</h3>
+                        <p className="text-xs text-muted-foreground">
+                            Event and source combinations at or above threshold (
+                            {
+                                notificationGovernanceAnalytics.noisy_event_threshold
+                            }
+                            ).
+                        </p>
+                    </div>
                     <NoisyEventsChart
                         rows={notificationGovernanceAnalytics.noisy_events}
                     />

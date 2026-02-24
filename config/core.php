@@ -25,6 +25,7 @@ return [
             'digest_day_of_week' => (int) env('NOTIFICATIONS_DIGEST_DAY_OF_WEEK', 1),
             'digest_time' => env('NOTIFICATIONS_DIGEST_TIME', '08:00'),
             'digest_timezone' => env('NOTIFICATIONS_DIGEST_TIMEZONE', 'UTC'),
+            'noisy_event_threshold' => (int) env('NOTIFICATIONS_NOISY_EVENT_THRESHOLD', 3),
         ],
     ],
 ];

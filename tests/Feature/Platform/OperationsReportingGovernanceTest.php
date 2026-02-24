@@ -101,6 +101,7 @@ test('superadmin can update notification governance and severity rules are enfor
             'digest_day_of_week' => 3,
             'digest_time' => '09:30',
             'digest_timezone' => 'UTC',
+            'noisy_event_threshold' => 2,
         ])
         ->assertRedirect(route('platform.governance'));
 
@@ -109,6 +110,11 @@ test('superadmin can update notification governance and severity rules are enfor
         ->first();
 
     expect($stored?->value)->toBe('high');
+    expect(
+        Setting::query()
+            ->where('key', 'platform.notifications.noisy_event_threshold')
+            ->value('value')
+    )->toBe(2);
 
     $governance = app(NotificationGovernanceService::class);
 
@@ -427,7 +433,54 @@ test('platform dashboard returns governance analytics payload', function () {
             ->has('notificationGovernanceAnalytics.escalations')
             ->has('notificationGovernanceAnalytics.digest_coverage')
             ->has('notificationGovernanceAnalytics.noisy_events')
+            ->has('notificationGovernanceAnalytics.source_segmentation')
+            ->has('notificationGovernanceAnalytics.time_series')
+            ->where('notificationGovernanceAnalytics.noisy_event_threshold', 3)
             ->where('notificationGovernanceAnalytics.digest_coverage.sent', 1)
+        );
+});
+
+test('governance analytics apply configurable noisy-event thresholds', function () {
+    $superAdmin = createSuperAdmin();
+    $governance = app(NotificationGovernanceService::class);
+
+    $governance->setSettings([
+        'min_severity' => 'low',
+        'escalation_enabled' => true,
+        'escalation_severity' => 'high',
+        'escalation_delay_minutes' => 15,
+        'digest_enabled' => true,
+        'digest_frequency' => 'daily',
+        'digest_day_of_week' => 1,
+        'digest_time' => '08:00',
+        'digest_timezone' => 'UTC',
+        'noisy_event_threshold' => 2,
+    ], $superAdmin->id);
+
+    $superAdmin->notify(new InviteDeliveryFailedNotification(
+        inviteEmail: 'noise1@example.com',
+        contextLabel: 'Platform',
+        errorMessage: 'SMTP timeout',
+        isPlatformInvite: true
+    ));
+    $superAdmin->notify(new InviteDeliveryFailedNotification(
+        inviteEmail: 'noise2@example.com',
+        contextLabel: 'Platform',
+        errorMessage: 'SMTP timeout',
+        isPlatformInvite: true
+    ));
+
+    actingAs($superAdmin)
+        ->get(route('platform.governance', [
+            'trend_window' => 30,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('notificationGovernance.noisy_event_threshold', 2)
+            ->where('notificationGovernanceAnalytics.noisy_event_threshold', 2)
+            ->has('notificationGovernanceAnalytics.time_series', 30)
+            ->has('notificationGovernanceAnalytics.source_segmentation')
+            ->has('notificationGovernanceAnalytics.noisy_events')
         );
 });
 

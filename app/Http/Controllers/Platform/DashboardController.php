@@ -230,6 +230,7 @@ class DashboardController extends Controller
             'digest_day_of_week' => ['required', 'integer', 'min:1', 'max:7'],
             'digest_time' => ['required', 'date_format:H:i'],
             'digest_timezone' => ['required', 'string', 'max:64'],
+            'noisy_event_threshold' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
         $notificationGovernance->setSettings(

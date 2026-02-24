@@ -96,10 +96,11 @@
 - Company scheduled report delivery implemented (`company:reports:deliver-scheduled`) with per-company schedule settings, preset/report selection, and in-app delivery notifications.
 - Role-specific company dashboards implemented on `/company/dashboard` for Sales, Inventory, and Finance roles, with tailored KPI cards, role-focused quick actions, and module-priority focus signals.
 - Scheduled platform operations report delivery expanded with multi-channel dispatch (`in_app`, `email` with attachments, `webhook`, `Slack`) and recipient targeting (all or selected platform admins plus additional external emails).
+- Notification governance analytics drill-downs implemented with daily time-series trends, source-level segmentation, and configurable noisy-event thresholds.
 
 ## Not Yet Implemented
 
-- Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
+- None in current priority scope.
 
 ## Deferred / Out of Scope
 
@@ -144,6 +145,7 @@
 - Notifications now emit for company settings updates, role changes, invite acceptance, company status changes, and invite delivery failures.
 - Notification governance is now configurable from platform dashboard (minimum severity, escalation behavior, digest policy) and enforced by the notification service.
 - Notification governance analytics are now available from platform dashboard with escalation acknowledgement rates, digest open rates, and top noisy events.
+- Platform governance analytics now include drill-downs (time-series trend lines, per-source segmentation) and threshold-based noisy-event filtering configured via governance settings.
 - Attachment upload/download/delete flows are live via `/core/attachments`, with attachments panels across partner, product, contact, address, tax, currency, unit, and price-list edit pages.
 - Audit retention command now prunes with company-specific settings fallback and is scheduled daily.
 - Scheduled platform digest dispatch is available via `platform:notifications:send-digest` and wired into the scheduler.
@@ -165,12 +167,7 @@
 
 ## Next Steps (Priority Order)
 
-1. Governance analytics drill-downs:
-    - Time-series trends, per-source segmentation, and configurable noisy-event thresholds.
-
-## Next Steps (Superadmin)
-
-- Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
+- No remaining superadmin priority items from the previous batch.
 
 ## Suggestions
 

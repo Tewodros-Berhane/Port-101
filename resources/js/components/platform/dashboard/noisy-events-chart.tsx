@@ -11,6 +11,7 @@ import {
 
 type NoisyEventRow = {
     event: string;
+    source?: string;
     count: number;
     unread: number;
     high_or_critical: number;
@@ -36,7 +37,10 @@ const truncateEventLabel = (value: string) => {
 };
 
 export default function NoisyEventsChart({ rows }: Props) {
-    const data = rows.slice(0, 6);
+    const data = rows.slice(0, 6).map((row) => ({
+        ...row,
+        event_label: row.source ? `${row.event} (${row.source})` : row.event,
+    }));
 
     if (data.length === 0) {
         return (
@@ -65,7 +69,7 @@ export default function NoisyEventsChart({ rows }: Props) {
                     />
                     <YAxis
                         type="category"
-                        dataKey="event"
+                        dataKey="event_label"
                         width={160}
                         tickFormatter={truncateEventLabel}
                         tick={axisTickStyle}
