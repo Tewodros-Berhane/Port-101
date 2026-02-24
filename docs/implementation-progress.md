@@ -97,6 +97,7 @@
 - Role-specific company dashboards implemented on `/company/dashboard` for Sales, Inventory, and Finance roles, with tailored KPI cards, role-focused quick actions, and module-priority focus signals.
 - Scheduled platform operations report delivery expanded with multi-channel dispatch (`in_app`, `email` with attachments, `webhook`, `Slack`) and recipient targeting (all or selected platform admins plus additional external emails).
 - Notification governance analytics drill-downs implemented with daily time-series trends, source-level segmentation, and configurable noisy-event thresholds.
+- Added standalone demo dataset seeder `Database\\Seeders\\DemoCompanyWorkflowSeeder` for full-company walkthrough data (company + one user per role, invites, 20 sales workflows, 20 purchasing workflows, inventory/accounting/approvals links, notifications, and audit activity).
 
 ## Not Yet Implemented
 
@@ -153,6 +154,7 @@
 - Scheduled operations report delivery now points to reports-center export links and PDF/XLSX formats.
 - Scheduled operations report delivery now supports targeted recipients and channel fan-out (in-app/email/webhook/Slack) with PDF/XLSX attachments for email dispatch.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
+- Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos.
 
 ### Present but placeholder-only
 
