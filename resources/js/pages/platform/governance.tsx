@@ -1,9 +1,9 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
 
 type Props = {
     analyticsFilters: {
@@ -61,8 +61,19 @@ type Props = {
         day_of_week: number;
         time: string;
         timezone: string;
+        channels: Array<'in_app' | 'email' | 'webhook' | 'slack'>;
+        recipient_mode: 'all_superadmins' | 'selected_superadmins';
+        recipient_user_ids: string[];
+        additional_emails: string[];
+        webhook_url?: string | null;
+        slack_webhook_url?: string | null;
         last_sent_at?: string | null;
     };
+    platformAdminOptions: {
+        id: string;
+        name: string;
+        email: string;
+    }[];
 };
 
 const formatDate = (value?: string | null) =>
@@ -76,6 +87,7 @@ export default function PlatformGovernance({
     notificationGovernanceAnalytics,
     operationsReportPresets,
     operationsReportDeliverySchedule,
+    platformAdminOptions,
 }: Props) {
     const analyticsForm = useForm({
         trend_window: String(analyticsFilters.trend_window ?? 30),
@@ -103,7 +115,47 @@ export default function PlatformGovernance({
         day_of_week: operationsReportDeliverySchedule.day_of_week ?? 1,
         time: operationsReportDeliverySchedule.time ?? '08:00',
         timezone: operationsReportDeliverySchedule.timezone ?? 'UTC',
+        channels: operationsReportDeliverySchedule.channels ?? ['in_app'],
+        recipient_mode:
+            operationsReportDeliverySchedule.recipient_mode ??
+            'all_superadmins',
+        recipient_user_ids:
+            operationsReportDeliverySchedule.recipient_user_ids ?? [],
+        additional_emails: (
+            operationsReportDeliverySchedule.additional_emails ?? []
+        ).join(', '),
+        webhook_url: operationsReportDeliverySchedule.webhook_url ?? '',
+        slack_webhook_url:
+            operationsReportDeliverySchedule.slack_webhook_url ?? '',
     });
+
+    const toggleDeliveryChannel = (
+        channel: 'in_app' | 'email' | 'webhook' | 'slack',
+    ) => {
+        const exists = deliveryScheduleForm.data.channels.includes(channel);
+        deliveryScheduleForm.setData(
+            'channels',
+            exists
+                ? deliveryScheduleForm.data.channels.filter(
+                      (item) => item !== channel,
+                  )
+                : [...deliveryScheduleForm.data.channels, channel],
+        );
+    };
+
+    const toggleRecipientUser = (userId: string) => {
+        const exists = deliveryScheduleForm.data.recipient_user_ids.includes(
+            userId,
+        );
+        deliveryScheduleForm.setData(
+            'recipient_user_ids',
+            exists
+                ? deliveryScheduleForm.data.recipient_user_ids.filter(
+                      (item) => item !== userId,
+                  )
+                : [...deliveryScheduleForm.data.recipient_user_ids, userId],
+        );
+    };
 
     return (
         <AppLayout
@@ -170,6 +222,15 @@ export default function PlatformGovernance({
                 className="mt-6 rounded-xl border p-4"
                 onSubmit={(event) => {
                     event.preventDefault();
+                    if (deliveryScheduleForm.data.channels.length === 0) {
+                        deliveryScheduleForm.setError(
+                            'channels',
+                            'Select at least one delivery channel.',
+                        );
+                        return;
+                    }
+
+                    deliveryScheduleForm.clearErrors('channels');
                     deliveryScheduleForm.put(
                         '/platform/dashboard/report-delivery-schedule',
                         {
@@ -321,6 +382,189 @@ export default function PlatformGovernance({
                             placeholder="UTC"
                         />
                     </div>
+
+                    <div className="grid gap-2 md:col-span-2">
+                        <Label>Delivery channels</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {(
+                                [
+                                    ['in_app', 'In-app'],
+                                    ['email', 'Email'],
+                                    ['webhook', 'Webhook'],
+                                    ['slack', 'Slack'],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <label
+                                    key={value}
+                                    className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={deliveryScheduleForm.data.channels.includes(
+                                            value,
+                                        )}
+                                        onChange={() =>
+                                            toggleDeliveryChannel(value)
+                                        }
+                                    />
+                                    {label}
+                                </label>
+                            ))}
+                        </div>
+                        {deliveryScheduleForm.errors.channels && (
+                            <p className="text-xs text-destructive">
+                                {deliveryScheduleForm.errors.channels}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-2 md:col-span-2">
+                        <Label htmlFor="recipient_mode">Recipients</Label>
+                        <select
+                            id="recipient_mode"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={deliveryScheduleForm.data.recipient_mode}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'recipient_mode',
+                                    event.target.value as
+                                        | 'all_superadmins'
+                                        | 'selected_superadmins',
+                                )
+                            }
+                        >
+                            <option value="all_superadmins">
+                                All platform admins
+                            </option>
+                            <option value="selected_superadmins">
+                                Selected platform admins
+                            </option>
+                        </select>
+                    </div>
+
+                    {deliveryScheduleForm.data.recipient_mode ===
+                        'selected_superadmins' && (
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label>Selected platform admins</Label>
+                            <div className="max-h-40 overflow-y-auto rounded-md border p-2">
+                                {platformAdminOptions.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        No platform admins found.
+                                    </p>
+                                )}
+                                <div className="space-y-2">
+                                    {platformAdminOptions.map((admin) => (
+                                        <label
+                                            key={admin.id}
+                                            className="flex items-center gap-2 text-sm"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={deliveryScheduleForm.data.recipient_user_ids.includes(
+                                                    admin.id,
+                                                )}
+                                                onChange={() =>
+                                                    toggleRecipientUser(admin.id)
+                                                }
+                                            />
+                                            <span>
+                                                {admin.name}{' '}
+                                                <span className="text-xs text-muted-foreground">
+                                                    ({admin.email})
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            {deliveryScheduleForm.errors.recipient_user_ids && (
+                                <p className="text-xs text-destructive">
+                                    {
+                                        deliveryScheduleForm.errors
+                                            .recipient_user_ids
+                                    }
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="grid gap-2 md:col-span-2">
+                        <Label htmlFor="additional_emails">
+                            Additional recipient emails
+                        </Label>
+                        <Input
+                            id="additional_emails"
+                            value={deliveryScheduleForm.data.additional_emails}
+                            onChange={(event) =>
+                                deliveryScheduleForm.setData(
+                                    'additional_emails',
+                                    event.target.value,
+                                )
+                            }
+                            placeholder="ops@example.com, reports@example.com"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Optional comma-separated emails for delivery.
+                        </p>
+                        {deliveryScheduleForm.errors.additional_emails && (
+                            <p className="text-xs text-destructive">
+                                {deliveryScheduleForm.errors.additional_emails}
+                            </p>
+                        )}
+                    </div>
+
+                    {deliveryScheduleForm.data.channels.includes('webhook') && (
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="webhook_url">Webhook URL</Label>
+                            <Input
+                                id="webhook_url"
+                                type="url"
+                                value={deliveryScheduleForm.data.webhook_url}
+                                onChange={(event) =>
+                                    deliveryScheduleForm.setData(
+                                        'webhook_url',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="https://example.com/hooks/ops-report"
+                            />
+                            {deliveryScheduleForm.errors.webhook_url && (
+                                <p className="text-xs text-destructive">
+                                    {deliveryScheduleForm.errors.webhook_url}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {deliveryScheduleForm.data.channels.includes('slack') && (
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="slack_webhook_url">
+                                Slack webhook URL
+                            </Label>
+                            <Input
+                                id="slack_webhook_url"
+                                type="url"
+                                value={
+                                    deliveryScheduleForm.data.slack_webhook_url
+                                }
+                                onChange={(event) =>
+                                    deliveryScheduleForm.setData(
+                                        'slack_webhook_url',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="https://hooks.slack.com/services/..."
+                            />
+                            {deliveryScheduleForm.errors.slack_webhook_url && (
+                                <p className="text-xs text-destructive">
+                                    {
+                                        deliveryScheduleForm.errors
+                                            .slack_webhook_url
+                                    }
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="grid gap-2">
                         <Label>Last delivery</Label>

@@ -25,11 +25,16 @@ class PlatformReportExportService
         $timestamp = now()->format('Ymd-His');
         $baseName = Str::slug($report['title']).'-'.$timestamp;
 
-        if ($normalizedFormat === 'xlsx') {
-            return $this->excelResponse($report, $baseName.'.xlsx');
-        }
+        $attachment = $this->buildAttachmentPayload(
+            report: $report,
+            format: $normalizedFormat,
+            filename: $baseName.'.'.$normalizedFormat
+        );
 
-        return $this->pdfResponse($report, $baseName.'.pdf');
+        return response($attachment['content'], 200, [
+            'Content-Type' => $attachment['mime'],
+            'Content-Disposition' => "attachment; filename=\"{$attachment['filename']}\"",
+        ]);
     }
 
     public function normalizeFormat(string $format): string
@@ -50,8 +55,40 @@ class PlatformReportExportService
      *  columns: array<int, string>,
      *  rows: array<int, array<int, string|int|float>>
      * }  $report
+     * @return array{filename: string, mime: string, content: string}
      */
-    private function pdfResponse(array $report, string $filename): HttpResponse
+    public function buildAttachmentPayload(
+        array $report,
+        string $format,
+        ?string $filename = null
+    ): array {
+        $normalizedFormat = $this->normalizeFormat($format);
+        $resolvedFilename = $filename ?? (Str::slug($report['title']).'.'.$normalizedFormat);
+
+        if ($normalizedFormat === 'xlsx') {
+            return [
+                'filename' => $resolvedFilename,
+                'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'content' => $this->excelBinary($report),
+            ];
+        }
+
+        return [
+            'filename' => $resolvedFilename,
+            'mime' => 'application/pdf',
+            'content' => $this->pdfBinary($report),
+        ];
+    }
+
+    /**
+     * @param  array{
+     *  title: string,
+     *  subtitle: string,
+     *  columns: array<int, string>,
+     *  rows: array<int, array<int, string|int|float>>
+     * }  $report
+     */
+    private function pdfBinary(array $report): string
     {
         $html = view('reports.platform.table', [
             'report' => $report,
@@ -69,12 +106,7 @@ class PlatformReportExportService
         $pdf->AddPage();
         $pdf->writeHTML($html, true, false, true, false, '');
 
-        $content = $pdf->Output($filename, 'S');
-
-        return response($content, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        return (string) $pdf->Output('', 'S');
     }
 
     /**
@@ -85,7 +117,7 @@ class PlatformReportExportService
      *  rows: array<int, array<int, string|int|float>>
      * }  $report
      */
-    private function excelResponse(array $report, string $filename): HttpResponse
+    private function excelBinary(array $report): string
     {
         $tmpDirectory = storage_path('app/tmp');
         if (! is_dir($tmpDirectory)) {
@@ -107,14 +139,9 @@ class PlatformReportExportService
 
         $writer->close();
 
-        return response()
-            ->download(
-                $tmpPath,
-                $filename,
-                [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                ]
-            )
-            ->deleteFileAfterSend(true);
+        $content = (string) file_get_contents($tmpPath);
+        @unlink($tmpPath);
+
+        return $content;
     }
 }

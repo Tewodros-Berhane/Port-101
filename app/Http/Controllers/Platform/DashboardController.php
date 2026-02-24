@@ -202,6 +202,17 @@ class DashboardController extends Controller
             'notificationGovernanceAnalytics' => $notificationGovernance->getAnalytics($trendWindow),
             'operationsReportPresets' => $operationsSettings->getPresets(),
             'operationsReportDeliverySchedule' => $operationsSettings->getDeliverySchedule(),
+            'platformAdminOptions' => User::query()
+                ->where('is_super_admin', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 
@@ -358,6 +369,14 @@ class DashboardController extends Controller
             'day_of_week' => ['required', 'integer', 'min:1', 'max:7'],
             'time' => ['required', 'date_format:H:i'],
             'timezone' => ['required', 'string', 'max:64'],
+            'channels' => ['required', 'array', 'min:1'],
+            'channels.*' => ['required', 'string', 'in:in_app,email,webhook,slack'],
+            'recipient_mode' => ['required', 'string', 'in:all_superadmins,selected_superadmins'],
+            'recipient_user_ids' => ['nullable', 'array'],
+            'recipient_user_ids.*' => ['required', 'uuid', 'exists:users,id'],
+            'additional_emails' => ['nullable', 'string', 'max:4000'],
+            'webhook_url' => ['nullable', 'url', 'max:2048'],
+            'slack_webhook_url' => ['nullable', 'url', 'max:2048'],
         ]);
 
         $presetId = $data['preset_id'] ?? null;
@@ -371,7 +390,69 @@ class DashboardController extends Controller
             return redirect()
                 ->route('platform.governance')
                 ->withErrors([
-                    'delivery_schedule.preset_id' => 'Selected preset was not found.',
+                    'preset_id' => 'Selected preset was not found.',
+                ]);
+        }
+
+        $recipientUserIds = collect($data['recipient_user_ids'] ?? [])
+            ->filter(fn ($id) => is_string($id))
+            ->values()
+            ->all();
+
+        if ($recipientUserIds !== []) {
+            $selectedSuperAdminCount = User::query()
+                ->where('is_super_admin', true)
+                ->whereIn('id', $recipientUserIds)
+                ->count();
+
+            if ($selectedSuperAdminCount !== count($recipientUserIds)) {
+                return redirect()
+                    ->route('platform.governance')
+                    ->withErrors([
+                        'recipient_user_ids' => 'Recipient selection must contain only platform admins.',
+                    ]);
+            }
+        }
+
+        $additionalEmails = $this->parseEmailList((string) ($data['additional_emails'] ?? ''));
+        $channels = collect($data['channels'])
+            ->filter(fn ($channel) => is_string($channel))
+            ->map(fn ($channel) => strtolower(trim($channel)))
+            ->unique()
+            ->values()
+            ->all();
+
+        if (($data['recipient_mode'] ?? null) === 'selected_superadmins' && $recipientUserIds === []) {
+            return redirect()
+                ->route('platform.governance')
+                ->withErrors([
+                    'recipient_user_ids' => 'Select at least one platform admin for selected-recipient mode.',
+                ]);
+        }
+
+        if (in_array('email', $channels, true) && $recipientUserIds === [] && $additionalEmails === []
+            && ($data['recipient_mode'] ?? null) === 'selected_superadmins'
+        ) {
+            return redirect()
+                ->route('platform.governance')
+                ->withErrors([
+                    'additional_emails' => 'Email delivery requires selected platform admins or additional recipient emails.',
+                ]);
+        }
+
+        if (in_array('webhook', $channels, true) && empty($data['webhook_url'])) {
+            return redirect()
+                ->route('platform.governance')
+                ->withErrors([
+                    'webhook_url' => 'Webhook URL is required when webhook delivery is enabled.',
+                ]);
+        }
+
+        if (in_array('slack', $channels, true) && empty($data['slack_webhook_url'])) {
+            return redirect()
+                ->route('platform.governance')
+                ->withErrors([
+                    'slack_webhook_url' => 'Slack webhook URL is required when Slack delivery is enabled.',
                 ]);
         }
 
@@ -383,6 +464,12 @@ class DashboardController extends Controller
             'day_of_week' => (int) $data['day_of_week'],
             'time' => $data['time'],
             'timezone' => $data['timezone'],
+            'channels' => $channels,
+            'recipient_mode' => $data['recipient_mode'],
+            'recipient_user_ids' => $recipientUserIds,
+            'additional_emails' => $additionalEmails,
+            'webhook_url' => $data['webhook_url'] ?? null,
+            'slack_webhook_url' => $data['slack_webhook_url'] ?? null,
         ], $request->user()?->id);
 
         return redirect()
@@ -651,6 +738,24 @@ class DashboardController extends Controller
         }
 
         return $normalized;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parseEmailList(string $value): array
+    {
+        if (trim($value) === '') {
+            return [];
+        }
+
+        return collect(preg_split('/[\s,;]+/', $value) ?: [])
+            ->map(fn (string $email) => strtolower(trim($email)))
+            ->filter(fn (string $email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->take(50)
+            ->values()
+            ->all();
     }
 
 }

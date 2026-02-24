@@ -7,6 +7,7 @@ use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\DashboardPreferencesService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Settings\Models\Setting;
+use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
 use App\Notifications\InviteAcceptedNotification;
 use App\Notifications\InviteDeliveryFailedNotification;
@@ -14,6 +15,8 @@ use App\Notifications\NotificationGovernanceEscalationNotification;
 use App\Notifications\PlatformNotificationDigestNotification;
 use App\Notifications\PlatformOperationsReportDeliveryNotification;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -196,6 +199,12 @@ test('superadmin can save and delete operations report presets and update schedu
             'day_of_week' => 2,
             'time' => '08:30',
             'timezone' => 'UTC',
+            'channels' => ['in_app'],
+            'recipient_mode' => 'all_superadmins',
+            'recipient_user_ids' => [],
+            'additional_emails' => '',
+            'webhook_url' => '',
+            'slack_webhook_url' => '',
         ])
         ->assertRedirect(route('platform.governance'));
 
@@ -283,6 +292,98 @@ test('scheduled operations report delivery command sends notifications', functio
     expect($updatedSchedule['last_sent_at'])->not->toBeNull();
 });
 
+test('scheduled operations report delivery supports targeted recipients and channels', function () {
+    Mail::fake();
+    Http::fake([
+        'https://hooks.example.com/ops-report' => Http::response(['ok' => true], 200),
+        'https://hooks.slack.com/services/T111/B222/XYZ' => Http::response('ok', 200),
+    ]);
+
+    $recipientAdmin = createSuperAdmin();
+    $excludedAdmin = createSuperAdmin();
+    $actor = createSuperAdmin();
+    $settings = app(OperationsReportingSettingsService::class);
+
+    $company = Company::create([
+        'name' => 'Targeted Delivery Co',
+        'slug' => 'targeted-delivery-'.Str::lower(Str::random(4)),
+        'timezone' => 'UTC',
+        'is_active' => true,
+        'owner_id' => $recipientAdmin->id,
+    ]);
+
+    AuditLog::create([
+        'company_id' => $company->id,
+        'user_id' => $actor->id,
+        'auditable_type' => User::class,
+        'auditable_id' => (string) Str::uuid(),
+        'action' => 'updated',
+        'changes' => ['after' => ['name' => 'Targeted']],
+        'metadata' => ['source' => 'test'],
+        'created_at' => now()->subHour(),
+    ]);
+
+    Invite::create([
+        'email' => 'targeted@example.com',
+        'name' => 'Targeted Invite',
+        'token' => Str::random(40),
+        'role' => 'company_member',
+        'company_id' => $company->id,
+        'created_by' => $recipientAdmin->id,
+        'expires_at' => now()->addDays(7),
+        'delivery_status' => Invite::DELIVERY_FAILED,
+        'delivery_attempts' => 1,
+    ]);
+
+    $preset = $settings->savePreset('Targeted preset', [
+        'trend_window' => 30,
+    ]);
+
+    $settings->setDeliverySchedule([
+        'enabled' => true,
+        'preset_id' => $preset['id'],
+        'format' => 'pdf',
+        'frequency' => 'weekly',
+        'day_of_week' => 1,
+        'time' => '08:00',
+        'timezone' => 'UTC',
+        'channels' => ['in_app', 'email', 'webhook', 'slack'],
+        'recipient_mode' => 'selected_superadmins',
+        'recipient_user_ids' => [$recipientAdmin->id],
+        'additional_emails' => ['external-ops@example.com'],
+        'webhook_url' => 'https://hooks.example.com/ops-report',
+        'slack_webhook_url' => 'https://hooks.slack.com/services/T111/B222/XYZ',
+    ]);
+
+    $this->artisan('platform:operations-reports:deliver-scheduled', ['--force' => true])
+        ->assertSuccessful();
+
+    expect(
+        $recipientAdmin->fresh()
+            ->notifications()
+            ->where('type', PlatformOperationsReportDeliveryNotification::class)
+            ->count()
+    )->toBe(1);
+
+    expect(
+        $excludedAdmin->fresh()
+            ->notifications()
+            ->where('type', PlatformOperationsReportDeliveryNotification::class)
+            ->count()
+    )->toBe(0);
+
+    Mail::assertSent(PlatformOperationsReportDeliveryMail::class, 2);
+    Mail::assertSent(PlatformOperationsReportDeliveryMail::class, function ($mail) use ($recipientAdmin) {
+        return $mail->hasTo($recipientAdmin->email);
+    });
+    Mail::assertSent(PlatformOperationsReportDeliveryMail::class, function ($mail) {
+        return $mail->hasTo('external-ops@example.com');
+    });
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://hooks.example.com/ops-report');
+    Http::assertSent(fn ($request) => $request->url() === 'https://hooks.slack.com/services/T111/B222/XYZ');
+});
+
 test('platform dashboard returns governance analytics payload', function () {
     $superAdmin = createSuperAdmin();
 
@@ -342,6 +443,7 @@ test('platform governance page returns governance settings payload', function ()
             ->has('notificationGovernance')
             ->has('operationsReportDeliverySchedule')
             ->has('operationsReportPresets')
+            ->has('platformAdminOptions')
         );
 });
 

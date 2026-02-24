@@ -4,8 +4,11 @@ use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\OperationsReportingSettingsService;
+use App\Core\Platform\PlatformReportExportService;
+use App\Core\Platform\PlatformReportsService;
 use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
+use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
 use App\Modules\Reports\CompanyReportingSettingsService;
 use App\Modules\Reports\CompanyReportsService;
@@ -17,6 +20,8 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -218,6 +223,8 @@ Artisan::command('platform:notifications:send-digest {--force}', function () {
 
 Artisan::command('platform:operations-reports:deliver-scheduled {--force}', function () {
     $settings = app(OperationsReportingSettingsService::class);
+    $reportsService = app(PlatformReportsService::class);
+    $exportService = app(PlatformReportExportService::class);
     $schedule = $settings->getDeliverySchedule();
     $force = (bool) $this->option('force');
 
@@ -229,98 +236,34 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
 
     $filters = $settings->filtersForPreset($schedule['preset_id'] ?? null);
     $trendWindow = (int) ($filters['trend_window'] ?? 30);
+    $format = in_array((string) ($schedule['format'] ?? 'xlsx'), ['pdf', 'xlsx'], true)
+        ? (string) $schedule['format']
+        : 'xlsx';
 
-    $adminActionsQuery = AuditLog::query()
-        ->with(['actor:id,name,is_super_admin', 'company:id,name'])
-        ->whereHas('actor', function ($query) {
-            $query->where('is_super_admin', true);
-        });
+    $adminActionsReport = $reportsService->buildReport(
+        PlatformReportsService::REPORT_ADMIN_ACTIONS,
+        $filters
+    );
+    $deliveryTrendReport = $reportsService->buildReport(
+        PlatformReportsService::REPORT_DELIVERY_TRENDS,
+        $filters
+    );
 
-    $action = $filters['admin_action'] ?? null;
-    $actorId = $filters['admin_actor_id'] ?? null;
-    $startDate = $filters['admin_start_date'] ?? null;
-    $endDate = $filters['admin_end_date'] ?? null;
+    if (! $adminActionsReport || ! $deliveryTrendReport) {
+        $this->error('Could not build scheduled operations reports.');
 
-    if ($action) {
-        $adminActionsQuery->where('action', $action);
+        return self::FAILURE;
     }
 
-    if ($actorId) {
-        $adminActionsQuery->where('user_id', $actorId);
+    $adminActionsCount = count($adminActionsReport['rows']);
+    $sent = 0;
+    $failed = 0;
+    $pending = 0;
+    foreach ($deliveryTrendReport['rows'] as $row) {
+        $sent += (int) ($row[1] ?? 0);
+        $failed += (int) ($row[2] ?? 0);
+        $pending += (int) ($row[3] ?? 0);
     }
-
-    $start = null;
-    $end = null;
-    if (is_string($startDate) && $startDate !== '') {
-        try {
-            $start = CarbonImmutable::createFromFormat('Y-m-d', $startDate)->startOfDay();
-        } catch (\Throwable) {
-            $start = null;
-        }
-    }
-    if (is_string($endDate) && $endDate !== '') {
-        try {
-            $end = CarbonImmutable::createFromFormat('Y-m-d', $endDate)->endOfDay();
-        } catch (\Throwable) {
-            $end = null;
-        }
-    }
-
-    if ($start && $end && $start->gt($end)) {
-        [$start, $end] = [$end->startOfDay(), $start->endOfDay()];
-    }
-
-    if ($start && $end) {
-        $adminActionsQuery->whereBetween('created_at', [$start, $end]);
-    } elseif ($start) {
-        $adminActionsQuery->where('created_at', '>=', $start);
-    } elseif ($end) {
-        $adminActionsQuery->where('created_at', '<=', $end);
-    }
-
-    $adminActionsCount = $adminActionsQuery->count();
-
-    $today = CarbonImmutable::now()->startOfDay();
-    $trendStart = $today->subDays($trendWindow - 1);
-    $trendRows = [];
-
-    for ($day = $trendStart; $day->lte($today); $day = $day->addDay()) {
-        $trendRows[$day->toDateString()] = [
-            'sent' => 0,
-            'failed' => 0,
-            'pending' => 0,
-        ];
-    }
-
-    $invites = \App\Core\Access\Models\Invite::query()
-        ->whereBetween('created_at', [$trendStart, $today->endOfDay()])
-        ->get(['delivery_status', 'created_at']);
-
-    foreach ($invites as $invite) {
-        $date = $invite->created_at?->toDateString();
-
-        if (! $date || ! isset($trendRows[$date])) {
-            continue;
-        }
-
-        if ($invite->delivery_status === \App\Core\Access\Models\Invite::DELIVERY_SENT) {
-            $trendRows[$date]['sent'] += 1;
-
-            continue;
-        }
-
-        if ($invite->delivery_status === \App\Core\Access\Models\Invite::DELIVERY_FAILED) {
-            $trendRows[$date]['failed'] += 1;
-
-            continue;
-        }
-
-        $trendRows[$date]['pending'] += 1;
-    }
-
-    $sent = (int) collect($trendRows)->sum('sent');
-    $failed = (int) collect($trendRows)->sum('failed');
-    $pending = (int) collect($trendRows)->sum('pending');
     $deliveryTotal = $sent + $failed + $pending;
     $attempted = $sent + $failed;
     $failureRate = $attempted > 0
@@ -333,17 +276,42 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
         return self::SUCCESS;
     }
 
-    $recipients = User::query()
+    $allSuperAdmins = User::query()
         ->where('is_super_admin', true)
         ->get(['id', 'name', 'email']);
 
-    if ($recipients->isEmpty()) {
-        $this->line('No platform admins available for report delivery.');
+    $recipientMode = (string) ($schedule['recipient_mode'] ?? 'all_superadmins');
+    $targetedUsers = $recipientMode === 'selected_superadmins'
+        ? $allSuperAdmins->whereIn('id', (array) ($schedule['recipient_user_ids'] ?? []))->values()
+        : $allSuperAdmins;
+
+    $additionalEmails = collect((array) ($schedule['additional_emails'] ?? []))
+        ->filter(fn ($email) => is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL))
+        ->map(fn ($email) => strtolower(trim((string) $email)))
+        ->unique()
+        ->values()
+        ->all();
+
+    $channels = collect((array) ($schedule['channels'] ?? ['in_app']))
+        ->filter(fn ($channel) => is_string($channel))
+        ->map(fn ($channel) => strtolower(trim((string) $channel)))
+        ->filter(fn ($channel) => in_array($channel, OperationsReportingSettingsService::DELIVERY_CHANNELS, true))
+        ->unique()
+        ->values()
+        ->all();
+
+    if ($channels === []) {
+        $channels = ['in_app'];
+    }
+
+    if ($targetedUsers->isEmpty() && $additionalEmails === [] && ! in_array('webhook', $channels, true)
+        && ! in_array('slack', $channels, true)
+    ) {
+        $this->line('No scheduled report recipients available.');
 
         return self::SUCCESS;
     }
 
-    $format = (string) ($schedule['format'] ?? 'xlsx');
     $query = $settings->filtersToQuery($filters);
     $links = [
         'admin_actions' => "/platform/reports/export/admin-actions?{$query}&format={$format}",
@@ -358,27 +326,165 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
         $presetName = (string) ($preset['name'] ?? $presetName);
     }
 
-    Notification::send(
-        $recipients,
-        new PlatformOperationsReportDeliveryNotification(
-            presetName: $presetName,
-            periodLabel: "{$trendWindow}-day window",
-            format: $format,
-            links: $links,
-            summary: [
-                'admin_actions' => $adminActionsCount,
-                'delivery_total' => $deliveryTotal,
-                'sent' => $sent,
-                'failed' => $failed,
-                'pending' => $pending,
-                'failure_rate' => $failureRate,
-            ]
-        )
-    );
+    $summary = [
+        'admin_actions' => $adminActionsCount,
+        'delivery_total' => $deliveryTotal,
+        'sent' => $sent,
+        'failed' => $failed,
+        'pending' => $pending,
+        'failure_rate' => $failureRate,
+    ];
+
+    $deliverySucceeded = false;
+    $sentEmailCount = 0;
+    $webhookDispatches = 0;
+    $slackDispatches = 0;
+
+    if (in_array('in_app', $channels, true) && $targetedUsers->isNotEmpty()) {
+        Notification::send(
+            $targetedUsers,
+            new PlatformOperationsReportDeliveryNotification(
+                presetName: $presetName,
+                periodLabel: "{$trendWindow}-day window",
+                format: $format,
+                links: $links,
+                summary: $summary
+            )
+        );
+
+        $deliverySucceeded = true;
+    }
+
+    if (in_array('email', $channels, true)) {
+        $emailTargets = $targetedUsers
+            ->pluck('email')
+            ->filter(fn ($email) => is_string($email) && $email !== '')
+            ->merge($additionalEmails)
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values();
+
+        if ($emailTargets->isNotEmpty()) {
+            $attachments = [
+                $exportService->buildAttachmentPayload(
+                    $adminActionsReport,
+                    $format,
+                    "admin-actions-{$trendWindow}d.{$format}"
+                ),
+                $exportService->buildAttachmentPayload(
+                    $deliveryTrendReport,
+                    $format,
+                    "invite-delivery-trends-{$trendWindow}d.{$format}"
+                ),
+            ];
+
+            foreach ($emailTargets as $email) {
+                Mail::to($email)->send(new PlatformOperationsReportDeliveryMail(
+                    presetName: $presetName,
+                    periodLabel: "{$trendWindow}-day window",
+                    format: $format,
+                    summary: $summary,
+                    links: $links,
+                    attachmentsData: $attachments
+                ));
+                $sentEmailCount++;
+            }
+
+            $deliverySucceeded = $deliverySucceeded || $sentEmailCount > 0;
+        }
+    }
+
+    $webhookPayload = [
+        'event' => 'platform.operations_report.delivered',
+        'preset_name' => $presetName,
+        'period' => "{$trendWindow}-day window",
+        'format' => $format,
+        'links' => [
+            'admin_actions' => url($links['admin_actions']),
+            'delivery_trends' => url($links['delivery_trends']),
+        ],
+        'summary' => $summary,
+        'filters' => $filters,
+        'generated_at' => now()->toIso8601String(),
+    ];
+
+    if (in_array('webhook', $channels, true) && is_string($schedule['webhook_url'] ?? null)) {
+        $webhookUrl = trim((string) $schedule['webhook_url']);
+        if ($webhookUrl !== '') {
+            try {
+                Http::timeout(15)->post($webhookUrl, $webhookPayload)->throw();
+                $webhookDispatches++;
+                $deliverySucceeded = true;
+            } catch (\Throwable $exception) {
+                report($exception);
+                $this->warn('Webhook delivery failed for scheduled operations report.');
+            }
+        }
+    }
+
+    if (in_array('slack', $channels, true) && is_string($schedule['slack_webhook_url'] ?? null)) {
+        $slackUrl = trim((string) $schedule['slack_webhook_url']);
+        if ($slackUrl !== '') {
+            try {
+                Http::timeout(15)->post($slackUrl, [
+                    'text' => "Port-101 scheduled operations reports ready ({$trendWindow}-day window, {$format}).",
+                    'blocks' => [
+                        [
+                            'type' => 'section',
+                            'text' => [
+                                'type' => 'mrkdwn',
+                                'text' => "*Port-101 Scheduled Reports*\nPreset: {$presetName}\nWindow: {$trendWindow}-day window\nFormat: ".strtoupper($format),
+                            ],
+                        ],
+                        [
+                            'type' => 'section',
+                            'fields' => [
+                                ['type' => 'mrkdwn', 'text' => "*Admin actions*\n{$adminActionsCount}"],
+                                ['type' => 'mrkdwn', 'text' => "*Invite deliveries*\n{$deliveryTotal}"],
+                                ['type' => 'mrkdwn', 'text' => "*Failures*\n{$failed}"],
+                                ['type' => 'mrkdwn', 'text' => "*Failure rate*\n{$failureRate}%"],
+                            ],
+                        ],
+                        [
+                            'type' => 'actions',
+                            'elements' => [
+                                [
+                                    'type' => 'button',
+                                    'text' => ['type' => 'plain_text', 'text' => 'Admin Actions'],
+                                    'url' => url($links['admin_actions']),
+                                ],
+                                [
+                                    'type' => 'button',
+                                    'text' => ['type' => 'plain_text', 'text' => 'Delivery Trends'],
+                                    'url' => url($links['delivery_trends']),
+                                ],
+                            ],
+                        ],
+                    ],
+                ])->throw();
+                $slackDispatches++;
+                $deliverySucceeded = true;
+            } catch (\Throwable $exception) {
+                report($exception);
+                $this->warn('Slack delivery failed for scheduled operations report.');
+            }
+        }
+    }
+
+    if (! $deliverySucceeded) {
+        $this->line('No scheduled report deliveries were dispatched.');
+
+        return self::SUCCESS;
+    }
 
     $settings->markDeliverySent();
 
-    $this->info("Scheduled operations report delivered to {$recipients->count()} platform admin(s).");
+    $this->info(
+        "Scheduled operations report delivered via "
+        .'in-app recipients: '.$targetedUsers->count()
+        .", email recipients: {$sentEmailCount}, webhook dispatches: {$webhookDispatches}, slack dispatches: {$slackDispatches}."
+    );
 
     return self::SUCCESS;
 })->purpose('Deliver scheduled operations report exports to platform admins');

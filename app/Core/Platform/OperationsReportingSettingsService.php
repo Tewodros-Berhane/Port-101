@@ -2,6 +2,7 @@
 
 namespace App\Core\Platform;
 
+use App\Models\User;
 use App\Core\Settings\SettingsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
@@ -11,6 +12,24 @@ class OperationsReportingSettingsService
     public const PRESETS_KEY = 'platform.operations_reporting.presets';
 
     public const DELIVERY_SCHEDULE_KEY = 'platform.operations_reporting.delivery_schedule';
+
+    /**
+     * @var array<int, string>
+     */
+    public const DELIVERY_CHANNELS = [
+        'in_app',
+        'email',
+        'webhook',
+        'slack',
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    public const RECIPIENT_MODES = [
+        'all_superadmins',
+        'selected_superadmins',
+    ];
 
     public function __construct(
         private SettingsService $settingsService
@@ -135,13 +154,24 @@ class OperationsReportingSettingsService
      *  day_of_week: int,
      *  time: string,
      *  timezone: string,
-     *  last_sent_at: string|null
+     *  last_sent_at: string|null,
+     *  channels: array<int, string>,
+     *  recipient_mode: string,
+     *  recipient_user_ids: array<int, string>,
+     *  additional_emails: array<int, string>,
+     *  webhook_url: string|null,
+     *  slack_webhook_url: string|null
      * }
      */
     public function getDeliverySchedule(): array
     {
         $stored = $this->settingsService->get(self::DELIVERY_SCHEDULE_KEY, null, null, null);
         $schedule = is_array($stored) ? $stored : [];
+        $superAdminIds = User::query()
+            ->where('is_super_admin', true)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
         $presets = $this->getPresets();
         $presetIds = collect($presets)->pluck('id')->all();
 
@@ -170,6 +200,28 @@ class OperationsReportingSettingsService
             ? $presetId
             : null;
 
+        $channels = $this->normalizeDeliveryChannels(
+            is_array($schedule['channels'] ?? null) ? $schedule['channels'] : ['in_app']
+        );
+        $recipientMode = $this->normalizeRecipientMode(
+            $schedule['recipient_mode'] ?? null
+        );
+        $recipientUserIds = collect(is_array($schedule['recipient_user_ids'] ?? null)
+            ? $schedule['recipient_user_ids']
+            : [])
+            ->filter(fn ($id) => is_string($id) && in_array($id, $superAdminIds, true))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $additionalEmails = $this->normalizeEmailList(
+            is_array($schedule['additional_emails'] ?? null)
+                ? $schedule['additional_emails']
+                : []
+        );
+        $webhookUrl = $this->normalizeOptionalUrl($schedule['webhook_url'] ?? null);
+        $slackWebhookUrl = $this->normalizeOptionalUrl($schedule['slack_webhook_url'] ?? null);
+
         return [
             'enabled' => (bool) ($schedule['enabled'] ?? false),
             'preset_id' => $presetId,
@@ -179,6 +231,12 @@ class OperationsReportingSettingsService
             'time' => $time,
             'timezone' => (string) ($schedule['timezone'] ?? config('app.timezone', 'UTC')),
             'last_sent_at' => $this->normalizedDateTime($schedule['last_sent_at'] ?? null),
+            'channels' => $channels,
+            'recipient_mode' => $recipientMode,
+            'recipient_user_ids' => $recipientUserIds,
+            'additional_emails' => $additionalEmails,
+            'webhook_url' => $webhookUrl,
+            'slack_webhook_url' => $slackWebhookUrl,
         ];
     }
 
@@ -217,6 +275,38 @@ class OperationsReportingSettingsService
         $lastSentAt = $this->normalizedDateTime(
             $data['last_sent_at'] ?? $current['last_sent_at']
         );
+        $channels = $this->normalizeDeliveryChannels(
+            is_array($data['channels'] ?? null)
+                ? $data['channels']
+                : ($current['channels'] ?? ['in_app'])
+        );
+        $recipientMode = $this->normalizeRecipientMode(
+            $data['recipient_mode'] ?? $current['recipient_mode'] ?? null
+        );
+        $superAdminIds = User::query()
+            ->where('is_super_admin', true)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+        $recipientUserIds = collect(is_array($data['recipient_user_ids'] ?? null)
+            ? $data['recipient_user_ids']
+            : ($current['recipient_user_ids'] ?? []))
+            ->filter(fn ($id) => is_string($id) && in_array($id, $superAdminIds, true))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $additionalEmails = $this->normalizeEmailList(
+            is_array($data['additional_emails'] ?? null)
+                ? $data['additional_emails']
+                : ($current['additional_emails'] ?? [])
+        );
+        $webhookUrl = $this->normalizeOptionalUrl(
+            $data['webhook_url'] ?? $current['webhook_url'] ?? null
+        );
+        $slackWebhookUrl = $this->normalizeOptionalUrl(
+            $data['slack_webhook_url'] ?? $current['slack_webhook_url'] ?? null
+        );
 
         $schedule = [
             'enabled' => $enabled,
@@ -227,6 +317,12 @@ class OperationsReportingSettingsService
             'time' => $time,
             'timezone' => (string) ($data['timezone'] ?? $current['timezone']),
             'last_sent_at' => $lastSentAt,
+            'channels' => $channels,
+            'recipient_mode' => $recipientMode,
+            'recipient_user_ids' => $recipientUserIds,
+            'additional_emails' => $additionalEmails,
+            'webhook_url' => $webhookUrl,
+            'slack_webhook_url' => $slackWebhookUrl,
         ];
 
         $this->settingsService->set(
@@ -419,5 +515,71 @@ class OperationsReportingSettingsService
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param  array<int, mixed>  $channels
+     * @return array<int, string>
+     */
+    private function normalizeDeliveryChannels(array $channels): array
+    {
+        $normalized = collect($channels)
+            ->filter(fn ($channel) => is_string($channel))
+            ->map(fn (string $channel) => strtolower(trim($channel)))
+            ->filter(fn (string $channel) => in_array($channel, self::DELIVERY_CHANNELS, true))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalized === []) {
+            return ['in_app'];
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeRecipientMode(mixed $mode): string
+    {
+        $normalized = strtolower(trim((string) $mode));
+
+        if (! in_array($normalized, self::RECIPIENT_MODES, true)) {
+            return 'all_superadmins';
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<int, mixed>  $emails
+     * @return array<int, string>
+     */
+    private function normalizeEmailList(array $emails): array
+    {
+        return collect($emails)
+            ->filter(fn ($email) => is_string($email))
+            ->map(fn (string $email) => strtolower(trim($email)))
+            ->filter(fn (string $email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->take(50)
+            ->values()
+            ->all();
+    }
+
+    private function normalizeOptionalUrl(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (! filter_var($trimmed, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        return $trimmed;
     }
 }

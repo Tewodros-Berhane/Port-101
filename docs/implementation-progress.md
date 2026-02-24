@@ -95,10 +95,10 @@
 - Phase F Reports module implemented: company reports center at `/company/reports` with operational/financial catalog coverage, shared filters/presets, and PDF/XLSX exports.
 - Company scheduled report delivery implemented (`company:reports:deliver-scheduled`) with per-company schedule settings, preset/report selection, and in-app delivery notifications.
 - Role-specific company dashboards implemented on `/company/dashboard` for Sales, Inventory, and Finance roles, with tailored KPI cards, role-focused quick actions, and module-priority focus signals.
+- Scheduled platform operations report delivery expanded with multi-channel dispatch (`in_app`, `email` with attachments, `webhook`, `Slack`) and recipient targeting (all or selected platform admins plus additional external emails).
 
 ## Not Yet Implemented
 
-- Export delivery channel expansion (email attachments/webhooks/Slack) and recipient targeting beyond all superadmins.
 - Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
 
 ## Deferred / Out of Scope
@@ -149,6 +149,7 @@
 - Scheduled platform digest dispatch is available via `platform:notifications:send-digest` and wired into the scheduler.
 - Scheduled operations report delivery is available via `platform:operations-reports:deliver-scheduled` and wired into the scheduler.
 - Scheduled operations report delivery now points to reports-center export links and PDF/XLSX formats.
+- Scheduled operations report delivery now supports targeted recipients and channel fan-out (in-app/email/webhook/Slack) with PDF/XLSX attachments for email dispatch.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
 
 ### Present but placeholder-only
@@ -164,14 +165,11 @@
 
 ## Next Steps (Priority Order)
 
-1. Export delivery channel expansion:
-    - Email attachments/webhooks/Slack channels and recipient targeting beyond all superadmins.
-2. Governance analytics drill-downs:
+1. Governance analytics drill-downs:
     - Time-series trends, per-source segmentation, and configurable noisy-event thresholds.
 
 ## Next Steps (Superadmin)
 
-- Export delivery channel expansion (email attachments/webhooks/Slack) and recipient targeting beyond all superadmins.
 - Governance analytics drill-downs (time-series trends, per-source segmentation, configurable noisy-event thresholds).
 
 ## Suggestions
