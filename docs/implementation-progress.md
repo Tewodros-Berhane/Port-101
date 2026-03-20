@@ -98,6 +98,7 @@
 - Scheduled platform operations report delivery expanded with multi-channel dispatch (`in_app`, `email` with attachments, `webhook`, `Slack`) and recipient targeting (all or selected platform admins plus additional external emails).
 - Notification governance analytics drill-downs implemented with daily time-series trends, source-level segmentation, and configurable noisy-event thresholds.
 - Added standalone demo dataset seeder `Database\\Seeders\\DemoCompanyWorkflowSeeder` for full-company walkthrough data (company + one user per role, invites, 20 sales workflows, 20 purchasing workflows, inventory/accounting/approvals links, notifications, and audit activity).
+- CI test workflow now provisions PostgreSQL with `pdo_pgsql`/`pgsql` extensions and runs the suite against the project's PostgreSQL test configuration.
 
 ## Not Yet Implemented
 
@@ -160,12 +161,12 @@
 
 - None in current scope.
 
-### Test run result (2026-02-23)
+### Test run result (2026-03-20)
 
-- Command executed: `php artisan test` (requested with long timeout).
-- Test runtime now uses PostgreSQL test DB (`phpunit.xml` updated to `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
-- Current status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `142` passed, `0` failed.
+- Command executed: `php artisan test`.
+- Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
+- Local verification status: suite executes on PostgreSQL and is fully passing.
+- Result summary after latest implementation: `147` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 

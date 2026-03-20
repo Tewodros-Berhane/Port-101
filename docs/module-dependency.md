@@ -13,7 +13,7 @@ Core provides:
 - Auth + RBAC: users, roles, permissions
 - Company scoping: companies, company_users
 - Master data: partners, products, taxes, currencies, uoms
-- Audit and settings (planned)
+- Audit, notifications, attachments, and settings services
 
 ## Dependency Graph (High-Level)
 

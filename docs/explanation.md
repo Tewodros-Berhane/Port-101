@@ -82,9 +82,10 @@ This is how user onboarding currently works in the code today.
 
 #### If the company needs a "Sales Manager" role
 
-- Current seeded roles are mainly `Owner` and `Member` by default.
-- Invite flow can onboard the person as `company_member`, then owner can update their role from `/company/users` if that role exists in the roles table.
-- Dedicated business roles (Sales Manager, Inventory Manager, Finance Manager) with tailored permissions are still part of the remaining role/module roadmap.
+- Functional module roles are now seeded globally and available in the app today.
+- Current roles include `Operations Admin`, `Sales Manager`, `Sales User`, `Inventory Manager`, `Warehouse Clerk`, `Purchasing Manager`, `Buyer`, `Finance Manager`, `Accountant`, `Approver`, and `Auditor`, in addition to `Owner` and `Member`.
+- Invite flow still creates the initial company membership, and company owner/admin can assign the exact functional role from `/company/users` after onboarding.
+- Role permissions and data scopes are already enforced in policies and module routes, so the assigned role materially changes what that user can access and act on.
 
 ### 2) Finance / Accounting User
 

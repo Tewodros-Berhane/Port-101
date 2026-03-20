@@ -13,6 +13,28 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: port_101_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d port_101_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      APP_ENV: testing
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: port_101_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
     strategy:
       matrix:
         php-version: ['8.4', '8.5']
@@ -27,6 +49,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
           coverage: xdebug
+          extensions: pgsql, pdo_pgsql
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -47,6 +70,9 @@ jobs:
 
       - name: Generate Application Key
         run: php artisan key:generate
+
+      - name: Clear Cached Config
+        run: php artisan optimize:clear
 
       - name: Tests
         run: ./vendor/bin/pest
