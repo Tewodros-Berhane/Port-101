@@ -1,14 +1,27 @@
 <?php
 
+use App\Http\Controllers\Accounting\AccountingAccountsController;
 use App\Http\Controllers\Accounting\AccountingDashboardController;
 use App\Http\Controllers\Accounting\AccountingInvoicesController;
+use App\Http\Controllers\Accounting\AccountingJournalsController;
+use App\Http\Controllers\Accounting\AccountingLedgerController;
 use App\Http\Controllers\Accounting\AccountingPaymentsController;
+use App\Http\Controllers\Accounting\AccountingStatementsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('accounting', [AccountingDashboardController::class, 'index'])
     ->name('modules.accounting');
 
 Route::prefix('accounting')->name('accounting.')->group(function () {
+    Route::get('accounts', [AccountingAccountsController::class, 'index'])
+        ->name('accounts.index');
+    Route::get('journals', [AccountingJournalsController::class, 'index'])
+        ->name('journals.index');
+    Route::get('ledger', [AccountingLedgerController::class, 'index'])
+        ->name('ledger.index');
+    Route::get('statements', [AccountingStatementsController::class, 'index'])
+        ->name('statements.index');
+
     Route::resource('invoices', AccountingInvoicesController::class)
         ->except(['show']);
     Route::post('invoices/{invoice}/post', [AccountingInvoicesController::class, 'post'])

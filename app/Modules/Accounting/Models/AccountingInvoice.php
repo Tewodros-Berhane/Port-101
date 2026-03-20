@@ -18,11 +18,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountingInvoice extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public const TYPE_CUSTOMER_INVOICE = 'customer_invoice';
 
@@ -150,6 +150,12 @@ class AccountingInvoice extends Model
     public function reconciliationEntries(): HasMany
     {
         return $this->hasMany(AccountingReconciliationEntry::class, 'invoice_id');
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(AccountingLedgerEntry::class, 'source_id')
+            ->where('source_type', self::class);
     }
 
     public function postedBy(): BelongsTo

@@ -13,6 +13,7 @@ class AccountingInvoiceWorkflowService
         private readonly AccountingTotalsService $totalsService,
         private readonly AccountingNumberingService $numberingService,
         private readonly AccountingPeriodGuardService $periodGuardService,
+        private readonly AccountingLedgerPostingService $ledgerPostingService,
     ) {}
 
     /**
@@ -190,6 +191,7 @@ class AccountingInvoiceWorkflowService
                 'updated_by' => $actorId,
             ]);
 
+            $this->ledgerPostingService->postInvoice($invoice, $actorId);
             $this->syncSalesOrderStatus($invoice, $actorId);
 
             return $invoice->fresh();
@@ -218,6 +220,14 @@ class AccountingInvoiceWorkflowService
                 'cancelled_by' => $actorId,
                 'updated_by' => $actorId,
             ]);
+
+            if ($invoice->posted_at) {
+                $this->ledgerPostingService->reverseInvoice(
+                    invoice: $invoice,
+                    reason: 'Invoice cancelled.',
+                    actorId: $actorId,
+                );
+            }
 
             return $invoice->fresh();
         });

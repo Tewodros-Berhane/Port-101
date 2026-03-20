@@ -242,6 +242,10 @@ class CompanyReportsController extends Controller
             CompanyReportsService::REPORT_INVENTORY_OPERATIONS => 'Inventory operations',
             CompanyReportsService::REPORT_PURCHASING_PERFORMANCE => 'Purchasing performance',
             CompanyReportsService::REPORT_FINANCE_SNAPSHOT => 'Finance snapshot',
+            CompanyReportsService::REPORT_FINANCIAL_PROFIT_LOSS => 'Profit and loss',
+            CompanyReportsService::REPORT_FINANCIAL_BALANCE_SHEET => 'Balance sheet',
+            CompanyReportsService::REPORT_FINANCIAL_TRIAL_BALANCE => 'Trial balance',
+            CompanyReportsService::REPORT_FINANCIAL_CASH_FLOW => 'Cash flow summary',
             CompanyReportsService::REPORT_APPROVAL_GOVERNANCE => 'Approval governance',
             default => $reportKey,
         };

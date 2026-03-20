@@ -89,10 +89,10 @@
 - Added module placeholder route permission gating (`sales.*`, `inventory.*`, `purchasing.*`, `accounting.*`, `approvals.*`, `reports.*`) plus feature coverage for allowed/forbidden access.
 - Phase B Sales MVP implemented: company Sales module now supports lead -> quote -> order workflow with lifecycle actions, company-scoped permissions/policies, approval-threshold enforcement, numbering sequences, and order-confirmation event emission for downstream inventory/accounting handoffs.
 - Phase C Inventory MVP implemented: warehouses/locations CRUD, stock levels, receipts/deliveries/transfers workflow actions (reserve/complete/cancel), inventory dashboard KPIs, and automatic stock-move reservation on sales-order confirmation.
-- Phase D Accounting Lite MVP implemented: accounting invoices/payments schema, dashboard + invoice/payment workflows, posting/reconciliation/reversal actions, sales/inventory event handoff wiring, accounting policies/requests/controllers, and end-to-end feature coverage.
+- Phase D Accounting foundations expanded beyond lite invoicing: chart of accounts, journals, general-ledger entries, double-entry posting/reversal on invoice and payment workflows, financial statements/trial balance/cash-flow reporting, accounting foundation pages (`/company/accounting/accounts`, `/journals`, `/ledger`, `/statements`), demo-data ledger backfill, and end-to-end feature coverage.
 - Phase E Purchasing MVP implemented: RFQ + purchase order schema, dashboard + RFQ/PO workflows, approval and placement controls, receipt capture with partial/full handling, and automatic vendor-bill draft handoff to accounting on receipts.
 - Phase F Approvals module implemented: `approval_requests` + `approval_steps` persistence, cross-module queue sync (sales quote/order + purchase order), authority-aware approve/reject actions, and approval SLA metrics at `/company/approvals`.
-- Phase F Reports module implemented: company reports center at `/company/reports` with operational/financial catalog coverage, shared filters/presets, and PDF/XLSX exports.
+- Phase F Reports module implemented: company reports center at `/company/reports` with operational/financial catalog coverage, shared filters/presets, PDF/XLSX exports, and financial statement exports (profit and loss, balance sheet, trial balance, cash flow summary).
 - Company scheduled report delivery implemented (`company:reports:deliver-scheduled`) with per-company schedule settings, preset/report selection, and in-app delivery notifications.
 - Role-specific company dashboards implemented on `/company/dashboard` for Sales, Inventory, and Finance roles, with tailored KPI cards, role-focused quick actions, and module-priority focus signals.
 - Scheduled platform operations report delivery expanded with multi-channel dispatch (`in_app`, `email` with attachments, `webhook`, `Slack`) and recipient targeting (all or selected platform admins plus additional external emails).
@@ -132,10 +132,10 @@
 - Approval authority profile model/service foundation and SoD checks are available for upcoming module approval flows.
 - Sales module is now live at `/company/sales` with leads/quotes/orders CRUD, quote+order approvals, and conversion/confirmation workflow actions.
 - Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, and stock-move lifecycle controls.
-- Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, reconciliation, reversal, and sales/inventory handoff support.
+- Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, reconciliation, reversal, chart of accounts, journals, general-ledger visibility, financial statements, and sales/inventory handoff support.
 - Purchasing module is now live at `/company/purchasing` with RFQ/PO CRUD, approval and placement lifecycle actions, receipt capture, and vendor bill handoff into accounting.
 - Approvals module is now live at `/company/approvals` with unified queue filtering, authority-checked approve/reject actions, and cross-module request tracking.
-- Reports module is now live at `/company/reports` with operational + financial report cards, preset management, and PDF/XLSX exports.
+- Reports module is now live at `/company/reports` with operational + financial report cards, preset management, PDF/XLSX exports, and financial statement exports.
 - Company report scheduling is live with per-company delivery policy and recurring notification dispatch via `company:reports:deliver-scheduled`.
 - Company settings now include tax cadence defaults, approval-policy defaults, and numbering sequence controls beyond profile/localization fields.
 - Master data CRUD for partners, contacts, addresses, products, taxes, currencies, units, and price lists.
@@ -155,18 +155,18 @@
 - Scheduled operations report delivery now points to reports-center export links and PDF/XLSX formats.
 - Scheduled operations report delivery now supports targeted recipients and channel fan-out (in-app/email/webhook/Slack) with PDF/XLSX attachments for email dispatch.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
-- Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos.
+- Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 
 ### Present but placeholder-only
 
 - None in current scope.
 
-### Test run result (2026-03-20)
+### Test run result (2026-03-21)
 
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `147` passed, `0` failed.
+- Result summary after latest implementation: `148` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 

@@ -18,6 +18,7 @@ use App\Core\MasterData\Models\Uom;
 use App\Core\RBAC\Models\Role;
 use App\Core\Settings\Models\Setting;
 use App\Models\User;
+use App\Modules\Accounting\AccountingLedgerBackfillService;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingInvoiceLine;
 use App\Modules\Accounting\Models\AccountingPayment;
@@ -93,6 +94,8 @@ class DemoCompanyWorkflowSeeder extends Seeder
             $purchasing = $this->seedPurchasing($company, $usersByRole, $master);
             $inventory = $this->seedInventory($company, $usersByRole, $master['products'], $sales['orders'], $purchasing['orders']);
             $accounting = $this->seedAccounting($company, $usersByRole, $sales['orders'], $purchasing['orders']);
+            app(AccountingLedgerBackfillService::class)
+                ->backfillCompany($company->id, $usersByRole['finance_manager']->id);
             $this->seedApprovals($company, $usersByRole, $rolesBySlug, $sales['quotes'], $sales['orders'], $purchasing['orders']);
             $this->seedNotifications($usersByRole);
             $this->seedAuditLogs($company, $usersByRole, $sales, $purchasing, $accounting, $inventory, $invites);

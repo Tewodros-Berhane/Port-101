@@ -26,6 +26,10 @@ type Payment = {
 
 type Props = {
     kpis: {
+        chart_of_accounts: number;
+        journals: number;
+        ledger_entries_30d: number;
+        cash_balance: number;
         draft_invoices: number;
         posted_invoices: number;
         overdue_invoices: number;
@@ -33,12 +37,21 @@ type Props = {
         posted_payments_30d: number;
         reconciled_payments_30d: number;
     };
+    statementSnapshot: {
+        revenue: number;
+        expenses: number;
+        net_income: number;
+        assets: number;
+        liabilities: number;
+        equity: number;
+    };
     recentInvoices: Invoice[];
     recentPayments: Payment[];
 };
 
 export default function AccountingDashboard({
     kpis,
+    statementSnapshot,
     recentInvoices,
     recentPayments,
 }: Props) {
@@ -69,10 +82,28 @@ export default function AccountingDashboard({
                             New payment
                         </Link>
                     </Button>
+                    <Button variant="outline" asChild>
+                        <Link href="/company/accounting/statements">
+                            Statements
+                        </Link>
+                    </Button>
                 </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                    label="Chart of accounts"
+                    value={String(kpis.chart_of_accounts)}
+                />
+                <MetricCard label="Journals" value={String(kpis.journals)} />
+                <MetricCard
+                    label="Ledger entries (30d)"
+                    value={String(kpis.ledger_entries_30d)}
+                />
+                <MetricCard
+                    label="Cash balance"
+                    value={kpis.cash_balance.toFixed(2)}
+                />
                 <MetricCard
                     label="Draft invoices"
                     value={String(kpis.draft_invoices)}
@@ -99,6 +130,72 @@ export default function AccountingDashboard({
                 />
             </div>
 
+            <div className="mt-6 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+                <div className="rounded-xl border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Ledger foundations
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Inspect the chart of accounts, journals, and
+                                generated ledger entries behind invoice and
+                                payment postings.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" asChild>
+                                <Link href="/company/accounting/accounts">
+                                    Accounts
+                                </Link>
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <Link href="/company/accounting/journals">
+                                    Journals
+                                </Link>
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <Link href="/company/accounting/ledger">
+                                    Ledger
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                    <h2 className="text-sm font-semibold">
+                        Statement snapshot
+                    </h2>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <SnapshotLine
+                            label="Revenue"
+                            value={statementSnapshot.revenue}
+                        />
+                        <SnapshotLine
+                            label="Expenses"
+                            value={statementSnapshot.expenses}
+                        />
+                        <SnapshotLine
+                            label="Net income"
+                            value={statementSnapshot.net_income}
+                        />
+                        <SnapshotLine
+                            label="Assets"
+                            value={statementSnapshot.assets}
+                        />
+                        <SnapshotLine
+                            label="Liabilities"
+                            value={statementSnapshot.liabilities}
+                        />
+                        <SnapshotLine
+                            label="Equity"
+                            value={statementSnapshot.equity}
+                        />
+                    </div>
+                </div>
+            </div>
+
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
                 <div className="rounded-xl border p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -106,7 +203,9 @@ export default function AccountingDashboard({
                             Recent invoices
                         </h2>
                         <Button variant="ghost" asChild>
-                            <Link href="/company/accounting/invoices">Open</Link>
+                            <Link href="/company/accounting/invoices">
+                                Open
+                            </Link>
                         </Button>
                     </div>
                     <div className="mt-4 overflow-x-auto rounded-lg border">
@@ -179,7 +278,9 @@ export default function AccountingDashboard({
                             Recent payments
                         </h2>
                         <Button variant="ghost" asChild>
-                            <Link href="/company/accounting/payments">Open</Link>
+                            <Link href="/company/accounting/payments">
+                                Open
+                            </Link>
                         </Button>
                     </div>
                     <div className="mt-4 overflow-x-auto rounded-lg border">
@@ -250,10 +351,21 @@ export default function AccountingDashboard({
 function MetricCard({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-xl border p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs tracking-wide text-muted-foreground uppercase">
                 {label}
             </p>
             <p className="mt-2 text-2xl font-semibold">{value}</p>
+        </div>
+    );
+}
+
+function SnapshotLine({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-lg border px-3 py-3">
+            <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                {label}
+            </p>
+            <p className="mt-2 text-lg font-semibold">{value.toFixed(2)}</p>
         </div>
     );
 }

@@ -15,11 +15,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountingPayment extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -87,6 +87,12 @@ class AccountingPayment extends Model
     public function reconciliationEntries(): HasMany
     {
         return $this->hasMany(AccountingReconciliationEntry::class, 'payment_id');
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(AccountingLedgerEntry::class, 'source_id')
+            ->where('source_type', self::class);
     }
 
     public function postedBy(): BelongsTo

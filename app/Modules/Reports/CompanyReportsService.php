@@ -3,9 +3,10 @@
 namespace App\Modules\Reports;
 
 use App\Core\Company\Models\Company;
-use App\Modules\Approvals\Models\ApprovalRequest;
+use App\Modules\Accounting\AccountingStatementService;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingPayment;
+use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Purchasing\Models\PurchaseOrder;
@@ -25,6 +26,14 @@ class CompanyReportsService
 
     public const REPORT_FINANCE_SNAPSHOT = 'finance-snapshot';
 
+    public const REPORT_FINANCIAL_PROFIT_LOSS = 'financial-profit-loss';
+
+    public const REPORT_FINANCIAL_BALANCE_SHEET = 'financial-balance-sheet';
+
+    public const REPORT_FINANCIAL_TRIAL_BALANCE = 'financial-trial-balance';
+
+    public const REPORT_FINANCIAL_CASH_FLOW = 'financial-cash-flow';
+
     public const REPORT_APPROVAL_GOVERNANCE = 'approval-governance';
 
     /**
@@ -35,8 +44,16 @@ class CompanyReportsService
         self::REPORT_INVENTORY_OPERATIONS,
         self::REPORT_PURCHASING_PERFORMANCE,
         self::REPORT_FINANCE_SNAPSHOT,
+        self::REPORT_FINANCIAL_PROFIT_LOSS,
+        self::REPORT_FINANCIAL_BALANCE_SHEET,
+        self::REPORT_FINANCIAL_TRIAL_BALANCE,
+        self::REPORT_FINANCIAL_CASH_FLOW,
         self::REPORT_APPROVAL_GOVERNANCE,
     ];
+
+    public function __construct(
+        private readonly AccountingStatementService $statementService,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $filters
@@ -68,6 +85,30 @@ class CompanyReportsService
                 'title' => 'Finance snapshot',
                 'description' => 'AR/AP exposure, payment coverage, and posting health metrics.',
                 'row_count' => count($this->financeSnapshotRows($company, $filters)),
+            ],
+            [
+                'key' => self::REPORT_FINANCIAL_PROFIT_LOSS,
+                'title' => 'Profit and loss',
+                'description' => 'Revenue, expenses, and net income from posted ledger activity.',
+                'row_count' => count($this->financialProfitLossRows($company, $filters)),
+            ],
+            [
+                'key' => self::REPORT_FINANCIAL_BALANCE_SHEET,
+                'title' => 'Balance sheet',
+                'description' => 'Assets, liabilities, equity, and interim earnings as of period end.',
+                'row_count' => count($this->financialBalanceSheetRows($company, $filters)),
+            ],
+            [
+                'key' => self::REPORT_FINANCIAL_TRIAL_BALANCE,
+                'title' => 'Trial balance',
+                'description' => 'Account-level debit and credit totals across the general ledger.',
+                'row_count' => count($this->financialTrialBalanceRows($company, $filters)),
+            ],
+            [
+                'key' => self::REPORT_FINANCIAL_CASH_FLOW,
+                'title' => 'Cash flow summary',
+                'description' => 'Opening cash, inflows, outflows, and closing balance for the selected window.',
+                'row_count' => count($this->financialCashFlowRows($company, $filters)),
             ],
             [
                 'key' => self::REPORT_APPROVAL_GOVERNANCE,
@@ -115,6 +156,34 @@ class CompanyReportsService
                 'subtitle' => $this->subtitle($filters),
                 'columns' => ['Metric', 'Value'],
                 'rows' => $this->financeSnapshotRows($company, $filters),
+            ],
+            self::REPORT_FINANCIAL_PROFIT_LOSS => [
+                'key' => self::REPORT_FINANCIAL_PROFIT_LOSS,
+                'title' => 'Profit and Loss Report',
+                'subtitle' => $this->subtitle($filters),
+                'columns' => ['Section', 'Account', 'Amount'],
+                'rows' => $this->financialProfitLossRows($company, $filters),
+            ],
+            self::REPORT_FINANCIAL_BALANCE_SHEET => [
+                'key' => self::REPORT_FINANCIAL_BALANCE_SHEET,
+                'title' => 'Balance Sheet Report',
+                'subtitle' => $this->subtitle($filters),
+                'columns' => ['Section', 'Account', 'Amount'],
+                'rows' => $this->financialBalanceSheetRows($company, $filters),
+            ],
+            self::REPORT_FINANCIAL_TRIAL_BALANCE => [
+                'key' => self::REPORT_FINANCIAL_TRIAL_BALANCE,
+                'title' => 'Trial Balance Report',
+                'subtitle' => $this->subtitle($filters),
+                'columns' => ['Code', 'Account', 'Type', 'Debit', 'Credit', 'Net balance'],
+                'rows' => $this->financialTrialBalanceRows($company, $filters),
+            ],
+            self::REPORT_FINANCIAL_CASH_FLOW => [
+                'key' => self::REPORT_FINANCIAL_CASH_FLOW,
+                'title' => 'Cash Flow Summary Report',
+                'subtitle' => $this->subtitle($filters),
+                'columns' => ['Metric', 'Value'],
+                'rows' => $this->financialCashFlowRows($company, $filters),
             ],
             self::REPORT_APPROVAL_GOVERNANCE => [
                 'key' => self::REPORT_APPROVAL_GOVERNANCE,
@@ -383,6 +452,105 @@ class CompanyReportsService
     /**
      * @param  array<string, mixed>  $filters
      */
+    private function financialProfitLossRows(Company $company, array $filters): array
+    {
+        $statements = $this->statementPayload($company, $filters);
+        $rows = [];
+
+        foreach ($statements['profit_and_loss']['revenue'] as $row) {
+            $rows[] = ['Revenue', $row['code'].' - '.$row['name'], $row['amount']];
+        }
+
+        $rows[] = ['Revenue', 'Total revenue', $statements['profit_and_loss']['total_revenue']];
+
+        foreach ($statements['profit_and_loss']['expenses'] as $row) {
+            $rows[] = ['Expense', $row['code'].' - '.$row['name'], $row['amount']];
+        }
+
+        $rows[] = ['Expense', 'Total expenses', $statements['profit_and_loss']['total_expenses']];
+        $rows[] = ['Summary', 'Net income', $statements['profit_and_loss']['net_income']];
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function financialBalanceSheetRows(Company $company, array $filters): array
+    {
+        $statements = $this->statementPayload($company, $filters);
+        $rows = [];
+
+        foreach ($statements['balance_sheet']['assets'] as $row) {
+            $rows[] = ['Assets', $row['code'].' - '.$row['name'], $row['amount']];
+        }
+
+        $rows[] = ['Assets', 'Total assets', $statements['balance_sheet']['total_assets']];
+
+        foreach ($statements['balance_sheet']['liabilities'] as $row) {
+            $rows[] = ['Liabilities', $row['code'].' - '.$row['name'], $row['amount']];
+        }
+
+        $rows[] = ['Liabilities', 'Total liabilities', $statements['balance_sheet']['total_liabilities']];
+
+        foreach ($statements['balance_sheet']['equity'] as $row) {
+            $rows[] = ['Equity', $row['code'].' - '.$row['name'], $row['amount']];
+        }
+
+        $rows[] = ['Equity', 'Total equity', $statements['balance_sheet']['total_equity']];
+        $rows[] = ['Summary', 'Balance gap', $statements['balance_sheet']['balance_gap']];
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function financialTrialBalanceRows(Company $company, array $filters): array
+    {
+        $statements = $this->statementPayload($company, $filters);
+        $rows = collect($statements['trial_balance']['rows'])
+            ->map(fn (array $row) => [
+                $row['code'],
+                $row['name'],
+                $row['account_type'],
+                $row['debit'],
+                $row['credit'],
+                $row['net_balance'],
+            ])
+            ->all();
+
+        $rows[] = [
+            'TOTAL',
+            'Totals',
+            '',
+            $statements['trial_balance']['total_debit'],
+            $statements['trial_balance']['total_credit'],
+            $statements['trial_balance']['out_of_balance'],
+        ];
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function financialCashFlowRows(Company $company, array $filters): array
+    {
+        $statements = $this->statementPayload($company, $filters);
+
+        return [
+            ['Opening cash balance', $statements['cash_flow']['opening_cash_balance']],
+            ['Cash inflows', $statements['cash_flow']['cash_inflows']],
+            ['Cash outflows', $statements['cash_flow']['cash_outflows']],
+            ['Net cash movement', $statements['cash_flow']['net_cash_movement']],
+            ['Closing cash balance', $statements['cash_flow']['closing_cash_balance']],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
     private function approvalGovernanceRows(Company $company, array $filters): array
     {
         [$start, $end] = $this->dateRange($filters);
@@ -463,5 +631,20 @@ class CompanyReportsService
         }
 
         return implode(' | ', $parts);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function statementPayload(Company $company, array $filters): array
+    {
+        [$start, $end] = $this->dateRange($filters);
+
+        return $this->statementService->financialStatements(
+            company: $company,
+            startDate: $start->toDateString(),
+            endDate: $end->toDateString(),
+        );
     }
 }

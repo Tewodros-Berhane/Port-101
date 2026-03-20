@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AccountingReconciliationEntry extends Model
 {
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
-    use CompanyScoped;
 
     public const TYPE_APPLY = 'apply';
 

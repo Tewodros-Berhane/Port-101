@@ -13,9 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AccountingInvoiceLine extends Model
 {
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
-    use CompanyScoped;
 
     public $incrementing = false;
 

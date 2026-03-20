@@ -10,6 +10,7 @@ use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
 use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
+use App\Modules\Accounting\AccountingLedgerBackfillService;
 use App\Modules\Reports\CompanyReportingSettingsService;
 use App\Modules\Reports\CompanyReportsService;
 use App\Notifications\CompanyReportDeliveryNotification;
@@ -18,10 +19,10 @@ use App\Notifications\PlatformOperationsReportDeliveryNotification;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Notifications\DatabaseNotification;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -481,7 +482,7 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
     $settings->markDeliverySent();
 
     $this->info(
-        "Scheduled operations report delivered via "
+        'Scheduled operations report delivered via '
         .'in-app recipients: '.$targetedUsers->count()
         .", email recipients: {$sentEmailCount}, webhook dispatches: {$webhookDispatches}, slack dispatches: {$slackDispatches}."
     );
@@ -589,6 +590,30 @@ Artisan::command('company:reports:deliver-scheduled {--force}', function () {
 
     return self::SUCCESS;
 })->purpose('Deliver scheduled company report exports to company recipients');
+
+Artisan::command('accounting:backfill-ledger {companyId?}', function (?string $companyId = null) {
+    $service = app(AccountingLedgerBackfillService::class);
+
+    if ($companyId) {
+        $service->backfillCompany($companyId);
+        $this->info("Ledger foundations backfilled for company {$companyId}.");
+
+        return self::SUCCESS;
+    }
+
+    $count = 0;
+
+    Company::query()->select('id')->chunkById(100, function ($companies) use ($service, &$count): void {
+        foreach ($companies as $company) {
+            $service->backfillCompany($company->id);
+            $count++;
+        }
+    }, 'id');
+
+    $this->info("Ledger foundations backfilled for {$count} compan(ies).");
+
+    return self::SUCCESS;
+})->purpose('Backfill accounting ledger entries and default chart of accounts for existing companies');
 
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:notifications:send-digest')->everyMinute();

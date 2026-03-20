@@ -13,6 +13,7 @@ class AccountingPaymentWorkflowService
         private readonly AccountingNumberingService $numberingService,
         private readonly AccountingPeriodGuardService $periodGuardService,
         private readonly AccountingInvoiceWorkflowService $invoiceWorkflowService,
+        private readonly AccountingLedgerPostingService $ledgerPostingService,
     ) {}
 
     /**
@@ -140,6 +141,8 @@ class AccountingPaymentWorkflowService
                 'updated_by' => $actorId,
             ]);
 
+            $this->ledgerPostingService->postPayment($payment, $actorId);
+
             return $payment->fresh();
         });
     }
@@ -247,6 +250,14 @@ class AccountingPaymentWorkflowService
                 'reversal_reason' => $reason,
                 'updated_by' => $actorId,
             ]);
+
+            if ($payment->posted_at) {
+                $this->ledgerPostingService->reversePayment(
+                    payment: $payment,
+                    reason: $reason,
+                    actorId: $actorId,
+                );
+            }
 
             return $payment->fresh();
         });

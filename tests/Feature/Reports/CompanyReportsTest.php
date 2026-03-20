@@ -5,8 +5,8 @@ use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Modules\Reports\CompanyReportingSettingsService;
 use App\Modules\Reports\CompanyReportsService;
-use Inertia\Testing\AssertableInertia as Assert;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 
@@ -74,6 +74,14 @@ test('company reports page and exports are available for report-enabled users', 
         ]))
         ->assertOk()
         ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    actingAs($reportUser)
+        ->get(route('company.reports.export', [
+            'reportKey' => CompanyReportsService::REPORT_FINANCIAL_PROFIT_LOSS,
+            'format' => 'pdf',
+        ]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 });
 
 test('company report presets and delivery schedule persist through settings service', function () {
