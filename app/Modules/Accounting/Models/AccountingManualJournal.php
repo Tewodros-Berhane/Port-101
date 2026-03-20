@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class AccountingLedgerEntry extends Model
+class AccountingManualJournal extends Model
 {
     use Auditable;
     use CompanyScoped;
@@ -20,17 +21,20 @@ class AccountingLedgerEntry extends Model
     use HasUuids;
     use SoftDeletes;
 
-    public const ACTION_INVOICE_POST = 'invoice_post';
+    public const STATUS_DRAFT = 'draft';
 
-    public const ACTION_INVOICE_CANCEL = 'invoice_cancel';
+    public const STATUS_POSTED = 'posted';
 
-    public const ACTION_PAYMENT_POST = 'payment_post';
+    public const STATUS_REVERSED = 'reversed';
 
-    public const ACTION_PAYMENT_REVERSE = 'payment_reverse';
-
-    public const ACTION_MANUAL_JOURNAL_POST = 'manual_journal_post';
-
-    public const ACTION_MANUAL_JOURNAL_REVERSE = 'manual_journal_reverse';
+    /**
+     * @var array<int, string>
+     */
+    public const STATUSES = [
+        self::STATUS_DRAFT,
+        self::STATUS_POSTED,
+        self::STATUS_REVERSED,
+    ];
 
     public $incrementing = false;
 
@@ -39,20 +43,16 @@ class AccountingLedgerEntry extends Model
     protected $fillable = [
         'company_id',
         'journal_id',
-        'account_id',
-        'entry_group_uuid',
-        'source_type',
-        'source_id',
-        'source_action',
-        'transaction_date',
-        'posting_reference',
+        'entry_number',
+        'status',
+        'entry_date',
+        'reference',
         'description',
-        'counterparty_name',
-        'debit',
-        'credit',
-        'currency_code',
-        'reconciled_at',
-        'metadata',
+        'posted_by',
+        'posted_at',
+        'reversed_by',
+        'reversed_at',
+        'reversal_reason',
         'created_by',
         'updated_by',
     ];
@@ -60,11 +60,9 @@ class AccountingLedgerEntry extends Model
     protected function casts(): array
     {
         return [
-            'transaction_date' => 'date',
-            'debit' => 'decimal:2',
-            'credit' => 'decimal:2',
-            'reconciled_at' => 'datetime',
-            'metadata' => 'array',
+            'entry_date' => 'date',
+            'posted_at' => 'datetime',
+            'reversed_at' => 'datetime',
         ];
     }
 
@@ -78,9 +76,26 @@ class AccountingLedgerEntry extends Model
         return $this->belongsTo(AccountingJournal::class, 'journal_id');
     }
 
-    public function account(): BelongsTo
+    public function lines(): HasMany
     {
-        return $this->belongsTo(AccountingAccount::class, 'account_id');
+        return $this->hasMany(AccountingManualJournalLine::class, 'manual_journal_id')
+            ->orderBy('line_order');
+    }
+
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(AccountingLedgerEntry::class, 'source_id')
+            ->where('source_type', self::class);
+    }
+
+    public function postedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'posted_by');
+    }
+
+    public function reversedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reversed_by');
     }
 
     public function createdBy(): BelongsTo

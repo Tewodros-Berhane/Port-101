@@ -5,6 +5,7 @@ use App\Http\Controllers\Accounting\AccountingDashboardController;
 use App\Http\Controllers\Accounting\AccountingInvoicesController;
 use App\Http\Controllers\Accounting\AccountingJournalsController;
 use App\Http\Controllers\Accounting\AccountingLedgerController;
+use App\Http\Controllers\Accounting\AccountingManualJournalsController;
 use App\Http\Controllers\Accounting\AccountingPaymentsController;
 use App\Http\Controllers\Accounting\AccountingStatementsController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,12 @@ Route::prefix('accounting')->name('accounting.')->group(function () {
         ->name('ledger.index');
     Route::get('statements', [AccountingStatementsController::class, 'index'])
         ->name('statements.index');
+    Route::resource('manual-journals', AccountingManualJournalsController::class)
+        ->except(['show']);
+    Route::post('manual-journals/{manualJournal}/post', [AccountingManualJournalsController::class, 'post'])
+        ->name('manual-journals.post');
+    Route::post('manual-journals/{manualJournal}/reverse', [AccountingManualJournalsController::class, 'reverse'])
+        ->name('manual-journals.reverse');
 
     Route::resource('invoices', AccountingInvoicesController::class)
         ->except(['show']);

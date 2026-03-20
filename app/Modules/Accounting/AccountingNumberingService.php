@@ -64,6 +64,30 @@ class AccountingNumberingService
         return $this->formatNumber($prefix, $next);
     }
 
+    public function nextManualJournalNumber(string $companyId, ?string $actorId = null): string
+    {
+        $prefix = (string) $this->settingsService->get(
+            key: 'company.numbering.manual_journal_prefix',
+            default: 'JRN',
+            companyId: $companyId,
+        );
+
+        $next = (int) $this->settingsService->get(
+            key: 'company.numbering.manual_journal_next',
+            default: 1001,
+            companyId: $companyId,
+        );
+
+        $this->settingsService->set(
+            key: 'company.numbering.manual_journal_next',
+            value: $next + 1,
+            companyId: $companyId,
+            actorId: $actorId,
+        );
+
+        return $this->formatNumber($prefix, $next);
+    }
+
     /**
      * @return array{0: string, 1: string, 2: string}
      */

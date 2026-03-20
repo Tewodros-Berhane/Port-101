@@ -87,6 +87,11 @@ export default function AccountingDashboard({
                             Statements
                         </Link>
                     </Button>
+                    <Button variant="outline" asChild>
+                        <Link href="/company/accounting/manual-journals">
+                            Manual journals
+                        </Link>
+                    </Button>
                 </div>
             </div>
 
@@ -157,6 +162,11 @@ export default function AccountingDashboard({
                             <Button variant="outline" asChild>
                                 <Link href="/company/accounting/ledger">
                                     Ledger
+                                </Link>
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <Link href="/company/accounting/manual-journals">
+                                    Manual journals
                                 </Link>
                             </Button>
                         </div>

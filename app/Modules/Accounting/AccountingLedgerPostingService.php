@@ -6,6 +6,8 @@ use App\Modules\Accounting\Models\AccountingAccount;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingJournal;
 use App\Modules\Accounting\Models\AccountingLedgerEntry;
+use App\Modules\Accounting\Models\AccountingManualJournal;
+use App\Modules\Accounting\Models\AccountingManualJournalLine;
 use App\Modules\Accounting\Models\AccountingPayment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -229,6 +231,103 @@ class AccountingLedgerPostingService
             metadata: [
                 'reason' => $reason,
                 'reversal_of' => AccountingLedgerEntry::ACTION_PAYMENT_POST,
+            ],
+        );
+    }
+
+    public function postManualJournal(AccountingManualJournal $manualJournal, ?string $actorId = null): void
+    {
+        if ($this->hasSourceAction(
+            companyId: (string) $manualJournal->company_id,
+            sourceType: AccountingManualJournal::class,
+            sourceId: (string) $manualJournal->id,
+            sourceAction: AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_POST,
+        )) {
+            return;
+        }
+
+        $manualJournal->loadMissing('journal', 'company:id,currency_code', 'lines.account');
+
+        if (! $manualJournal->journal) {
+            return;
+        }
+
+        $this->createBatch(
+            companyId: (string) $manualJournal->company_id,
+            journal: $manualJournal->journal,
+            sourceType: AccountingManualJournal::class,
+            sourceId: (string) $manualJournal->id,
+            sourceAction: AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_POST,
+            transactionDate: $manualJournal->entry_date?->toDateString() ?? now()->toDateString(),
+            postingReference: (string) $manualJournal->entry_number,
+            description: $manualJournal->description,
+            counterpartyName: null,
+            currencyCode: $manualJournal->journal->currency_code ?: $manualJournal->company?->currency_code,
+            actorId: $actorId,
+            lines: $manualJournal->lines
+                ->map(fn (AccountingManualJournalLine $line) => $this->entryLine(
+                    account: $line->account,
+                    debit: (float) $line->debit,
+                    credit: (float) $line->credit,
+                ))
+                ->all(),
+            metadata: [
+                'reference' => $manualJournal->reference,
+                'status' => $manualJournal->status,
+            ],
+        );
+    }
+
+    public function reverseManualJournal(
+        AccountingManualJournal $manualJournal,
+        string $reason,
+        ?string $actorId = null,
+    ): void {
+        if ($this->hasSourceAction(
+            companyId: (string) $manualJournal->company_id,
+            sourceType: AccountingManualJournal::class,
+            sourceId: (string) $manualJournal->id,
+            sourceAction: AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_REVERSE,
+        )) {
+            return;
+        }
+
+        $entries = $this->sourceEntries(
+            companyId: (string) $manualJournal->company_id,
+            sourceType: AccountingManualJournal::class,
+            sourceId: (string) $manualJournal->id,
+            sourceAction: AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_POST,
+        );
+
+        if ($entries->isEmpty()) {
+            return;
+        }
+
+        $manualJournal->loadMissing('journal', 'company:id,currency_code');
+
+        $this->createBatch(
+            companyId: (string) $manualJournal->company_id,
+            journal: $entries->first()->journal,
+            sourceType: AccountingManualJournal::class,
+            sourceId: (string) $manualJournal->id,
+            sourceAction: AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_REVERSE,
+            transactionDate: now()->toDateString(),
+            postingReference: (string) $manualJournal->entry_number.'-REV',
+            description: 'Reverse manual journal '.$manualJournal->entry_number,
+            counterpartyName: null,
+            currencyCode: $manualJournal->journal?->currency_code ?: $manualJournal->company?->currency_code,
+            actorId: $actorId,
+            lines: $entries
+                ->map(fn (AccountingLedgerEntry $entry) => [
+                    'account' => $entry->account,
+                    'debit' => (float) $entry->credit,
+                    'credit' => (float) $entry->debit,
+                ])
+                ->all(),
+            metadata: [
+                'reason' => $reason,
+                'reference' => $manualJournal->reference,
+                'reversal_of' => AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_POST,
             ],
         );
     }

@@ -3,34 +3,18 @@
 namespace App\Modules\Accounting\Models;
 
 use App\Core\Company\Models\Company;
-use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-class AccountingLedgerEntry extends Model
+class AccountingManualJournalLine extends Model
 {
-    use Auditable;
     use CompanyScoped;
     use HasFactory;
     use HasUuids;
-    use SoftDeletes;
-
-    public const ACTION_INVOICE_POST = 'invoice_post';
-
-    public const ACTION_INVOICE_CANCEL = 'invoice_cancel';
-
-    public const ACTION_PAYMENT_POST = 'payment_post';
-
-    public const ACTION_PAYMENT_REVERSE = 'payment_reverse';
-
-    public const ACTION_MANUAL_JOURNAL_POST = 'manual_journal_post';
-
-    public const ACTION_MANUAL_JOURNAL_REVERSE = 'manual_journal_reverse';
 
     public $incrementing = false;
 
@@ -38,21 +22,12 @@ class AccountingLedgerEntry extends Model
 
     protected $fillable = [
         'company_id',
-        'journal_id',
+        'manual_journal_id',
         'account_id',
-        'entry_group_uuid',
-        'source_type',
-        'source_id',
-        'source_action',
-        'transaction_date',
-        'posting_reference',
+        'line_order',
         'description',
-        'counterparty_name',
         'debit',
         'credit',
-        'currency_code',
-        'reconciled_at',
-        'metadata',
         'created_by',
         'updated_by',
     ];
@@ -60,11 +35,8 @@ class AccountingLedgerEntry extends Model
     protected function casts(): array
     {
         return [
-            'transaction_date' => 'date',
             'debit' => 'decimal:2',
             'credit' => 'decimal:2',
-            'reconciled_at' => 'datetime',
-            'metadata' => 'array',
         ];
     }
 
@@ -73,9 +45,9 @@ class AccountingLedgerEntry extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function journal(): BelongsTo
+    public function manualJournal(): BelongsTo
     {
-        return $this->belongsTo(AccountingJournal::class, 'journal_id');
+        return $this->belongsTo(AccountingManualJournal::class, 'manual_journal_id');
     }
 
     public function account(): BelongsTo

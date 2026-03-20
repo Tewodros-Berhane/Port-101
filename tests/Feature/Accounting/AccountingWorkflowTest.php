@@ -5,9 +5,11 @@ use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
+use App\Modules\Accounting\AccountingSetupService;
 use App\Modules\Accounting\Models\AccountingAccount;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingLedgerEntry;
+use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Inventory\Events\StockDelivered;
 use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
@@ -284,6 +286,7 @@ test('accounting foundation pages render for finance-enabled users', function ()
     [$user, $company] = makeActiveCompanyMember();
 
     assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.manual_journals.view',
         'accounting.accounts.view',
         'accounting.journals.view',
         'accounting.ledger.view',
@@ -300,10 +303,90 @@ test('accounting foundation pages render for finance-enabled users', function ()
         ->assertOk();
 
     actingAs($user)
+        ->get(route('company.accounting.manual-journals.index'))
+        ->assertOk();
+
+    actingAs($user)
         ->get(route('company.accounting.ledger.index'))
         ->assertOk();
 
     actingAs($user)
         ->get(route('company.accounting.statements.index'))
         ->assertOk();
+});
+
+test('manual journal workflow supports draft posting and reversal', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.manual_journals.view',
+        'accounting.manual_journals.manage',
+        'accounting.manual_journals.post',
+        'accounting.accounts.view',
+        'accounting.journals.view',
+        'accounting.ledger.view',
+    ]);
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $cashAccount = $setup['accounts'][AccountingAccount::SYSTEM_CASH_BANK];
+    $expenseAccount = $setup['accounts'][AccountingAccount::SYSTEM_PURCHASE_EXPENSE];
+    $generalJournal = $setup['journals']['general'];
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.store'), [
+            'journal_id' => $generalJournal->id,
+            'entry_date' => now()->toDateString(),
+            'reference' => 'ACCRUAL-001',
+            'description' => 'Month-end accrual',
+            'lines' => [
+                [
+                    'account_id' => $expenseAccount->id,
+                    'description' => 'Expense accrual',
+                    'debit' => 250,
+                    'credit' => 0,
+                ],
+                [
+                    'account_id' => $cashAccount->id,
+                    'description' => 'Cash offset',
+                    'debit' => 0,
+                    'credit' => 250,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $manualJournal = AccountingManualJournal::query()->first();
+
+    expect($manualJournal)->not->toBeNull();
+    expect($manualJournal?->status)->toBe(AccountingManualJournal::STATUS_DRAFT);
+    expect($manualJournal?->lines()->count())->toBe(2);
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.post', $manualJournal))
+        ->assertRedirect();
+
+    expect($manualJournal?->fresh()->status)->toBe(AccountingManualJournal::STATUS_POSTED);
+    expect(AccountingLedgerEntry::query()
+        ->where('source_type', AccountingManualJournal::class)
+        ->where('source_id', $manualJournal?->id)
+        ->where('source_action', AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_POST)
+        ->count())->toBe(2);
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.reverse', $manualJournal), [
+            'reason' => 'Accrual released',
+        ])
+        ->assertRedirect();
+
+    expect($manualJournal?->fresh()->status)->toBe(AccountingManualJournal::STATUS_REVERSED);
+    expect(AccountingLedgerEntry::query()
+        ->where('source_type', AccountingManualJournal::class)
+        ->where('source_id', $manualJournal?->id)
+        ->where('source_action', AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_REVERSE)
+        ->count())->toBe(2);
 });

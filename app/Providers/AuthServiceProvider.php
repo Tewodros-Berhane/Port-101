@@ -2,18 +2,9 @@
 
 namespace App\Providers;
 
-use App\Core\Company\Models\Company;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Audit\Models\AuditLog;
-use App\Modules\Approvals\Models\ApprovalRequest;
-use App\Modules\Accounting\Models\AccountingInvoice;
-use App\Modules\Accounting\Models\AccountingPayment;
-use App\Modules\Inventory\Models\InventoryLocation;
-use App\Modules\Inventory\Models\InventoryStockLevel;
-use App\Modules\Inventory\Models\InventoryStockMove;
-use App\Modules\Inventory\Models\InventoryWarehouse;
-use App\Modules\Purchasing\Models\PurchaseOrder;
-use App\Modules\Purchasing\Models\PurchaseRfq;
+use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Address;
 use App\Core\MasterData\Models\Contact;
 use App\Core\MasterData\Models\Currency;
@@ -22,18 +13,29 @@ use App\Core\MasterData\Models\PriceList;
 use App\Core\MasterData\Models\Product;
 use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
+use App\Core\RBAC\Models\Permission;
+use App\Core\RBAC\Models\Role;
+use App\Modules\Accounting\Models\AccountingInvoice;
+use App\Modules\Accounting\Models\AccountingManualJournal;
+use App\Modules\Accounting\Models\AccountingPayment;
+use App\Modules\Approvals\Models\ApprovalRequest;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\Models\InventoryWarehouse;
+use App\Modules\Purchasing\Models\PurchaseOrder;
+use App\Modules\Purchasing\Models\PurchaseRfq;
 use App\Modules\Sales\Models\SalesLead;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesQuote;
-use App\Core\RBAC\Models\Permission;
-use App\Core\RBAC\Models\Role;
-use App\Policies\CompanyPolicy;
 use App\Policies\AccountingInvoicePolicy;
+use App\Policies\AccountingManualJournalPolicy;
 use App\Policies\AccountingPaymentPolicy;
+use App\Policies\AddressPolicy;
+use App\Policies\ApprovalRequestPolicy;
 use App\Policies\AttachmentPolicy;
 use App\Policies\AuditLogPolicy;
-use App\Policies\ApprovalRequestPolicy;
-use App\Policies\AddressPolicy;
+use App\Policies\CompanyPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
 use App\Policies\InventoryLocationPolicy;
@@ -82,6 +84,7 @@ class AuthServiceProvider extends ServiceProvider
         PurchaseRfq::class => PurchaseRfqPolicy::class,
         PurchaseOrder::class => PurchaseOrderPolicy::class,
         AccountingInvoice::class => AccountingInvoicePolicy::class,
+        AccountingManualJournal::class => AccountingManualJournalPolicy::class,
         AccountingPayment::class => AccountingPaymentPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
@@ -97,5 +100,3 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
     }
 }
-
-
