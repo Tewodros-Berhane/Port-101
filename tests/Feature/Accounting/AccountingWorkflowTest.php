@@ -7,6 +7,7 @@ use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Modules\Accounting\AccountingSetupService;
 use App\Modules\Accounting\Models\AccountingAccount;
+use App\Modules\Accounting\Models\AccountingBankReconciliationBatch;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingLedgerEntry;
 use App\Modules\Accounting\Models\AccountingManualJournal;
@@ -286,6 +287,7 @@ test('accounting foundation pages render for finance-enabled users', function ()
     [$user, $company] = makeActiveCompanyMember();
 
     assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
         'accounting.manual_journals.view',
         'accounting.accounts.view',
         'accounting.journals.view',
@@ -300,6 +302,10 @@ test('accounting foundation pages render for finance-enabled users', function ()
 
     actingAs($user)
         ->get(route('company.accounting.journals.index'))
+        ->assertOk();
+
+    actingAs($user)
+        ->get(route('company.accounting.bank-reconciliation.index'))
         ->assertOk();
 
     actingAs($user)
@@ -389,4 +395,104 @@ test('manual journal workflow supports draft posting and reversal', function () 
         ->where('source_id', $manualJournal?->id)
         ->where('source_action', AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_REVERSE)
         ->count())->toBe(2);
+});
+
+test('bank reconciliation batches stamp payments and ledger entries', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
+        'accounting.bank_reconciliation.manage',
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'name' => 'Bank Rec Customer '.Str::upper(Str::random(4)),
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.store'), [
+            'partner_id' => $partner->id,
+            'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+            'sales_order_id' => null,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'notes' => 'Bank reconciliation test invoice',
+            'lines' => [[
+                'product_id' => null,
+                'description' => 'Support retainer',
+                'quantity' => 1,
+                'unit_price' => 180,
+                'tax_rate' => 0,
+            ]],
+        ])
+        ->assertRedirect();
+
+    $invoice = AccountingInvoice::query()->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.post', $invoice))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.store'), [
+            'invoice_id' => $invoice?->id,
+            'payment_date' => now()->toDateString(),
+            'amount' => 180,
+            'method' => 'bank_transfer',
+            'reference' => 'BANK-REC-180',
+            'notes' => 'Statement line payment',
+        ])
+        ->assertRedirect();
+
+    $payment = AccountingPayment::query()->where('reference', 'BANK-REC-180')->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.post', $payment))
+        ->assertRedirect();
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $bankJournal = $setup['journals']['bank'];
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.store'), [
+            'journal_id' => $bankJournal->id,
+            'statement_reference' => 'STATEMENT-2026-03',
+            'statement_date' => now()->toDateString(),
+            'notes' => 'Primary bank statement import',
+            'payment_ids' => [$payment?->id],
+        ])
+        ->assertRedirect();
+
+    $batch = AccountingBankReconciliationBatch::query()->first();
+
+    expect($batch)->not->toBeNull();
+    expect($payment?->fresh()->bank_reconciled_at)->not->toBeNull();
+    expect(AccountingLedgerEntry::query()
+        ->where('source_type', AccountingPayment::class)
+        ->where('source_id', $payment?->id)
+        ->where('source_action', AccountingLedgerEntry::ACTION_PAYMENT_POST)
+        ->whereNotNull('reconciled_at')
+        ->count())->toBe(2);
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.reverse', $payment), [
+            'reason' => 'Should be blocked after bank reconciliation',
+        ])
+        ->assertForbidden();
 });

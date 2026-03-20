@@ -219,6 +219,10 @@ class AccountingPaymentWorkflowService
                 abort(422, 'This payment status cannot be reversed.');
             }
 
+            if ($payment->bank_reconciled_at) {
+                abort(422, 'Bank reconciled payments must be removed from bank reconciliation before reversal.');
+            }
+
             $invoice = AccountingInvoice::query()
                 ->lockForUpdate()
                 ->where('company_id', $payment->company_id)

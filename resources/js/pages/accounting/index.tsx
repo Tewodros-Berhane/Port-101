@@ -92,6 +92,11 @@ export default function AccountingDashboard({
                             Manual journals
                         </Link>
                     </Button>
+                    <Button variant="outline" asChild>
+                        <Link href="/company/accounting/bank-reconciliation">
+                            Bank reconciliation
+                        </Link>
+                    </Button>
                 </div>
             </div>
 

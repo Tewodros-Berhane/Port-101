@@ -53,6 +53,7 @@ class AccountingPaymentPolicy
     {
         return $user->hasPermission('accounting.payments.approve_reversal')
             && $user->canAccessDataScopedRecord($payment)
+            && ! $payment->bank_reconciled_at
             && in_array($payment->status, [
                 AccountingPayment::STATUS_DRAFT,
                 AccountingPayment::STATUS_POSTED,

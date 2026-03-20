@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Accounting\AccountingAccountsController;
+use App\Http\Controllers\Accounting\AccountingBankReconciliationController;
 use App\Http\Controllers\Accounting\AccountingDashboardController;
 use App\Http\Controllers\Accounting\AccountingInvoicesController;
 use App\Http\Controllers\Accounting\AccountingJournalsController;
@@ -22,6 +23,10 @@ Route::prefix('accounting')->name('accounting.')->group(function () {
         ->name('ledger.index');
     Route::get('statements', [AccountingStatementsController::class, 'index'])
         ->name('statements.index');
+    Route::get('bank-reconciliation', [AccountingBankReconciliationController::class, 'index'])
+        ->name('bank-reconciliation.index');
+    Route::post('bank-reconciliation', [AccountingBankReconciliationController::class, 'store'])
+        ->name('bank-reconciliation.store');
     Route::resource('manual-journals', AccountingManualJournalsController::class)
         ->except(['show']);
     Route::post('manual-journals/{manualJournal}/post', [AccountingManualJournalsController::class, 'post'])

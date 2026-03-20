@@ -15,6 +15,7 @@ use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
+use App\Modules\Accounting\Models\AccountingBankReconciliationBatch;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
@@ -28,6 +29,7 @@ use App\Modules\Purchasing\Models\PurchaseRfq;
 use App\Modules\Sales\Models\SalesLead;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesQuote;
+use App\Policies\AccountingBankReconciliationPolicy;
 use App\Policies\AccountingInvoicePolicy;
 use App\Policies\AccountingManualJournalPolicy;
 use App\Policies\AccountingPaymentPolicy;
@@ -83,6 +85,7 @@ class AuthServiceProvider extends ServiceProvider
         SalesOrder::class => SalesOrderPolicy::class,
         PurchaseRfq::class => PurchaseRfqPolicy::class,
         PurchaseOrder::class => PurchaseOrderPolicy::class,
+        AccountingBankReconciliationBatch::class => AccountingBankReconciliationPolicy::class,
         AccountingInvoice::class => AccountingInvoicePolicy::class,
         AccountingManualJournal::class => AccountingManualJournalPolicy::class,
         AccountingPayment::class => AccountingPaymentPolicy::class,

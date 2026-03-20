@@ -55,6 +55,8 @@ class AccountingPayment extends Model
         'posted_by',
         'posted_at',
         'reconciled_at',
+        'bank_reconciled_by',
+        'bank_reconciled_at',
         'reversed_by',
         'reversed_at',
         'reversal_reason',
@@ -70,6 +72,7 @@ class AccountingPayment extends Model
             'amount' => 'decimal:2',
             'posted_at' => 'datetime',
             'reconciled_at' => 'datetime',
+            'bank_reconciled_at' => 'datetime',
             'reversed_at' => 'datetime',
         ];
     }
@@ -95,9 +98,19 @@ class AccountingPayment extends Model
             ->where('source_type', self::class);
     }
 
+    public function bankReconciliationItems(): HasMany
+    {
+        return $this->hasMany(AccountingBankReconciliationItem::class, 'payment_id');
+    }
+
     public function postedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'posted_by');
+    }
+
+    public function bankReconciledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'bank_reconciled_by');
     }
 
     public function reversedBy(): BelongsTo

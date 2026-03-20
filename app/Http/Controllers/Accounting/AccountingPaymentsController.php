@@ -42,6 +42,7 @@ class AccountingPaymentsController extends Controller
                 'amount' => (float) $payment->amount,
                 'method' => $payment->method,
                 'reference' => $payment->reference,
+                'bank_reconciled_at' => $payment->bank_reconciled_at?->toIso8601String(),
             ]),
         ]);
     }
@@ -112,6 +113,7 @@ class AccountingPaymentsController extends Controller
                 'notes' => $payment->notes,
                 'posted_at' => $payment->posted_at?->toIso8601String(),
                 'reconciled_at' => $payment->reconciled_at?->toIso8601String(),
+                'bank_reconciled_at' => $payment->bank_reconciled_at?->toIso8601String(),
                 'reversed_at' => $payment->reversed_at?->toIso8601String(),
                 'reversal_reason' => $payment->reversal_reason,
                 'reconciliations' => $payment->reconciliationEntries

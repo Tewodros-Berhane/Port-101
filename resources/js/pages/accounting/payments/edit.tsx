@@ -35,6 +35,7 @@ type Payment = {
     notes?: string | null;
     posted_at?: string | null;
     reconciled_at?: string | null;
+    bank_reconciled_at?: string | null;
     reversed_at?: string | null;
     reversal_reason?: string | null;
     reconciliations: Reconciliation[];
@@ -219,6 +220,14 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
                         </p>
                     </div>
                     <div>
+                        <p className="text-xs text-muted-foreground">
+                            Bank reconciliation
+                        </p>
+                        <p className="font-semibold">
+                            {payment.bank_reconciled_at ?? 'Pending'}
+                        </p>
+                    </div>
+                    <div>
                         <p className="text-xs text-muted-foreground">Amount</p>
                         <p className="font-semibold">
                             {payment.amount.toFixed(2)}
@@ -279,6 +288,7 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
             </form>
 
             {canReverse &&
+                !payment.bank_reconciled_at &&
                 (payment.status === 'draft' ||
                     payment.status === 'posted' ||
                     payment.status === 'reconciled') && (
@@ -320,6 +330,26 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
                         </div>
                     </div>
                 )}
+
+            {payment.bank_reconciled_at && (
+                <div className="mt-6 rounded-xl border p-4">
+                    <h2 className="text-sm font-semibold">
+                        Bank reconciliation locked
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        This payment is already matched to a bank statement and
+                        cannot be reversed until an explicit unreconcile
+                        workflow exists.
+                    </p>
+                    <div className="mt-3">
+                        <Button variant="outline" asChild>
+                            <Link href="/company/accounting/bank-reconciliation">
+                                Open bank reconciliation
+                            </Link>
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <div className="mt-6 rounded-xl border p-4">
                 <h2 className="text-sm font-semibold">Reconciliation ledger</h2>
