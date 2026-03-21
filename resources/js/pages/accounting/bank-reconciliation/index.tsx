@@ -102,6 +102,21 @@ type Props = {
     recentBatches: BatchRow[];
 };
 
+const statementTemplateDownloads = [
+    {
+        label: 'CSV template',
+        href: '/templates/bank-statements/statement-template.csv',
+    },
+    {
+        label: 'OFX sample',
+        href: '/templates/bank-statements/statement-sample.ofx',
+    },
+    {
+        label: 'CAMT sample',
+        href: '/templates/bank-statements/statement-sample.camt.xml',
+    },
+] as const;
+
 export default function AccountingBankReconciliationIndex({
     importForm: importDefaults,
     bankJournals,
@@ -238,6 +253,21 @@ export default function AccountingBankReconciliationIndex({
                             maps exact references first, then falls back to
                             unique amount matches.
                         </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {statementTemplateDownloads.map((template) => (
+                                <Button
+                                    key={template.href}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                >
+                                    <a href={template.href} download>
+                                        {template.label}
+                                    </a>
+                                </Button>
+                            ))}
+                        </div>
                     </div>
                     <Button type="submit" disabled={importForm.processing}>
                         Import statement
