@@ -7,12 +7,22 @@ use App\Modules\Accounting\Models\AccountingBankStatementImport;
 use App\Modules\Accounting\Models\AccountingBankStatementImportLine;
 use App\Modules\Accounting\Models\AccountingPayment;
 use Carbon\CarbonImmutable;
+use DOMDocument;
+use DOMNode;
+use DOMNodeList;
+use DOMXPath;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class AccountingBankStatementImportService
 {
+    private const FORMAT_CSV = 'csv';
+
+    private const FORMAT_OFX = 'ofx';
+
+    private const FORMAT_CAMT = 'camt';
+
     /**
      * @param  array{
      *     journal_id: string,
@@ -98,6 +108,24 @@ class AccountingBankStatementImportService
      */
     private function parseRows(UploadedFile $file): Collection
     {
+        $contents = file_get_contents($file->getRealPath());
+
+        if ($contents === false) {
+            abort(422, 'Unable to read statement file.');
+        }
+
+        return match ($this->detectFormat($contents, $file->getClientOriginalName())) {
+            self::FORMAT_OFX => $this->parseOfxRows($contents),
+            self::FORMAT_CAMT => $this->parseCamtRows($contents),
+            default => $this->parseCsvRows($file),
+        };
+    }
+
+    /**
+     * @return Collection<int, array{transaction_date: string|null, reference: string|null, description: string|null, amount: float}>
+     */
+    private function parseCsvRows(UploadedFile $file): Collection
+    {
         $handle = fopen($file->getRealPath(), 'rb');
 
         if (! $handle) {
@@ -152,6 +180,167 @@ class AccountingBankStatementImportService
         fclose($handle);
 
         return $rows;
+    }
+
+    /**
+     * @return Collection<int, array{transaction_date: string|null, reference: string|null, description: string|null, amount: float}>
+     */
+    private function parseOfxRows(string $contents): Collection
+    {
+        preg_match_all('/<STMTTRN>(.*?)<\/STMTTRN>/is', $contents, $matches);
+
+        $blocks = collect($matches[1] ?? []);
+
+        if ($blocks->isEmpty()) {
+            abort(422, 'Unable to parse any OFX statement transactions.');
+        }
+
+        return $blocks
+            ->map(function (string $block) {
+                $fields = [];
+
+                preg_match_all('/<([A-Z0-9_]+)>([^<\r\n]+)/i', $block, $matches, PREG_SET_ORDER);
+
+                foreach ($matches as $match) {
+                    $fields[strtoupper((string) $match[1])] = trim(html_entity_decode((string) $match[2]));
+                }
+
+                $amount = $fields['TRNAMT'] ?? null;
+
+                if ($amount === null || trim((string) $amount) === '') {
+                    return null;
+                }
+
+                return [
+                    'transaction_date' => $this->normalizeDate(
+                        $fields['DTPOSTED']
+                            ?? $fields['DTUSER']
+                            ?? null,
+                    ),
+                    'reference' => $fields['CHECKNUM']
+                        ?? $fields['REFNUM']
+                        ?? $fields['FITID']
+                        ?? $fields['SRVRTID']
+                        ?? $fields['NAME']
+                        ?? null,
+                    'description' => $fields['MEMO']
+                        ?? $fields['NAME']
+                        ?? $fields['PAYEE']
+                        ?? null,
+                    'amount' => abs((float) str_replace(',', '', (string) $amount)),
+                ];
+            })
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, array{transaction_date: string|null, reference: string|null, description: string|null, amount: float}>
+     */
+    private function parseCamtRows(string $contents): Collection
+    {
+        $document = new DOMDocument();
+        $previousState = libxml_use_internal_errors(true);
+        $loaded = $document->loadXML($contents, LIBXML_NONET | LIBXML_NOCDATA);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousState);
+
+        if (! $loaded) {
+            abort(422, 'Unable to parse CAMT XML statement.');
+        }
+
+        $xpath = new DOMXPath($document);
+        $entryNodes = $xpath->query('//*[local-name()="Ntry"]');
+
+        if (! $entryNodes instanceof DOMNodeList || $entryNodes->length === 0) {
+            abort(422, 'CAMT XML does not contain any statement entries.');
+        }
+
+        $rows = collect();
+
+        foreach ($entryNodes as $entryNode) {
+            $entryDate = $this->normalizeDate(
+                $this->firstXPathValue($xpath, $entryNode, './*[local-name()="BookgDt"]/*[local-name()="Dt"]')
+                    ?? $this->firstXPathValue($xpath, $entryNode, './*[local-name()="BookgDt"]/*[local-name()="DtTm"]')
+                    ?? $this->firstXPathValue($xpath, $entryNode, './*[local-name()="ValDt"]/*[local-name()="Dt"]')
+                    ?? $this->firstXPathValue($xpath, $entryNode, './*[local-name()="ValDt"]/*[local-name()="DtTm"]'),
+            );
+
+            $entryReference = $this->firstNonEmpty([
+                $this->firstXPathValue($xpath, $entryNode, './*[local-name()="NtryRef"]'),
+                $this->firstXPathValue($xpath, $entryNode, './/*[local-name()="AcctSvcrRef"]'),
+            ]);
+
+            $entryDescription = $this->firstNonEmpty([
+                $this->firstXPathValue($xpath, $entryNode, './*[local-name()="AddtlNtryInf"]'),
+                $this->firstXPathValue($xpath, $entryNode, './/*[local-name()="Ustrd"]'),
+            ]);
+
+            $entryAmount = $this->firstXPathValue($xpath, $entryNode, './*[local-name()="Amt"]');
+            $entryIndicator = $this->firstXPathValue($xpath, $entryNode, './*[local-name()="CdtDbtInd"]');
+            $transactionNodes = $xpath->query('.//*[local-name()="TxDtls"]', $entryNode);
+
+            if ($transactionNodes instanceof DOMNodeList && $transactionNodes->length > 0) {
+                foreach ($transactionNodes as $transactionNode) {
+                    $amount = $this->normalizeAmountValue(
+                        $this->firstNonEmpty([
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="TxAmt"]/*[local-name()="Amt"]'),
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="AmtDtls"]//*[local-name()="Amt"]'),
+                            $entryAmount,
+                        ]),
+                        $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="CdtDbtInd"]')
+                            ?? $entryIndicator,
+                    );
+
+                    if ($amount === null) {
+                        continue;
+                    }
+
+                    $rows->push([
+                        'transaction_date' => $this->normalizeDate(
+                            $this->firstNonEmpty([
+                                $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="BookgDt"]/*[local-name()="Dt"]'),
+                                $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="BookgDt"]/*[local-name()="DtTm"]'),
+                                $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="ValDt"]/*[local-name()="Dt"]'),
+                                $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="ValDt"]/*[local-name()="DtTm"]'),
+                                $entryDate,
+                            ]),
+                        ),
+                        'reference' => $this->firstNonEmpty([
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="EndToEndId"]'),
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="InstrId"]'),
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="TxId"]'),
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="AcctSvcrRef"]'),
+                            $entryReference,
+                        ]),
+                        'description' => $this->firstNonEmpty([
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="Ustrd"]'),
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="AddtlTxInf"]'),
+                            $this->firstXPathValue($xpath, $transactionNode, './/*[local-name()="Nm"]'),
+                            $entryDescription,
+                        ]),
+                        'amount' => $amount,
+                    ]);
+                }
+
+                continue;
+            }
+
+            $amount = $this->normalizeAmountValue($entryAmount, $entryIndicator);
+
+            if ($amount === null) {
+                continue;
+            }
+
+            $rows->push([
+                'transaction_date' => $entryDate,
+                'reference' => $entryReference,
+                'description' => $entryDescription,
+                'amount' => $amount,
+            ]);
+        }
+
+        return $rows->values();
     }
 
     /**
@@ -251,6 +440,8 @@ class AccountingBankStatementImportService
 
     private function normalizeHeader(string $value): string
     {
+        $value = ltrim($value, "\xEF\xBB\xBF");
+
         return strtolower(trim(preg_replace('/[^a-z0-9]+/i', '_', $value) ?: ''));
     }
 
@@ -260,8 +451,19 @@ class AccountingBankStatementImportService
             return null;
         }
 
+        $normalizedValue = preg_replace('/\[[^\]]+\]/', '', trim($value)) ?: trim($value);
+
+        if (preg_match('/^(?<year>\d{4})(?<month>\d{2})(?<day>\d{2})/', $normalizedValue, $matches) === 1) {
+            return sprintf(
+                '%s-%s-%s',
+                $matches['year'],
+                $matches['month'],
+                $matches['day'],
+            );
+        }
+
         try {
-            return CarbonImmutable::parse($value)->toDateString();
+            return CarbonImmutable::parse($normalizedValue)->toDateString();
         } catch (\Throwable) {
             return null;
         }
@@ -276,5 +478,85 @@ class AccountingBankStatementImportService
         $normalized = strtoupper(preg_replace('/[^A-Z0-9]+/i', '', $value) ?: '');
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function detectFormat(string $contents, string $fileName): string
+    {
+        $extension = strtolower((string) pathinfo($fileName, PATHINFO_EXTENSION));
+        $trimmedContents = ltrim($contents, "\xEF\xBB\xBF\t\n\r ");
+        $upperContents = strtoupper($trimmedContents);
+
+        if ($extension === 'ofx' || str_contains($upperContents, 'OFXHEADER:') || str_contains($upperContents, '<OFX>')) {
+            return self::FORMAT_OFX;
+        }
+
+        if (
+            $extension === 'xml'
+            && (
+                str_contains($trimmedContents, 'BkToCstmrStmt')
+                || str_contains($trimmedContents, 'BkToCstmrDbtCdtNtfctn')
+                || str_contains($trimmedContents, 'urn:iso:std:iso:20022:tech:xsd:camt.')
+            )
+        ) {
+            return self::FORMAT_CAMT;
+        }
+
+        if (
+            str_contains($trimmedContents, 'BkToCstmrStmt')
+            || str_contains($trimmedContents, 'BkToCstmrDbtCdtNtfctn')
+            || str_contains($trimmedContents, 'urn:iso:std:iso:20022:tech:xsd:camt.')
+        ) {
+            return self::FORMAT_CAMT;
+        }
+
+        return self::FORMAT_CSV;
+    }
+
+    private function firstXPathValue(DOMXPath $xpath, DOMNode $contextNode, string $query): ?string
+    {
+        $nodes = $xpath->query($query, $contextNode);
+
+        if (! $nodes instanceof DOMNodeList || $nodes->length === 0) {
+            return null;
+        }
+
+        foreach ($nodes as $node) {
+            $value = trim((string) $node->textContent);
+
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, string|null>  $values
+     */
+    private function firstNonEmpty(array $values): ?string
+    {
+        foreach ($values as $value) {
+            if ($value !== null && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeAmountValue(?string $amount, ?string $creditDebitIndicator = null): ?float
+    {
+        if ($amount === null || trim($amount) === '') {
+            return null;
+        }
+
+        $normalizedAmount = (float) str_replace(',', '', trim($amount));
+
+        if ($creditDebitIndicator && strtoupper(trim($creditDebitIndicator)) === 'DBIT') {
+            $normalizedAmount *= -1;
+        }
+
+        return abs($normalizedAmount);
     }
 }

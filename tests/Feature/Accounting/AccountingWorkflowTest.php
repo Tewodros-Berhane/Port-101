@@ -892,3 +892,240 @@ test('bank statement csv import matches payments and creates reconciliation batc
     expect($payment?->fresh()->bank_reconciled_at)->not->toBeNull();
     expect($batch?->items()->first()?->statement_line_reference)->toBe('CSV-IMPORT-310');
 });
+
+test('bank statement ofx import matches payments', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
+        'accounting.bank_reconciliation.manage',
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'name' => 'Statement OFX Customer '.Str::upper(Str::random(4)),
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.store'), [
+            'partner_id' => $partner->id,
+            'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+            'sales_order_id' => null,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'notes' => 'Statement OFX invoice',
+            'lines' => [[
+                'product_id' => null,
+                'description' => 'Retainer',
+                'quantity' => 1,
+                'unit_price' => 455,
+                'tax_rate' => 0,
+            ]],
+        ])
+        ->assertRedirect();
+
+    $invoice = AccountingInvoice::query()->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.post', $invoice))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.store'), [
+            'invoice_id' => $invoice?->id,
+            'payment_date' => now()->toDateString(),
+            'amount' => 455,
+            'method' => 'bank_transfer',
+            'reference' => 'OFX-IMPORT-455',
+            'notes' => 'OFX statement import payment',
+        ])
+        ->assertRedirect();
+
+    $payment = AccountingPayment::query()->where('reference', 'OFX-IMPORT-455')->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.post', $payment))
+        ->assertRedirect();
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $ofx = implode("\n", [
+        'OFXHEADER:100',
+        'DATA:OFXSGML',
+        'VERSION:102',
+        '',
+        '<OFX>',
+        '<BANKMSGSRSV1>',
+        '<STMTTRNRS>',
+        '<STMTRS>',
+        '<BANKTRANLIST>',
+        '<STMTTRN>',
+        '<TRNTYPE>CREDIT',
+        '<DTPOSTED>'.now()->format('YmdHis'),
+        '<TRNAMT>455.00',
+        '<FITID>OFX-IMPORT-455',
+        '<NAME>OFX customer receipt',
+        '<MEMO>Primary OFX statement line',
+        '</STMTTRN>',
+        '</BANKTRANLIST>',
+        '</STMTRS>',
+        '</STMTTRNRS>',
+        '</BANKMSGSRSV1>',
+        '</OFX>',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('statement.ofx', $ofx);
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.import'), [
+            'journal_id' => $setup['journals']['bank']->id,
+            'statement_reference' => 'OFX-STATEMENT-2026-03',
+            'statement_date' => now()->toDateString(),
+            'notes' => 'OFX import run',
+            'file' => $file,
+        ])
+        ->assertRedirect();
+
+    $statementImport = AccountingBankStatementImport::query()->first();
+    $line = $statementImport?->lines()->first();
+
+    expect($statementImport)->not->toBeNull();
+    expect($line?->match_status)->toBe('matched');
+    expect($line?->payment_id)->toBe($payment?->id);
+    expect($line?->reference)->toBe('OFX-IMPORT-455');
+});
+
+test('bank statement camt import matches payments', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
+        'accounting.bank_reconciliation.manage',
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'name' => 'Statement CAMT Customer '.Str::upper(Str::random(4)),
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.store'), [
+            'partner_id' => $partner->id,
+            'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+            'sales_order_id' => null,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'notes' => 'Statement CAMT invoice',
+            'lines' => [[
+                'product_id' => null,
+                'description' => 'Retainer',
+                'quantity' => 1,
+                'unit_price' => 522,
+                'tax_rate' => 0,
+            ]],
+        ])
+        ->assertRedirect();
+
+    $invoice = AccountingInvoice::query()->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.post', $invoice))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.store'), [
+            'invoice_id' => $invoice?->id,
+            'payment_date' => now()->toDateString(),
+            'amount' => 522,
+            'method' => 'bank_transfer',
+            'reference' => 'CAMT-IMPORT-522',
+            'notes' => 'CAMT statement import payment',
+        ])
+        ->assertRedirect();
+
+    $payment = AccountingPayment::query()->where('reference', 'CAMT-IMPORT-522')->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.post', $payment))
+        ->assertRedirect();
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $camt = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Ntry>
+        <Amt Ccy="USD">522.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt>
+          <Dt>%s</Dt>
+        </BookgDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>CAMT-IMPORT-522</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>Primary CAMT statement line</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent(
+        'statement.xml',
+        sprintf($camt, now()->toDateString()),
+    );
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.import'), [
+            'journal_id' => $setup['journals']['bank']->id,
+            'statement_reference' => 'CAMT-STATEMENT-2026-03',
+            'statement_date' => now()->toDateString(),
+            'notes' => 'CAMT import run',
+            'file' => $file,
+        ])
+        ->assertRedirect();
+
+    $statementImport = AccountingBankStatementImport::query()->first();
+    $line = $statementImport?->lines()->first();
+
+    expect($statementImport)->not->toBeNull();
+    expect($line?->match_status)->toBe('matched');
+    expect($line?->payment_id)->toBe($payment?->id);
+    expect($line?->reference)->toBe('CAMT-IMPORT-522');
+});

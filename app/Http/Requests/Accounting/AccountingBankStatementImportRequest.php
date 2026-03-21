@@ -22,7 +22,18 @@ class AccountingBankStatementImportRequest extends FormRequest
             'statement_reference' => ['required', 'string', 'max:128'],
             'statement_date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+            'file' => [
+                'required',
+                'file',
+                'max:4096',
+                function (string $attribute, $value, \Closure $fail): void {
+                    $extension = strtolower((string) $value->getClientOriginalExtension());
+
+                    if (! in_array($extension, ['csv', 'txt', 'ofx', 'xml'], true)) {
+                        $fail('Statement imports support CSV, TXT, OFX, and XML files only.');
+                    }
+                },
+            ],
         ];
     }
 

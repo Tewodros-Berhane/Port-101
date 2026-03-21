@@ -206,14 +206,13 @@ export default function AccountingBankReconciliationIndex({
                             Import statement
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            Upload a CSV with date, amount, reference, and
-                            description columns. The matcher will map exact
-                            references first, then fall back to unique amount
-                            matches.
+                            Upload CSV, OFX, or CAMT XML files. The matcher
+                            maps exact references first, then falls back to
+                            unique amount matches.
                         </p>
                     </div>
                     <Button type="submit" disabled={importForm.processing}>
-                        Import CSV
+                        Import statement
                     </Button>
                 </div>
 
@@ -275,11 +274,11 @@ export default function AccountingBankReconciliationIndex({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="statement_file">CSV file</Label>
+                        <Label htmlFor="statement_file">Statement file</Label>
                         <input
                             id="statement_file"
                             type="file"
-                            accept=".csv,.txt,text/csv"
+                            accept=".csv,.txt,.ofx,.xml,text/csv,text/xml,application/xml,application/ofx"
                             className="block h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
                             onChange={(event) =>
                                 importForm.setData(
@@ -314,7 +313,7 @@ export default function AccountingBankReconciliationIndex({
                                 Imported statement preview
                             </h2>
                             <p className="text-xs text-muted-foreground">
-                                {activeImport.statement_reference} ·{' '}
+                                {activeImport.statement_reference} -{' '}
                                 {activeImport.source_file_name}
                             </p>
                         </div>
@@ -663,14 +662,14 @@ export default function AccountingBankReconciliationIndex({
                                     <td className="px-4 py-3 text-xs text-muted-foreground">
                                         <p>
                                             {batch.reconciled_by
-                                                ? `${batch.reconciled_by} · ${formatDateTime(batch.reconciled_at)}`
+                                                ? `${batch.reconciled_by} - ${formatDateTime(batch.reconciled_at)}`
                                                 : formatDateTime(batch.reconciled_at)}
                                         </p>
                                         {batch.unreconciled_at && (
                                             <>
                                                 <p className="mt-1">
                                                     {batch.unreconciled_by
-                                                        ? `${batch.unreconciled_by} · ${formatDateTime(batch.unreconciled_at)}`
+                                                        ? `${batch.unreconciled_by} - ${formatDateTime(batch.unreconciled_at)}`
                                                         : formatDateTime(batch.unreconciled_at)}
                                                 </p>
                                                 <p className="mt-1">
