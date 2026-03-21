@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Models\User;
+use App\Modules\Approvals\Models\ApprovalRequest;
 
 class ApprovalRequestPolicy
 {

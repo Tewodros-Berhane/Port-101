@@ -24,6 +24,11 @@ use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
+use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectBillable;
+use App\Modules\Projects\Models\ProjectMilestone;
+use App\Modules\Projects\Models\ProjectTask;
+use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Purchasing\Models\PurchaseRfq;
 use App\Modules\Sales\Models\SalesLead;
@@ -48,6 +53,11 @@ use App\Policies\PartnerPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\PriceListPolicy;
 use App\Policies\ProductPolicy;
+use App\Policies\ProjectBillablePolicy;
+use App\Policies\ProjectMilestonePolicy;
+use App\Policies\ProjectPolicy;
+use App\Policies\ProjectTaskPolicy;
+use App\Policies\ProjectTimesheetPolicy;
 use App\Policies\PurchaseOrderPolicy;
 use App\Policies\PurchaseRfqPolicy;
 use App\Policies\RolePolicy;
@@ -85,6 +95,11 @@ class AuthServiceProvider extends ServiceProvider
         SalesOrder::class => SalesOrderPolicy::class,
         PurchaseRfq::class => PurchaseRfqPolicy::class,
         PurchaseOrder::class => PurchaseOrderPolicy::class,
+        Project::class => ProjectPolicy::class,
+        ProjectTask::class => ProjectTaskPolicy::class,
+        ProjectTimesheet::class => ProjectTimesheetPolicy::class,
+        ProjectMilestone::class => ProjectMilestonePolicy::class,
+        ProjectBillable::class => ProjectBillablePolicy::class,
         AccountingBankReconciliationBatch::class => AccountingBankReconciliationPolicy::class,
         AccountingInvoice::class => AccountingInvoicePolicy::class,
         AccountingManualJournal::class => AccountingManualJournalPolicy::class,

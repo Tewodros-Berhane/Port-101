@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Models\User;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 
 class InventoryWarehousePolicy
 {
@@ -35,5 +35,3 @@ class InventoryWarehousePolicy
         return $this->update($user, $warehouse);
     }
 }
-
-

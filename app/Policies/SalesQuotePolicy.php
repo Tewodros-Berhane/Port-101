@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Modules\Sales\Models\SalesQuote;
 use App\Models\User;
+use App\Modules\Sales\Models\SalesQuote;
 
 class SalesQuotePolicy
 {
@@ -50,5 +50,3 @@ class SalesQuotePolicy
             && $user->canAccessDataScopedRecord($quote);
     }
 }
-
-

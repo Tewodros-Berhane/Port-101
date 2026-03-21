@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Modules\Sales\Models\SalesOrder;
 use App\Models\User;
+use App\Modules\Sales\Models\SalesOrder;
 
 class SalesOrderPolicy
 {
@@ -49,5 +49,3 @@ class SalesOrderPolicy
             && $order->status === SalesOrder::STATUS_DRAFT;
     }
 }
-
-

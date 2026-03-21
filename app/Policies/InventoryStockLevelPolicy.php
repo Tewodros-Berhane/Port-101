@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Models\User;
+use App\Modules\Inventory\Models\InventoryStockLevel;
 
 class InventoryStockLevelPolicy
 {
@@ -18,5 +18,3 @@ class InventoryStockLevelPolicy
             && $user->canAccessDataScopedRecord($level);
     }
 }
-
-
