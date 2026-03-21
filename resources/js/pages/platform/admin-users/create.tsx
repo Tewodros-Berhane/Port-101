@@ -1,4 +1,4 @@
-import InputError from '@/components/input-error';
+﻿import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,15 +19,16 @@ export default function PlatformAdminUserCreate() {
                 { title: 'Create', href: '/platform/admin-users/create' },
             ]}
         >
-            <Head title="New Platform Admin" />
+            <Head title="Invite Platform Admin" />
 
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-xl font-semibold">
-                        New platform admin
+                        Invite platform admin
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Create a new super admin account.
+                        Send an invite so the admin can accept access and set up
+                        their account.
                     </p>
                 </div>
                 <Button variant="ghost" asChild>
@@ -69,9 +70,14 @@ export default function PlatformAdminUserCreate() {
                     <InputError message={form.errors.email} />
                 </div>
 
+                <div className="rounded-xl border p-4 text-sm text-muted-foreground">
+                    The invite link expires after 14 days. Accepted invites
+                    promote the recipient to platform admin during onboarding.
+                </div>
+
                 <div className="flex items-center gap-3">
                     <Button type="submit" disabled={form.processing}>
-                        Create admin
+                        Send invite
                     </Button>
                 </div>
             </form>

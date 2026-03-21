@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests\Platform;
 
+use App\Core\Access\Models\Invite;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class AdminUserStoreRequest extends FormRequest
 {
@@ -20,7 +21,30 @@ class AdminUserStoreRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email'),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $email = strtolower(trim((string) $value));
+
+                    $existingSuperAdmin = User::query()
+                        ->whereRaw('LOWER(email) = ?', [$email])
+                        ->where('is_super_admin', true)
+                        ->exists();
+
+                    if ($existingSuperAdmin) {
+                        $fail('This user is already a platform admin.');
+
+                        return;
+                    }
+
+                    $pendingInviteExists = Invite::query()
+                        ->whereRaw('LOWER(email) = ?', [$email])
+                        ->where('role', 'platform_admin')
+                        ->whereNull('accepted_at')
+                        ->exists();
+
+                    if ($pendingInviteExists) {
+                        $fail('A pending platform admin invite already exists for this email.');
+                    }
+                },
             ],
         ];
     }

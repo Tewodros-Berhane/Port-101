@@ -1,23 +1,51 @@
+﻿import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
 
-type AdminUser = {
+type AdminRow = {
     id: string;
     name: string;
     email: string;
+    status: 'active' | 'pending_invite' | 'expired_invite';
+    delivery_status?: string | null;
     created_at?: string | null;
+    expires_at?: string | null;
 };
 
 type Props = {
     admins: {
-        data: AdminUser[];
+        data: AdminRow[];
         links: { url: string | null; label: string; active: boolean }[];
     };
 };
 
 const formatDate = (value?: string | null) =>
-    value ? new Date(value).toLocaleString() : '—';
+    value ? new Date(value).toLocaleString() : '-';
+
+const resolveStatusLabel = (status: AdminRow['status']) => {
+    if (status === 'active') {
+        return 'Active';
+    }
+
+    if (status === 'pending_invite') {
+        return 'Pending invite';
+    }
+
+    return 'Expired invite';
+};
+
+const resolveStatusVariant = (status: AdminRow['status']) => {
+    if (status === 'active') {
+        return 'default' as const;
+    }
+
+    if (status === 'pending_invite') {
+        return 'secondary' as const;
+    }
+
+    return 'outline' as const;
+};
 
 export default function PlatformAdminUsersIndex({ admins }: Props) {
     return (
@@ -29,27 +57,43 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
         >
             <Head title="Platform Admins" />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-semibold">Platform admins</h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage super admin accounts for the platform.
+                        Manage active superadmins and pending admin invites for
+                        the platform.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/platform/admin-users/create">
-                        New platform admin
-                    </Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/platform/invites?role=platform_admin">
+                            Open invites
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href="/platform/admin-users/create">
+                            Invite platform admin
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
+                A platform admin becomes active only after they accept the
+                invite and complete onboarding.
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-max text-sm">
+                <table className="w-full min-w-[920px] text-sm">
                     <thead className="bg-muted/60 text-left">
                         <tr>
                             <th className="px-4 py-3 font-medium">Name</th>
                             <th className="px-4 py-3 font-medium">Email</th>
+                            <th className="px-4 py-3 font-medium">Status</th>
+                            <th className="px-4 py-3 font-medium">Delivery</th>
                             <th className="px-4 py-3 font-medium">Created</th>
+                            <th className="px-4 py-3 font-medium">Expires</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -57,9 +101,9 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={3}
+                                    colSpan={6}
                                 >
-                                    No platform admins yet.
+                                    No platform admins or invites yet.
                                 </td>
                             </tr>
                         )}
@@ -70,7 +114,22 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                                 </td>
                                 <td className="px-4 py-3">{admin.email}</td>
                                 <td className="px-4 py-3">
+                                    <Badge
+                                        variant={resolveStatusVariant(admin.status)}
+                                    >
+                                        {resolveStatusLabel(admin.status)}
+                                    </Badge>
+                                </td>
+                                <td className="px-4 py-3 capitalize text-muted-foreground">
+                                    {admin.delivery_status
+                                        ? admin.delivery_status.replaceAll('_', ' ')
+                                        : '-'}
+                                </td>
+                                <td className="px-4 py-3">
                                     {formatDate(admin.created_at)}
+                                </td>
+                                <td className="px-4 py-3">
+                                    {formatDate(admin.expires_at)}
                                 </td>
                             </tr>
                         ))}
