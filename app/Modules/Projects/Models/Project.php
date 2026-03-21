@@ -3,12 +3,14 @@
 namespace App\Modules\Projects\Models;
 
 use App\Core\Company\Models\Company;
+use App\Core\Company\Models\CompanyUser;
 use App\Core\MasterData\Models\Currency;
 use App\Core\MasterData\Models\Partner;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
 use App\Modules\Sales\Models\SalesOrder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -169,6 +171,85 @@ class Project extends Model
     public function billables(): HasMany
     {
         return $this->hasMany(ProjectBillable::class, 'project_id');
+    }
+
+    public function scopeAccessibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->is_super_admin) {
+            return $query;
+        }
+
+        $scope = $user->dataScopeForCompany();
+
+        if (in_array($scope, [User::DATA_SCOPE_COMPANY, User::DATA_SCOPE_READ_ALL], true)) {
+            return $query;
+        }
+
+        $companyId = $user->current_company_id;
+        $teamUserIds = $this->teamUserIdsForUser($user, $companyId);
+
+        return $query->where(function (Builder $builder) use (
+            $user,
+            $scope,
+            $teamUserIds
+        ): void {
+            $builder
+                ->where('projects.project_manager_id', $user->id)
+                ->orWhere('projects.created_by', $user->id)
+                ->orWhereExists(function ($memberQuery) use ($user): void {
+                    $memberQuery
+                        ->selectRaw('1')
+                        ->from('project_members')
+                        ->whereColumn('project_members.project_id', 'projects.id')
+                        ->where('project_members.user_id', $user->id)
+                        ->whereNull('project_members.deleted_at');
+                });
+
+            if ($scope !== User::DATA_SCOPE_TEAM || $teamUserIds === []) {
+                return;
+            }
+
+            $builder
+                ->orWhereIn('projects.created_by', $teamUserIds)
+                ->orWhereIn('projects.project_manager_id', $teamUserIds)
+                ->orWhereExists(function ($memberQuery) use ($teamUserIds): void {
+                    $memberQuery
+                        ->selectRaw('1')
+                        ->from('project_members')
+                        ->whereColumn('project_members.project_id', 'projects.id')
+                        ->whereIn('project_members.user_id', $teamUserIds)
+                        ->whereNull('project_members.deleted_at');
+                });
+        });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function teamUserIdsForUser(User $user, ?string $companyId): array
+    {
+        if (! $companyId) {
+            return [(string) $user->id];
+        }
+
+        $roleId = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $user->id)
+            ->value('role_id');
+
+        if (! $roleId) {
+            return [(string) $user->id];
+        }
+
+        return CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('role_id', $roleId)
+            ->pluck('user_id')
+            ->map(fn ($userId) => (string) $userId)
+            ->push((string) $user->id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function createdBy(): BelongsTo

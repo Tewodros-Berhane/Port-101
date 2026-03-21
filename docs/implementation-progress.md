@@ -106,6 +106,7 @@
 - CI test workflow now provisions PostgreSQL with `pdo_pgsql`/`pgsql` extensions and runs the suite against the project's PostgreSQL test configuration.
 - Projects/Services Phase 1 foundation started: schema and Eloquent models added for `projects`, `project_members`, `project_stages`, `project_tasks`, `project_timesheets`, `project_milestones`, and `project_billables`.
 - Projects/Services authorization foundation added: `projects.*` permissions seeded, `project_manager` / `project_user` functional roles introduced, project policies registered, and policy coverage added for project membership-aware access and finance billing access.
+- Projects/Services initial workspace implemented: module dashboard, sidebar/module route wiring, workspace list with filters, project CRUD, project detail summary, task CRUD, automatic default-stage provisioning, project-member sync for managers/assignees, and end-to-end feature coverage.
 
 ## Not Yet Implemented
 
@@ -164,17 +165,18 @@
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
+- Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, project detail pages, and project/task CRUD for delivery teams with role-aware access.
 
 ### Present but placeholder-only
 
-- Projects/Services now has schema/models plus authorization foundations (permissions, roles, policies), but there are still no user-facing routes, pages, workflows, or APIs yet.
+- Projects/Services has a user-facing project/task workspace now, but timesheets, milestones, billables, approvals, recurring billing, and accounting handoff flows are still pending.
 
 ### Test run result (2026-03-21)
 
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `167` passed, `0` failed.
+- Result summary after latest implementation: `172` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 

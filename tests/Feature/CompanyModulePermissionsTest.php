@@ -5,6 +5,7 @@ use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Str;
+
 use function Pest\Laravel\actingAs;
 
 function makeCompanyUserForModulePermissions(array $permissionSlugs = []): User
@@ -56,6 +57,7 @@ function makeCompanyUserForModulePermissions(array $permissionSlugs = []): User
 dataset('companyModuleAccessRoutes', [
     ['company.modules.sales', 'sales.leads.view'],
     ['company.modules.inventory', 'inventory.stock.view'],
+    ['company.modules.projects', 'projects.projects.view'],
     ['company.modules.purchasing', 'purchasing.rfq.view'],
     ['company.modules.accounting', 'accounting.invoices.view'],
     ['company.modules.approvals', 'approvals.requests.view'],

@@ -19,6 +19,7 @@ import {
     ClipboardCheck,
     ClipboardList,
     FileSpreadsheet,
+    FolderKanban,
     Handshake,
     LayoutGrid,
     ListChecks,
@@ -97,6 +98,12 @@ const companyModuleNavItems: NavItem[] = [
         href: '/company/accounting',
         icon: FileSpreadsheet,
         permission: 'accounting.invoices.view',
+    },
+    {
+        title: 'Projects',
+        href: '/company/projects',
+        icon: FolderKanban,
+        permission: 'projects.projects.view',
     },
     {
         title: 'Approvals',
