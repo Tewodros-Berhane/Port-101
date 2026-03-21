@@ -26,6 +26,7 @@ type Props = {
         approval_enabled?: boolean | null;
         approval_policy?: 'none' | 'amount_based' | 'always' | null;
         approval_threshold_amount?: number | null;
+        manual_journal_approval_threshold?: number | null;
         approval_escalation_hours?: number | null;
         sales_order_prefix?: string | null;
         sales_order_next_number?: number | null;
@@ -51,6 +52,10 @@ export default function CompanySettings({ company, settings }: Props) {
         approval_enabled: settings.approval_enabled ?? false,
         approval_policy: settings.approval_policy ?? 'none',
         approval_threshold_amount: settings.approval_threshold_amount ?? 10000,
+        manual_journal_approval_threshold:
+            settings.manual_journal_approval_threshold ??
+            settings.approval_threshold_amount ??
+            10000,
         approval_escalation_hours: settings.approval_escalation_hours ?? 24,
         sales_order_prefix: settings.sales_order_prefix ?? 'SO',
         sales_order_next_number: settings.sales_order_next_number ?? 1001,
@@ -384,6 +389,32 @@ export default function CompanySettings({ company, settings }: Props) {
                             />
                             <InputError
                                 message={form.errors.approval_escalation_hours}
+                            />
+                        </div>
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="manual_journal_approval_threshold">
+                                Manual journal approval threshold
+                            </Label>
+                            <Input
+                                id="manual_journal_approval_threshold"
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={String(
+                                    form.data.manual_journal_approval_threshold,
+                                )}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'manual_journal_approval_threshold',
+                                        Number(event.target.value || 0),
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={
+                                    form.errors
+                                        .manual_journal_approval_threshold
+                                }
                             />
                         </div>
                     </div>

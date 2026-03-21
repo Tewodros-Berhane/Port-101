@@ -12,6 +12,7 @@ use App\Core\MasterData\Models\Product;
 use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
 use App\Http\Controllers\Controller;
+use App\Modules\Accounting\Models\AccountingManualJournal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -31,6 +32,7 @@ class AttachmentsController extends Controller
         'currency' => Currency::class,
         'uom' => Uom::class,
         'price_list' => PriceList::class,
+        'manual_journal' => AccountingManualJournal::class,
     ];
 
     public function store(Request $request): RedirectResponse

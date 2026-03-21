@@ -4,13 +4,14 @@ namespace App\Modules\Approvals;
 
 use App\Core\Approvals\ApprovalAuthorityService;
 use App\Core\Company\Models\Company;
+use App\Models\User;
+use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
 use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Purchasing\PurchasingOrderWorkflowService;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesQuote;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -21,14 +22,14 @@ class ApprovalQueueService
     public function __construct(
         private readonly ApprovalAuthorityService $approvalAuthorityService,
         private readonly PurchasingOrderWorkflowService $purchasingOrderWorkflowService,
-    ) {
-    }
+    ) {}
 
     public function syncPendingRequests(Company $company, ?string $actorId = null): void
     {
         $this->syncSalesQuoteRequests($company, $actorId);
         $this->syncSalesOrderRequests($company, $actorId);
         $this->syncPurchaseOrderRequests($company, $actorId);
+        $this->syncAccountingManualJournalRequests($company, $actorId);
     }
 
     /**
@@ -169,6 +170,22 @@ class ApprovalQueueService
                 ]);
             } elseif ($source instanceof PurchaseOrder) {
                 $source = $this->purchasingOrderWorkflowService->approve($source, $actor->id);
+            } elseif ($source instanceof AccountingManualJournal) {
+                if ($source->status !== AccountingManualJournal::STATUS_DRAFT) {
+                    throw ValidationException::withMessages([
+                        'approval' => 'Only draft manual journals can be approved.',
+                    ]);
+                }
+
+                $source->update([
+                    'approval_status' => AccountingManualJournal::APPROVAL_STATUS_APPROVED,
+                    'approved_by' => $actor->id,
+                    'approved_at' => $now,
+                    'rejected_by' => null,
+                    'rejected_at' => null,
+                    'rejection_reason' => null,
+                    'updated_by' => $actor->id,
+                ]);
             }
 
             $this->markApproved(
@@ -235,6 +252,22 @@ class ApprovalQueueService
                     'rejection_reason' => $reason,
                     'approved_by' => null,
                     'approved_at' => null,
+                    'updated_by' => $actor->id,
+                ]);
+            } elseif ($source instanceof AccountingManualJournal) {
+                if ($source->status !== AccountingManualJournal::STATUS_DRAFT) {
+                    throw ValidationException::withMessages([
+                        'approval' => 'Only draft manual journals can be rejected.',
+                    ]);
+                }
+
+                $source->update([
+                    'approval_status' => AccountingManualJournal::APPROVAL_STATUS_REJECTED,
+                    'approved_by' => null,
+                    'approved_at' => null,
+                    'rejected_by' => $actor->id,
+                    'rejected_at' => $now,
+                    'rejection_reason' => $reason,
                     'updated_by' => $actor->id,
                 ]);
             }
@@ -379,12 +412,49 @@ class ApprovalQueueService
         );
     }
 
+    private function syncAccountingManualJournalRequests(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = AccountingManualJournal::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $manualJournals = AccountingManualJournal::query()
+            ->with('lines:id,manual_journal_id,debit')
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->where('requires_approval', true);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $manualJournals,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_ACCOUNTING,
+            action: ApprovalRequest::ACTION_ACCOUNTING_MANUAL_JOURNAL_APPROVAL,
+            isPending: fn (AccountingManualJournal $manualJournal) => (bool) $manualJournal->requires_approval
+                && $manualJournal->status === AccountingManualJournal::STATUS_DRAFT
+                && $manualJournal->approval_status === AccountingManualJournal::APPROVAL_STATUS_PENDING,
+            isApproved: fn (AccountingManualJournal $manualJournal) => $manualJournal->approval_status === AccountingManualJournal::APPROVAL_STATUS_APPROVED
+                || $manualJournal->approved_at !== null,
+            isRejected: fn (AccountingManualJournal $manualJournal) => $manualJournal->approval_status === AccountingManualJournal::APPROVAL_STATUS_REJECTED,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
     /**
      * @param  Collection<int, Model>  $sources
      * @param  callable(Model): bool  $isPending
      * @param  callable(Model): bool  $isApproved
      * @param  callable(Model): bool  $isRejected
-     * @param  bool  $allowRejectedReopen
      */
     private function syncRequestsForSources(
         Company $company,
@@ -644,6 +714,10 @@ class ApprovalQueueService
             return (string) $source->order_number;
         }
 
+        if ($source instanceof AccountingManualJournal) {
+            return (string) $source->entry_number;
+        }
+
         return null;
     }
 
@@ -661,6 +735,10 @@ class ApprovalQueueService
         $amount = $source->getAttribute('grand_total');
 
         if ($amount === null) {
+            if ($source instanceof AccountingManualJournal) {
+                return round((float) $source->lines->sum('debit'), 2);
+            }
+
             return null;
         }
 
@@ -723,6 +801,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             PurchaseOrder::class => PurchaseOrder::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            AccountingManualJournal::class => AccountingManualJournal::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,

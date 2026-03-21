@@ -28,6 +28,7 @@ class SettingsController extends Controller
         'company.approvals.enabled',
         'company.approvals.policy',
         'company.approvals.threshold_amount',
+        'company.accounting.manual_journal_approval_threshold',
         'company.approvals.escalation_hours',
         'company.numbering.sales_order_prefix',
         'company.numbering.sales_order_next',
@@ -69,6 +70,8 @@ class SettingsController extends Controller
                 'approval_policy' => $settings['company.approvals.policy'] ?? 'none',
                 'approval_threshold_amount' => $settings['company.approvals.threshold_amount']
                     ?? 10000,
+                'manual_journal_approval_threshold' => $settings['company.accounting.manual_journal_approval_threshold']
+                    ?? ($settings['company.approvals.threshold_amount'] ?? 10000),
                 'approval_escalation_hours' => $settings['company.approvals.escalation_hours'] ?? 24,
                 'sales_order_prefix' => $settings['company.numbering.sales_order_prefix'] ?? 'SO',
                 'sales_order_next_number' => $settings['company.numbering.sales_order_next'] ?? 1001,
@@ -172,6 +175,13 @@ class SettingsController extends Controller
         $settingsService->set(
             'company.approvals.threshold_amount',
             $data['approval_threshold_amount'] ?? 10000,
+            $companyId,
+            null,
+            $actorId
+        );
+        $settingsService->set(
+            'company.accounting.manual_journal_approval_threshold',
+            $data['manual_journal_approval_threshold'] ?? ($data['approval_threshold_amount'] ?? 10000),
             $companyId,
             null,
             $actorId

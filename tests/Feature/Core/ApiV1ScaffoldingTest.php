@@ -8,6 +8,7 @@ use App\Core\Settings\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\putJson;
 
@@ -135,6 +136,7 @@ test('api v1 settings endpoint persists company settings', function () {
         'approval_enabled' => true,
         'approval_policy' => 'amount_based',
         'approval_threshold_amount' => 9000.5,
+        'manual_journal_approval_threshold' => 450.25,
         'sales_order_prefix' => 'SOA',
         'sales_order_next_number' => 1200,
     ])
@@ -146,6 +148,7 @@ test('api v1 settings endpoint persists company settings', function () {
         ->assertJsonPath('data.approval_enabled', true)
         ->assertJsonPath('data.approval_policy', 'amount_based')
         ->assertJsonPath('data.approval_threshold_amount', 9000.5)
+        ->assertJsonPath('data.manual_journal_approval_threshold', 450.25)
         ->assertJsonPath('data.sales_order_prefix', 'SOA')
         ->assertJsonPath('data.sales_order_next_number', 1200);
 
@@ -155,6 +158,7 @@ test('api v1 settings endpoint persists company settings', function () {
         ->assertJsonPath('data.audit_retention_days', 120)
         ->assertJsonPath('data.tax_period', 'monthly')
         ->assertJsonPath('data.approval_enabled', true)
+        ->assertJsonPath('data.manual_journal_approval_threshold', 450.25)
         ->assertJsonPath('data.sales_order_prefix', 'SOA');
 
     $setting = Setting::query()

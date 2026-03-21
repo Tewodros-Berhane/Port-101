@@ -39,7 +39,11 @@ class AccountingManualJournalPolicy
     {
         return $user->hasPermission('accounting.manual_journals.post')
             && $user->canAccessDataScopedRecord($manualJournal)
-            && $manualJournal->status === AccountingManualJournal::STATUS_DRAFT;
+            && $manualJournal->status === AccountingManualJournal::STATUS_DRAFT
+            && in_array($manualJournal->approval_status, [
+                AccountingManualJournal::APPROVAL_STATUS_NOT_REQUIRED,
+                AccountingManualJournal::APPROVAL_STATUS_APPROVED,
+            ], true);
     }
 
     public function reverse(User $user, AccountingManualJournal $manualJournal): bool

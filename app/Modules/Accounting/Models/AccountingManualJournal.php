@@ -27,6 +27,14 @@ class AccountingManualJournal extends Model
 
     public const STATUS_REVERSED = 'reversed';
 
+    public const APPROVAL_STATUS_NOT_REQUIRED = 'not_required';
+
+    public const APPROVAL_STATUS_PENDING = 'pending';
+
+    public const APPROVAL_STATUS_APPROVED = 'approved';
+
+    public const APPROVAL_STATUS_REJECTED = 'rejected';
+
     /**
      * @var array<int, string>
      */
@@ -34,6 +42,16 @@ class AccountingManualJournal extends Model
         self::STATUS_DRAFT,
         self::STATUS_POSTED,
         self::STATUS_REVERSED,
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    public const APPROVAL_STATUSES = [
+        self::APPROVAL_STATUS_NOT_REQUIRED,
+        self::APPROVAL_STATUS_PENDING,
+        self::APPROVAL_STATUS_APPROVED,
+        self::APPROVAL_STATUS_REJECTED,
     ];
 
     public $incrementing = false;
@@ -45,6 +63,14 @@ class AccountingManualJournal extends Model
         'journal_id',
         'entry_number',
         'status',
+        'requires_approval',
+        'approval_status',
+        'approval_requested_at',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
         'entry_date',
         'reference',
         'description',
@@ -61,6 +87,10 @@ class AccountingManualJournal extends Model
     {
         return [
             'entry_date' => 'date',
+            'requires_approval' => 'boolean',
+            'approval_requested_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
             'posted_at' => 'datetime',
             'reversed_at' => 'datetime',
         ];
@@ -91,6 +121,16 @@ class AccountingManualJournal extends Model
     public function postedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'posted_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     public function reversedBy(): BelongsTo

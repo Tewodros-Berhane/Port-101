@@ -28,6 +28,7 @@ class CompanySettingsUpdateRequest extends FormRequest
             'approval_enabled' => ['nullable', 'boolean'],
             'approval_policy' => ['nullable', 'string', Rule::in(['none', 'amount_based', 'always'])],
             'approval_threshold_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'manual_journal_approval_threshold' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
             'approval_escalation_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
             'sales_order_prefix' => ['nullable', 'string', 'max:12', 'regex:/^[A-Z0-9-]+$/'],
             'sales_order_next_number' => ['nullable', 'integer', 'min:1', 'max:999999999'],

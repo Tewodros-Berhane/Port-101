@@ -6,6 +6,8 @@ type JournalRow = {
     id: string;
     entry_number: string;
     status: string;
+    requires_approval: boolean;
+    approval_status: string;
     entry_date?: string | null;
     reference?: string | null;
     description: string;
@@ -68,6 +70,9 @@ export default function AccountingManualJournalsIndex({ journals }: Props) {
                             <th className="px-4 py-3 font-medium">Date</th>
                             <th className="px-4 py-3 font-medium">Journal</th>
                             <th className="px-4 py-3 font-medium">Status</th>
+                            <th className="px-4 py-3 font-medium">
+                                Approval
+                            </th>
                             <th className="px-4 py-3 font-medium">Reference</th>
                             <th className="px-4 py-3 font-medium">
                                 Description
@@ -82,7 +87,7 @@ export default function AccountingManualJournalsIndex({ journals }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={9}
+                                    colSpan={10}
                                 >
                                     No manual journals created yet.
                                 </td>
@@ -108,6 +113,14 @@ export default function AccountingManualJournalsIndex({ journals }: Props) {
                                 </td>
                                 <td className="px-4 py-3 capitalize">
                                     {manualJournal.status}
+                                </td>
+                                <td className="px-4 py-3 capitalize">
+                                    {manualJournal.requires_approval
+                                        ? manualJournal.approval_status.replace(
+                                              /_/g,
+                                              ' ',
+                                          )
+                                        : 'Not required'}
                                 </td>
                                 <td className="px-4 py-3">
                                     {manualJournal.reference ?? '-'}

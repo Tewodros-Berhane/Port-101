@@ -6,6 +6,7 @@ use App\Core\RBAC\Models\Role;
 use App\Core\Settings\SettingsService;
 use App\Models\User;
 use Illuminate\Support\Str;
+
 use function Pest\Laravel\actingAs;
 
 function createCompanyUserForSettings(array $permissions): array
@@ -79,6 +80,7 @@ test('company settings update persists scoped settings and notifies other users'
             'approval_enabled' => true,
             'approval_policy' => 'amount_based',
             'approval_threshold_amount' => 25000.75,
+            'manual_journal_approval_threshold' => 1500.5,
             'approval_escalation_hours' => 48,
             'sales_order_prefix' => 'SO-NEW',
             'sales_order_next_number' => 2201,
@@ -106,6 +108,7 @@ test('company settings update persists scoped settings and notifies other users'
         'company.approvals.enabled',
         'company.approvals.policy',
         'company.approvals.threshold_amount',
+        'company.accounting.manual_journal_approval_threshold',
         'company.approvals.escalation_hours',
         'company.numbering.sales_order_prefix',
         'company.numbering.sales_order_next',
@@ -125,6 +128,7 @@ test('company settings update persists scoped settings and notifies other users'
     expect((bool) $settings['company.approvals.enabled'])->toBeTrue();
     expect($settings['company.approvals.policy'])->toBe('amount_based');
     expect((float) $settings['company.approvals.threshold_amount'])->toBe(25000.75);
+    expect((float) $settings['company.accounting.manual_journal_approval_threshold'])->toBe(1500.5);
     expect((int) $settings['company.approvals.escalation_hours'])->toBe(48);
     expect($settings['company.numbering.sales_order_prefix'])->toBe('SO-NEW');
     expect((int) $settings['company.numbering.sales_order_next'])->toBe(2201);

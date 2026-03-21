@@ -16,11 +16,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApprovalRequest extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public const MODULE_SALES = 'sales';
 
@@ -45,6 +45,8 @@ class ApprovalRequest extends Model
     public const ACTION_SALES_ORDER_APPROVAL = 'sales_order_approval';
 
     public const ACTION_PURCHASE_ORDER_APPROVAL = 'po_final_approval';
+
+    public const ACTION_ACCOUNTING_MANUAL_JOURNAL_APPROVAL = 'manual_journal_approval';
 
     public const STATUS_PENDING = 'pending';
 

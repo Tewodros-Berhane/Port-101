@@ -4,6 +4,7 @@ use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
+use App\Core\Settings\SettingsService;
 use App\Models\User;
 use App\Modules\Accounting\AccountingSetupService;
 use App\Modules\Accounting\Models\AccountingAccount;
@@ -12,11 +13,15 @@ use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingLedgerEntry;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
+use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Inventory\Events\StockDelivered;
 use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesOrderLine;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 
@@ -395,6 +400,174 @@ test('manual journal workflow supports draft posting and reversal', function () 
         ->where('source_id', $manualJournal?->id)
         ->where('source_action', AccountingLedgerEntry::ACTION_MANUAL_JOURNAL_REVERSE)
         ->count())->toBe(2);
+});
+
+test('manual journals require approval above configured threshold before posting', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    $approver = User::factory()->create();
+    $company->users()->attach($approver->id, [
+        'role_id' => null,
+        'is_owner' => false,
+    ]);
+    $approver->forceFill(['current_company_id' => $company->id])->save();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.manual_journals.view',
+        'accounting.manual_journals.manage',
+        'accounting.manual_journals.post',
+        'accounting.accounts.view',
+        'accounting.journals.view',
+        'accounting.ledger.view',
+    ]);
+
+    assignAccountingWorkflowRole($approver, $company->id, [
+        'approvals.requests.view',
+        'approvals.requests.manage',
+    ]);
+
+    $settings = app(SettingsService::class);
+    $settings->set('company.approvals.enabled', true, $company->id, null, $user->id);
+    $settings->set('company.approvals.policy', 'amount_based', $company->id, null, $user->id);
+    $settings->set('company.approvals.threshold_amount', 1000, $company->id, null, $user->id);
+    $settings->set('company.accounting.manual_journal_approval_threshold', 100, $company->id, null, $user->id);
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $cashAccount = $setup['accounts'][AccountingAccount::SYSTEM_CASH_BANK];
+    $expenseAccount = $setup['accounts'][AccountingAccount::SYSTEM_PURCHASE_EXPENSE];
+    $generalJournal = $setup['journals']['general'];
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.store'), [
+            'journal_id' => $generalJournal->id,
+            'entry_date' => now()->toDateString(),
+            'reference' => 'APPROVAL-001',
+            'description' => 'Approval threshold accrual',
+            'lines' => [
+                [
+                    'account_id' => $expenseAccount->id,
+                    'description' => 'Expense accrual',
+                    'debit' => 250,
+                    'credit' => 0,
+                ],
+                [
+                    'account_id' => $cashAccount->id,
+                    'description' => 'Cash offset',
+                    'debit' => 0,
+                    'credit' => 250,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $manualJournal = AccountingManualJournal::query()->first();
+
+    expect($manualJournal)->not->toBeNull();
+    expect($manualJournal?->requires_approval)->toBeTrue();
+    expect($manualJournal?->approval_status)->toBe(AccountingManualJournal::APPROVAL_STATUS_PENDING);
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.post', $manualJournal))
+        ->assertForbidden();
+
+    $approvalRequest = ApprovalRequest::query()
+        ->where('source_type', AccountingManualJournal::class)
+        ->where('source_id', $manualJournal?->id)
+        ->first();
+
+    expect($approvalRequest)->not->toBeNull();
+    expect($approvalRequest?->status)->toBe(ApprovalRequest::STATUS_PENDING);
+
+    actingAs($approver)
+        ->post(route('company.approvals.approve', $approvalRequest))
+        ->assertRedirect();
+
+    expect($manualJournal?->fresh()->approval_status)
+        ->toBe(AccountingManualJournal::APPROVAL_STATUS_APPROVED);
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.post', $manualJournal))
+        ->assertRedirect();
+
+    expect($manualJournal?->fresh()->status)->toBe(AccountingManualJournal::STATUS_POSTED);
+});
+
+test('manual journal edit supports supporting document attachments', function () {
+    Storage::fake('attachments');
+    config()->set('core.attachments.disk', 'attachments');
+
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.manual_journals.view',
+        'accounting.manual_journals.manage',
+        'accounting.accounts.view',
+        'accounting.journals.view',
+        'core.attachments.view',
+        'core.attachments.manage',
+    ]);
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $cashAccount = $setup['accounts'][AccountingAccount::SYSTEM_CASH_BANK];
+    $expenseAccount = $setup['accounts'][AccountingAccount::SYSTEM_PURCHASE_EXPENSE];
+    $generalJournal = $setup['journals']['general'];
+
+    actingAs($user)
+        ->post(route('company.accounting.manual-journals.store'), [
+            'journal_id' => $generalJournal->id,
+            'entry_date' => now()->toDateString(),
+            'reference' => 'ATTACH-001',
+            'description' => 'Supporting docs journal',
+            'lines' => [
+                [
+                    'account_id' => $expenseAccount->id,
+                    'description' => 'Expense accrual',
+                    'debit' => 120,
+                    'credit' => 0,
+                ],
+                [
+                    'account_id' => $cashAccount->id,
+                    'description' => 'Cash offset',
+                    'debit' => 0,
+                    'credit' => 120,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $manualJournal = AccountingManualJournal::query()->first();
+
+    $file = UploadedFile::fake()->create(
+        'manual-journal-support.pdf',
+        50,
+        'application/pdf',
+    );
+
+    actingAs($user)
+        ->post(route('core.attachments.store'), [
+            'attachable_type' => 'manual_journal',
+            'attachable_id' => $manualJournal?->id,
+            'file' => $file,
+        ])
+        ->assertRedirect();
+
+    actingAs($user)
+        ->get(route('company.accounting.manual-journals.edit', $manualJournal))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('attachments', 1)
+            ->where('attachments.0.original_name', 'manual-journal-support.pdf')
+        );
 });
 
 test('bank reconciliation batches stamp payments and ledger entries', function () {

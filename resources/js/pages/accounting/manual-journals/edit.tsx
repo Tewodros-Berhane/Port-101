@@ -1,6 +1,7 @@
 import AccountingManualJournalLinesEditor, {
     type AccountingManualJournalLineInput,
 } from '@/components/accounting/manual-journal-lines-editor';
+import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,15 @@ type ManualJournalLine = AccountingManualJournalLineInput & {
     account_name?: string | null;
 };
 
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
+};
+
 type Props = {
     manualJournal: {
         id: string;
@@ -35,6 +45,12 @@ type Props = {
         journal_id: string;
         journal_name?: string | null;
         status: string;
+        requires_approval: boolean;
+        approval_status: string;
+        approval_requested_at?: string | null;
+        approved_at?: string | null;
+        rejected_at?: string | null;
+        rejection_reason?: string | null;
         entry_date: string;
         reference?: string | null;
         description: string;
@@ -45,18 +61,25 @@ type Props = {
     };
     journals: JournalOption[];
     accounts: AccountOption[];
+    attachments: Attachment[];
 };
 
 export default function AccountingManualJournalEdit({
     manualJournal,
     journals,
     accounts,
+    attachments,
 }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('accounting.manual_journals.manage');
     const canPost = hasPermission('accounting.manual_journals.post');
+    const canViewAttachments = hasPermission('core.attachments.view');
+    const canManageAttachments = hasPermission('core.attachments.manage');
     const isDraft = manualJournal.status === 'draft';
     const isPosted = manualJournal.status === 'posted';
+    const approvalStateLabel = manualJournal.requires_approval
+        ? manualJournal.approval_status.replace(/_/g, ' ')
+        : 'not required';
 
     const form = useForm({
         journal_id: manualJournal.journal_id,
@@ -188,11 +211,19 @@ export default function AccountingManualJournalEdit({
                     disabled={!isDraft || form.processing}
                 />
 
-                <div className="grid gap-4 rounded-xl border p-4 text-sm md:grid-cols-4">
+                <div className="grid gap-4 rounded-xl border p-4 text-sm md:grid-cols-2 xl:grid-cols-5">
                     <div>
                         <p className="text-xs text-muted-foreground">Status</p>
                         <p className="font-semibold capitalize">
                             {manualJournal.status}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground">
+                            Approval
+                        </p>
+                        <p className="font-semibold capitalize">
+                            {approvalStateLabel}
                         </p>
                     </div>
                     <div>
@@ -219,6 +250,50 @@ export default function AccountingManualJournalEdit({
                     </div>
                 </div>
 
+                {manualJournal.requires_approval && (
+                    <div className="rounded-xl border p-4 text-sm">
+                        <h2 className="text-sm font-semibold">
+                            Approval state
+                        </h2>
+                        <p className="mt-1 capitalize text-muted-foreground">
+                            {approvalStateLabel}
+                        </p>
+                        {manualJournal.approval_requested_at && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                Requested:{' '}
+                                {formatDateTime(
+                                    manualJournal.approval_requested_at,
+                                )}
+                            </p>
+                        )}
+                        {manualJournal.approved_at && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Approved:{' '}
+                                {formatDateTime(manualJournal.approved_at)}
+                            </p>
+                        )}
+                        {manualJournal.rejected_at && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Rejected:{' '}
+                                {formatDateTime(manualJournal.rejected_at)}
+                            </p>
+                        )}
+                        {manualJournal.rejection_reason && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                Reason: {manualJournal.rejection_reason}
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                <AttachmentsPanel
+                    attachableType="manual_journal"
+                    attachableId={manualJournal.id}
+                    attachments={attachments}
+                    canView={canViewAttachments}
+                    canManage={canManageAttachments}
+                />
+
                 <div className="flex flex-wrap items-center gap-2">
                     {canManage && isDraft && (
                         <Button type="submit" disabled={form.processing}>
@@ -234,7 +309,12 @@ export default function AccountingManualJournalEdit({
                                     `/company/accounting/manual-journals/${manualJournal.id}/post`,
                                 )
                             }
-                            disabled={actionForm.processing}
+                            disabled={
+                                actionForm.processing ||
+                                (manualJournal.requires_approval &&
+                                    manualJournal.approval_status !==
+                                        'approved')
+                            }
                         >
                             Post journal
                         </Button>
@@ -309,4 +389,8 @@ function calculateTotals(lines: AccountingManualJournalLineInput[]) {
         }),
         { totalDebit: 0, totalCredit: 0, balance: 0 },
     );
+}
+
+function formatDateTime(value?: string | null) {
+    return value ? new Date(value).toLocaleString() : '-';
 }

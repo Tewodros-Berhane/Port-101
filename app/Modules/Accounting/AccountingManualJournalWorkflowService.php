@@ -13,6 +13,7 @@ class AccountingManualJournalWorkflowService
         private readonly AccountingLedgerPostingService $ledgerPostingService,
         private readonly AccountingNumberingService $numberingService,
         private readonly AccountingPeriodGuardService $periodGuardService,
+        private readonly AccountingManualJournalApprovalPolicyService $approvalPolicyService,
     ) {}
 
     /**
@@ -29,6 +30,8 @@ class AccountingManualJournalWorkflowService
         return DB::transaction(function () use ($attributes, $companyId, $actorId) {
             $journal = $this->resolveJournal((string) $attributes['journal_id'], $companyId);
             $this->assertBalancedLines($attributes['lines']);
+            $totalAmount = $this->journalTotal($attributes['lines']);
+            $requiresApproval = $this->approvalPolicyService->requiresApproval($companyId, $totalAmount);
 
             $manualJournal = AccountingManualJournal::create([
                 'company_id' => $companyId,
@@ -38,6 +41,16 @@ class AccountingManualJournalWorkflowService
                     actorId: $actorId,
                 ),
                 'status' => AccountingManualJournal::STATUS_DRAFT,
+                'requires_approval' => $requiresApproval,
+                'approval_status' => $requiresApproval
+                    ? AccountingManualJournal::APPROVAL_STATUS_PENDING
+                    : AccountingManualJournal::APPROVAL_STATUS_NOT_REQUIRED,
+                'approval_requested_at' => $requiresApproval ? now() : null,
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
                 'entry_date' => $attributes['entry_date'],
                 'reference' => $attributes['reference'] ?? null,
                 'description' => $attributes['description'],
@@ -76,9 +89,24 @@ class AccountingManualJournalWorkflowService
 
             $journal = $this->resolveJournal((string) $attributes['journal_id'], (string) $manualJournal->company_id);
             $this->assertBalancedLines($attributes['lines']);
+            $totalAmount = $this->journalTotal($attributes['lines']);
+            $requiresApproval = $this->approvalPolicyService->requiresApproval(
+                (string) $manualJournal->company_id,
+                $totalAmount,
+            );
 
             $manualJournal->update([
                 'journal_id' => $journal->id,
+                'requires_approval' => $requiresApproval,
+                'approval_status' => $requiresApproval
+                    ? AccountingManualJournal::APPROVAL_STATUS_PENDING
+                    : AccountingManualJournal::APPROVAL_STATUS_NOT_REQUIRED,
+                'approval_requested_at' => $requiresApproval ? now() : null,
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
                 'entry_date' => $attributes['entry_date'],
                 'reference' => $attributes['reference'] ?? null,
                 'description' => $attributes['description'],
@@ -105,6 +133,13 @@ class AccountingManualJournalWorkflowService
 
             if ($manualJournal->status === AccountingManualJournal::STATUS_REVERSED) {
                 abort(422, 'Reversed manual journals cannot be posted.');
+            }
+
+            if (
+                $manualJournal->requires_approval
+                && $manualJournal->approval_status !== AccountingManualJournal::APPROVAL_STATUS_APPROVED
+            ) {
+                abort(422, 'Manual journal must be approved before posting.');
             }
 
             $this->assertBalancedLines(
@@ -248,5 +283,15 @@ class AccountingManualJournalWorkflowService
         if (abs(round($totalDebit - $totalCredit, 2)) > 0.01) {
             abort(422, 'Manual journal lines must be balanced before posting.');
         }
+    }
+
+    /**
+     * @param  array<int, array{account_id: string, description?: string|null, debit?: int|float|string|null, credit?: int|float|string|null}>  $lines
+     */
+    private function journalTotal(array $lines): float
+    {
+        return round((float) collect($lines)->sum(
+            fn (array $line) => round((float) ($line['debit'] ?? 0), 2),
+        ), 2);
     }
 }

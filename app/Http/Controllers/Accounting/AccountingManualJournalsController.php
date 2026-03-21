@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Accounting;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\AccountingManualJournalReverseRequest;
 use App\Http\Requests\Accounting\AccountingManualJournalStoreRequest;
@@ -12,6 +13,7 @@ use App\Modules\Accounting\Models\AccountingAccount;
 use App\Modules\Accounting\Models\AccountingJournal;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingManualJournalLine;
+use App\Modules\Approvals\ApprovalQueueService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -50,6 +52,8 @@ class AccountingManualJournalsController extends Controller
                     'description' => $manualJournal->description,
                     'journal_name' => $manualJournal->journal?->name,
                     'journal_code' => $manualJournal->journal?->code,
+                    'requires_approval' => $manualJournal->requires_approval,
+                    'approval_status' => $manualJournal->approval_status,
                     'line_count' => $manualJournal->lines->count(),
                     'total_debit' => $totalDebit,
                     'total_credit' => $totalCredit,
@@ -95,6 +99,7 @@ class AccountingManualJournalsController extends Controller
     public function store(
         AccountingManualJournalStoreRequest $request,
         AccountingManualJournalWorkflowService $workflowService,
+        ApprovalQueueService $approvalQueueService,
     ): RedirectResponse {
         $this->authorize('create', AccountingManualJournal::class);
 
@@ -109,6 +114,10 @@ class AccountingManualJournalsController extends Controller
             companyId: $companyId,
             actorId: $request->user()?->id,
         );
+
+        if ($company = $request->user()?->currentCompany) {
+            $approvalQueueService->syncPendingRequests($company, $request->user()?->id);
+        }
 
         return redirect()
             ->route('company.accounting.manual-journals.edit', $manualJournal)
@@ -129,6 +138,20 @@ class AccountingManualJournalsController extends Controller
             'lines.account:id,code,name',
         ]);
 
+        $attachments = Attachment::query()
+            ->where('attachable_type', $manualJournal::class)
+            ->where('attachable_id', $manualJournal->id)
+            ->latest('created_at')
+            ->get()
+            ->map(fn (Attachment $attachment) => [
+                'id' => $attachment->id,
+                'original_name' => $attachment->original_name,
+                'mime_type' => $attachment->mime_type,
+                'size' => (int) $attachment->size,
+                'created_at' => $attachment->created_at?->toIso8601String(),
+                'download_url' => route('core.attachments.download', $attachment),
+            ]);
+
         return Inertia::render('accounting/manual-journals/edit', [
             'manualJournal' => [
                 'id' => $manualJournal->id,
@@ -136,6 +159,12 @@ class AccountingManualJournalsController extends Controller
                 'journal_id' => $manualJournal->journal_id,
                 'journal_name' => $manualJournal->journal?->name,
                 'status' => $manualJournal->status,
+                'requires_approval' => $manualJournal->requires_approval,
+                'approval_status' => $manualJournal->approval_status,
+                'approval_requested_at' => $manualJournal->approval_requested_at?->toIso8601String(),
+                'approved_at' => $manualJournal->approved_at?->toIso8601String(),
+                'rejected_at' => $manualJournal->rejected_at?->toIso8601String(),
+                'rejection_reason' => $manualJournal->rejection_reason,
                 'entry_date' => $manualJournal->entry_date?->toDateString(),
                 'reference' => $manualJournal->reference,
                 'description' => $manualJournal->description,
@@ -155,6 +184,7 @@ class AccountingManualJournalsController extends Controller
                     ->values()
                     ->all(),
             ],
+            'attachments' => $attachments,
             'journals' => $this->journalOptions(),
             'accounts' => $this->accountOptions(),
         ]);
@@ -164,14 +194,19 @@ class AccountingManualJournalsController extends Controller
         AccountingManualJournalUpdateRequest $request,
         AccountingManualJournal $manualJournal,
         AccountingManualJournalWorkflowService $workflowService,
+        ApprovalQueueService $approvalQueueService,
     ): RedirectResponse {
         $this->authorize('update', $manualJournal);
 
-        $workflowService->updateDraft(
+        $manualJournal = $workflowService->updateDraft(
             manualJournal: $manualJournal,
             attributes: $request->validated(),
             actorId: $request->user()?->id,
         );
+
+        if ($company = $request->user()?->currentCompany) {
+            $approvalQueueService->syncPendingRequests($company, $request->user()?->id);
+        }
 
         return redirect()
             ->route('company.accounting.manual-journals.edit', $manualJournal)
@@ -210,12 +245,19 @@ class AccountingManualJournalsController extends Controller
             ->with('success', 'Manual journal reversed.');
     }
 
-    public function destroy(AccountingManualJournal $manualJournal): RedirectResponse
-    {
+    public function destroy(
+        Request $request,
+        AccountingManualJournal $manualJournal,
+        ApprovalQueueService $approvalQueueService,
+    ): RedirectResponse {
         $this->authorize('delete', $manualJournal);
 
         $manualJournal->lines()->delete();
         $manualJournal->delete();
+
+        if ($company = $request->user()?->currentCompany) {
+            $approvalQueueService->syncPendingRequests($company, $request->user()?->id);
+        }
 
         return redirect()
             ->route('company.accounting.manual-journals.index')

@@ -24,6 +24,7 @@ class SettingsController extends Controller
         'company.approvals.enabled',
         'company.approvals.policy',
         'company.approvals.threshold_amount',
+        'company.accounting.manual_journal_approval_threshold',
         'company.approvals.escalation_hours',
         'company.numbering.sales_order_prefix',
         'company.numbering.sales_order_next',
@@ -61,6 +62,7 @@ class SettingsController extends Controller
             'approval_enabled' => ['nullable', 'boolean'],
             'approval_policy' => ['nullable', 'string', Rule::in(['none', 'amount_based', 'always'])],
             'approval_threshold_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'manual_journal_approval_threshold' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
             'approval_escalation_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
             'sales_order_prefix' => ['nullable', 'string', 'max:12', 'regex:/^[A-Z0-9-]+$/'],
             'sales_order_next_number' => ['nullable', 'integer', 'min:1', 'max:999999999'],
@@ -163,6 +165,15 @@ class SettingsController extends Controller
                 $actorId
             );
         }
+        if (array_key_exists('manual_journal_approval_threshold', $data)) {
+            $settingsService->set(
+                'company.accounting.manual_journal_approval_threshold',
+                $data['manual_journal_approval_threshold'],
+                $companyId,
+                null,
+                $actorId
+            );
+        }
         if (array_key_exists('approval_escalation_hours', $data)) {
             $settingsService->set(
                 'company.approvals.escalation_hours',
@@ -252,6 +263,8 @@ class SettingsController extends Controller
             'approval_enabled' => (bool) ($settings['company.approvals.enabled'] ?? false),
             'approval_policy' => $settings['company.approvals.policy'] ?? 'none',
             'approval_threshold_amount' => $settings['company.approvals.threshold_amount'] ?? 10000,
+            'manual_journal_approval_threshold' => $settings['company.accounting.manual_journal_approval_threshold']
+                ?? ($settings['company.approvals.threshold_amount'] ?? 10000),
             'approval_escalation_hours' => $settings['company.approvals.escalation_hours'] ?? 24,
             'sales_order_prefix' => $settings['company.numbering.sales_order_prefix'] ?? 'SO',
             'sales_order_next_number' => $settings['company.numbering.sales_order_next'] ?? 1001,
