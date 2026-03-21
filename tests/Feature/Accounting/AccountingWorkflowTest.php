@@ -1129,3 +1129,126 @@ XML;
     expect($line?->payment_id)->toBe($payment?->id);
     expect($line?->reference)->toBe('CAMT-IMPORT-522');
 });
+
+test('bank statement unmatched lines can be manually rematched and cleared', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
+        'accounting.bank_reconciliation.manage',
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $partners = collect(range(1, 2))->map(function (int $index) use ($company, $user) {
+        return Partner::create([
+            'company_id' => $company->id,
+            'name' => 'Manual Match Customer '.$index.' '.Str::upper(Str::random(4)),
+            'type' => 'customer',
+            'is_active' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+    });
+
+    foreach ($partners as $index => $partner) {
+        $invoiceNotes = 'Manual match invoice '.$index;
+
+        actingAs($user)
+            ->post(route('company.accounting.invoices.store'), [
+                'partner_id' => $partner->id,
+                'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+                'sales_order_id' => null,
+                'invoice_date' => now()->toDateString(),
+                'due_date' => now()->addDays(30)->toDateString(),
+                'notes' => $invoiceNotes,
+                'lines' => [[
+                    'product_id' => null,
+                    'description' => 'Retainer',
+                    'quantity' => 1,
+                    'unit_price' => 410,
+                    'tax_rate' => 0,
+                ]],
+            ])
+            ->assertRedirect();
+
+        $invoice = AccountingInvoice::query()
+            ->where('notes', $invoiceNotes)
+            ->first();
+
+        actingAs($user)
+            ->post(route('company.accounting.invoices.post', $invoice))
+            ->assertRedirect();
+
+        actingAs($user)
+            ->post(route('company.accounting.payments.store'), [
+                'invoice_id' => $invoice?->id,
+                'payment_date' => now()->subDays($index)->toDateString(),
+                'amount' => 410,
+                'method' => 'bank_transfer',
+                'reference' => 'MANUAL-MATCH-410-'.$index,
+                'notes' => 'Manual match payment '.$index,
+            ])
+            ->assertRedirect();
+
+        $payment = AccountingPayment::query()
+            ->where('reference', 'MANUAL-MATCH-410-'.$index)
+            ->first();
+
+        actingAs($user)
+            ->post(route('company.accounting.payments.post', $payment))
+            ->assertRedirect();
+    }
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $csv = implode("\n", [
+        'date,reference,description,amount',
+        now()->toDateString().',,Needs manual match,410.00',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('manual-match.csv', $csv);
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.import'), [
+            'journal_id' => $setup['journals']['bank']->id,
+            'statement_reference' => 'MANUAL-MATCH-STATEMENT-2026-03',
+            'statement_date' => now()->toDateString(),
+            'notes' => 'Manual match import',
+            'file' => $file,
+        ])
+        ->assertRedirect();
+
+    $statementImport = AccountingBankStatementImport::query()->first();
+    $line = $statementImport?->lines()->first();
+    $selectedPayment = AccountingPayment::query()
+        ->where('reference', 'MANUAL-MATCH-410-1')
+        ->first();
+
+    expect($line?->match_status)->toBe('unmatched');
+    expect($line?->payment_id)->toBeNull();
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.lines.match', $line), [
+            'payment_id' => $selectedPayment?->id,
+        ])
+        ->assertRedirect();
+
+    expect($line?->fresh()->match_status)->toBe('matched');
+    expect($line?->fresh()->payment_id)->toBe($selectedPayment?->id);
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.lines.match', $line), [])
+        ->assertRedirect();
+
+    expect($line?->fresh()->match_status)->toBe('unmatched');
+    expect($line?->fresh()->payment_id)->toBeNull();
+});

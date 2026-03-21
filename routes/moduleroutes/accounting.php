@@ -27,6 +27,8 @@ Route::prefix('accounting')->name('accounting.')->group(function () {
         ->name('bank-reconciliation.index');
     Route::post('bank-reconciliation/import', [AccountingBankReconciliationController::class, 'import'])
         ->name('bank-reconciliation.import');
+    Route::post('bank-reconciliation/lines/{line}/match', [AccountingBankReconciliationController::class, 'matchLine'])
+        ->name('bank-reconciliation.lines.match');
     Route::post('bank-reconciliation', [AccountingBankReconciliationController::class, 'store'])
         ->name('bank-reconciliation.store');
     Route::post('bank-reconciliation/{batch}/unreconcile', [AccountingBankReconciliationController::class, 'unreconcile'])

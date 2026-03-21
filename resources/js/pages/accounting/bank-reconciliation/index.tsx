@@ -6,11 +6,22 @@ import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 
 type JournalOption = {
     id: string;
     code: string;
     name: string;
+};
+
+type CandidatePayment = {
+    id: string;
+    payment_number?: string | null;
+    reference?: string | null;
+    invoice_number?: string | null;
+    partner_name?: string | null;
+    payment_date?: string | null;
+    amount: number;
 };
 
 type ImportLine = {
@@ -23,8 +34,11 @@ type ImportLine = {
     match_status: string;
     payment_id?: string | null;
     payment_number?: string | null;
+    payment_reference?: string | null;
     invoice_number?: string | null;
     partner_name?: string | null;
+    candidate_payments: CandidatePayment[];
+    can_manage_match: boolean;
 };
 
 type ActiveImport = {
@@ -97,6 +111,9 @@ export default function AccountingBankReconciliationIndex({
 }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('accounting.bank_reconciliation.manage');
+    const [matchSelections, setMatchSelections] = useState<
+        Record<string, string>
+    >({});
     const importForm = useForm({
         journal_id: importDefaults.journal_id,
         statement_reference: importDefaults.statement_reference,
@@ -114,6 +131,9 @@ export default function AccountingBankReconciliationIndex({
 
     const matchedLines =
         activeImport?.lines.filter((line) => line.match_status === 'matched') ??
+        [];
+    const exceptionLines =
+        activeImport?.lines.filter((line) => line.match_status !== 'matched') ??
         [];
 
     const selectedTotal = matchedLines
@@ -156,6 +176,14 @@ export default function AccountingBankReconciliationIndex({
         );
     };
 
+    const handleLineMatch = (line: ImportLine, paymentId?: string | null) => {
+        router.post(
+            `/company/accounting/bank-reconciliation/lines/${line.id}/match`,
+            paymentId ? { payment_id: paymentId } : {},
+            { preserveScroll: true },
+        );
+    };
+
     return (
         <AppLayout
             breadcrumbs={[
@@ -175,9 +203,9 @@ export default function AccountingBankReconciliationIndex({
                         Bank reconciliation
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Import statement CSVs, review matched lines, and create
-                        reconciliation batches from the imported statement
-                        itself.
+                        Import bank statements, review matched lines, resolve
+                        exceptions, and create reconciliation batches from the
+                        statement itself.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -438,6 +466,9 @@ export default function AccountingBankReconciliationIndex({
                                         <th className="px-4 py-3 font-medium">
                                             Partner
                                         </th>
+                                        <th className="px-4 py-3 text-right font-medium">
+                                            Action
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -445,7 +476,7 @@ export default function AccountingBankReconciliationIndex({
                                         <tr>
                                             <td
                                                 className="px-4 py-8 text-center text-muted-foreground"
-                                                colSpan={10}
+                                                colSpan={11}
                                             >
                                                 No statement lines were imported.
                                             </td>
@@ -505,6 +536,32 @@ export default function AccountingBankReconciliationIndex({
                                                 <td className="px-4 py-3">
                                                     {line.partner_name ?? '-'}
                                                 </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    {line.can_manage_match &&
+                                                    line.payment_id &&
+                                                    !activeImport.reconciled_batch_id ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                handleLineMatch(
+                                                                    line,
+                                                                    null,
+                                                                )
+                                                            }
+                                                        >
+                                                            Clear match
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {line.match_status ===
+                                                            'matched'
+                                                                ? 'Ready'
+                                                                : 'Review'}
+                                                        </span>
+                                                    )}
+                                                </td>
                                             </tr>
                                         );
                                     })}
@@ -512,6 +569,185 @@ export default function AccountingBankReconciliationIndex({
                             </table>
                         </div>
                     </form>
+
+                    {exceptionLines.length > 0 && (
+                        <div className="mt-6">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="text-sm font-semibold">
+                                        Resolve exceptions
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Match unmatched or duplicate statement
+                                        lines before creating the reconciliation
+                                        batch.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                                {exceptionLines.map((line) => {
+                                    const selectedPaymentId =
+                                        matchSelections[line.id] ??
+                                        line.payment_id ??
+                                        line.candidate_payments[0]?.id ??
+                                        '';
+
+                                    return (
+                                        <div
+                                            key={line.id}
+                                            className="rounded-xl border p-4"
+                                        >
+                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold">
+                                                        Line {line.line_number}
+                                                    </p>
+                                                    <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+                                                        {line.match_status}
+                                                    </p>
+                                                </div>
+                                                <p className="text-sm font-medium">
+                                                    {line.amount.toFixed(2)}
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                                                <p>
+                                                    Date:{' '}
+                                                    <span className="text-foreground">
+                                                        {line.transaction_date ??
+                                                            '-'}
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Reference:{' '}
+                                                    <span className="text-foreground">
+                                                        {line.reference ?? '-'}
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Description:{' '}
+                                                    <span className="text-foreground">
+                                                        {line.description ?? '-'}
+                                                    </span>
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-4 grid gap-2">
+                                                <Label
+                                                    htmlFor={`match-${line.id}`}
+                                                >
+                                                    Candidate payment
+                                                </Label>
+                                                <select
+                                                    id={`match-${line.id}`}
+                                                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                                    value={selectedPaymentId}
+                                                    onChange={(event) =>
+                                                        setMatchSelections(
+                                                            (
+                                                                currentSelections,
+                                                            ) => ({
+                                                                ...currentSelections,
+                                                                [line.id]:
+                                                                    event.target
+                                                                        .value,
+                                                            }),
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        !line.can_manage_match ||
+                                                        Boolean(
+                                                            activeImport.reconciled_batch_id,
+                                                        )
+                                                    }
+                                                >
+                                                    <option value="">
+                                                        Select a payment
+                                                    </option>
+                                                    {line.candidate_payments.map(
+                                                        (payment) => (
+                                                            <option
+                                                                key={payment.id}
+                                                                value={payment.id}
+                                                            >
+                                                                {[
+                                                                    payment.payment_number,
+                                                                    payment.reference,
+                                                                    payment.invoice_number,
+                                                                    payment.partner_name,
+                                                                    payment.payment_date,
+                                                                    payment.amount.toFixed(
+                                                                        2,
+                                                                    ),
+                                                                ]
+                                                                    .filter(
+                                                                        Boolean,
+                                                                    )
+                                                                    .join(
+                                                                        ' - ',
+                                                                    )}
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                                {line.candidate_payments.length ===
+                                                    0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        No candidate payments
+                                                        were suggested for this
+                                                        line yet.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    disabled={
+                                                        !line.can_manage_match ||
+                                                        !selectedPaymentId ||
+                                                        Boolean(
+                                                            activeImport.reconciled_batch_id,
+                                                        )
+                                                    }
+                                                    onClick={() =>
+                                                        handleLineMatch(
+                                                            line,
+                                                            selectedPaymentId,
+                                                        )
+                                                    }
+                                                >
+                                                    Apply match
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={
+                                                        !line.can_manage_match ||
+                                                        Boolean(
+                                                            activeImport.reconciled_batch_id,
+                                                        )
+                                                    }
+                                                    onClick={() =>
+                                                        handleLineMatch(
+                                                            line,
+                                                            null,
+                                                        )
+                                                    }
+                                                >
+                                                    Leave unmatched
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

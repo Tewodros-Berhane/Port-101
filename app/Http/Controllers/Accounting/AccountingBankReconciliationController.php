@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Accounting\AccountingBankStatementLineMatchRequest;
 use App\Http\Requests\Accounting\AccountingBankReconciliationStoreRequest;
 use App\Http\Requests\Accounting\AccountingBankReconciliationUnreconcileRequest;
 use App\Http\Requests\Accounting\AccountingBankStatementImportRequest;
@@ -20,8 +21,11 @@ use Inertia\Response;
 
 class AccountingBankReconciliationController extends Controller
 {
-    public function index(Request $request, AccountingSetupService $setupService): Response
-    {
+    public function index(
+        Request $request,
+        AccountingSetupService $setupService,
+        AccountingBankStatementImportService $importService,
+    ): Response {
         $this->authorize('viewAny', AccountingBankReconciliationBatch::class);
 
         $company = $request->user()?->currentCompany;
@@ -123,6 +127,13 @@ class AccountingBankReconciliationController extends Controller
                 ->when($user, fn ($builder) => $user->applyDataScopeToQuery($builder))
                 ->findOrFail($filters['import_id']);
 
+            $candidatePaymentsByLine = $importService->candidatePaymentsForImport(
+                statementImport: $statementImport,
+                actor: $user,
+            );
+            $canManageMatches = ($user?->can('create', AccountingBankReconciliationBatch::class) ?? false)
+                && $statementImport->reconciled_batch_id === null;
+
             $activeImport = [
                 'id' => $statementImport->id,
                 'statement_reference' => $statementImport->statement_reference,
@@ -155,8 +166,11 @@ class AccountingBankReconciliationController extends Controller
                         'match_status' => $line->match_status,
                         'payment_id' => $line->payment_id,
                         'payment_number' => $line->payment?->payment_number,
+                        'payment_reference' => $line->payment?->reference,
                         'invoice_number' => $line->payment?->invoice?->invoice_number,
                         'partner_name' => $line->payment?->invoice?->partner?->name,
+                        'candidate_payments' => $candidatePaymentsByLine[(string) $line->id] ?? [],
+                        'can_manage_match' => $canManageMatches,
                     ])
                     ->values()
                     ->all(),
@@ -252,6 +266,39 @@ class AccountingBankReconciliationController extends Controller
         return redirect()
             ->route('company.accounting.bank-reconciliation.index')
             ->with('success', 'Bank reconciliation batch created.');
+    }
+
+    public function matchLine(
+        AccountingBankStatementLineMatchRequest $request,
+        AccountingBankStatementImportLine $line,
+        AccountingBankStatementImportService $importService,
+    ): RedirectResponse {
+        $this->authorize('create', AccountingBankReconciliationBatch::class);
+
+        if ($request->user() && ! $request->user()->canAccessDataScopedRecord($line)) {
+            abort(403);
+        }
+
+        if ((string) $line->company_id !== (string) $request->user()?->current_company_id) {
+            abort(404);
+        }
+
+        $importService->rematchLine(
+            line: $line,
+            paymentId: $request->validated('payment_id'),
+            actor: $request->user(),
+        );
+
+        return redirect()
+            ->route('company.accounting.bank-reconciliation.index', [
+                'import_id' => $line->bank_statement_import_id,
+            ])
+            ->with(
+                'success',
+                $request->validated('payment_id')
+                    ? 'Statement line matched to payment.'
+                    : 'Statement line match cleared.',
+            );
     }
 
     public function unreconcile(

@@ -44,16 +44,7 @@ class AccountingBankStatementImportService
                 abort(422, 'Statement file does not contain any usable rows.');
             }
 
-            $payments = AccountingPayment::query()
-                ->with(['invoice:id,invoice_number,partner_id', 'invoice.partner:id,name'])
-                ->where('company_id', $companyId)
-                ->whereIn('status', [
-                    AccountingPayment::STATUS_POSTED,
-                    AccountingPayment::STATUS_RECONCILED,
-                ])
-                ->whereNull('bank_reconciled_at')
-                ->when($actor, fn ($builder) => $actor->applyDataScopeToQuery($builder))
-                ->get();
+            $payments = $this->loadEligiblePayments($companyId, $actor);
 
             $statementImport = AccountingBankStatementImport::create([
                 'company_id' => $companyId,
@@ -100,6 +91,114 @@ class AccountingBankStatementImportService
                 'journal',
                 'lines.payment.invoice.partner',
             ]);
+        });
+    }
+
+    /**
+     * @return array<string, array<int, array{id: string, payment_number: string|null, reference: string|null, invoice_number: string|null, partner_name: string|null, payment_date: string|null, amount: float}>>
+     */
+    public function candidatePaymentsForImport(
+        AccountingBankStatementImport $statementImport,
+        ?User $actor = null,
+    ): array {
+        $statementImport->loadMissing(['lines.payment.invoice.partner']);
+
+        $payments = $this->loadEligiblePayments(
+            companyId: (string) $statementImport->company_id,
+            actor: $actor,
+        );
+
+        return $statementImport->lines
+            ->mapWithKeys(function (AccountingBankStatementImportLine $line) use ($payments, $statementImport) {
+                $reservedPaymentIds = $statementImport->lines
+                    ->filter(fn (AccountingBankStatementImportLine $candidate) => $candidate->id !== $line->id)
+                    ->filter(fn (AccountingBankStatementImportLine $candidate) => $candidate->match_status === AccountingBankStatementImportLine::MATCH_STATUS_MATCHED)
+                    ->filter(fn (AccountingBankStatementImportLine $candidate) => $candidate->payment_id !== null)
+                    ->map(fn (AccountingBankStatementImportLine $candidate) => (string) $candidate->payment_id)
+                    ->values()
+                    ->all();
+
+                $candidates = $this->findCandidatePayments(
+                    row: $this->lineToRow($line),
+                    payments: $payments,
+                    usedPaymentIds: $reservedPaymentIds,
+                    currentPaymentId: $line->payment_id ? (string) $line->payment_id : null,
+                )
+                    ->map(fn (AccountingPayment $payment) => [
+                        'id' => (string) $payment->id,
+                        'payment_number' => $payment->payment_number,
+                        'reference' => $payment->reference,
+                        'invoice_number' => $payment->invoice?->invoice_number,
+                        'partner_name' => $payment->invoice?->partner?->name,
+                        'payment_date' => $payment->payment_date?->toDateString(),
+                        'amount' => (float) $payment->amount,
+                    ])
+                    ->values()
+                    ->all();
+
+                return [(string) $line->id => $candidates];
+            })
+            ->all();
+    }
+
+    public function rematchLine(
+        AccountingBankStatementImportLine $line,
+        ?string $paymentId,
+        ?User $actor = null,
+    ): AccountingBankStatementImportLine {
+        return DB::transaction(function () use ($line, $paymentId, $actor) {
+            $line = AccountingBankStatementImportLine::query()
+                ->with(['import', 'payment.invoice.partner'])
+                ->lockForUpdate()
+                ->findOrFail($line->id);
+
+            $statementImport = AccountingBankStatementImport::query()
+                ->with('lines:id,bank_statement_import_id,match_status,payment_id')
+                ->lockForUpdate()
+                ->findOrFail($line->bank_statement_import_id);
+
+            if ($statementImport->reconciled_batch_id) {
+                abort(422, 'Cannot change matches on a reconciled bank statement import.');
+            }
+
+            if (! $paymentId || trim($paymentId) === '') {
+                $line->update([
+                    'payment_id' => null,
+                    'match_status' => AccountingBankStatementImportLine::MATCH_STATUS_UNMATCHED,
+                    'updated_by' => $actor?->id,
+                ]);
+
+                return $line->fresh(['payment.invoice.partner']);
+            }
+
+            $reservedPaymentIds = $statementImport->lines
+                ->filter(fn (AccountingBankStatementImportLine $candidate) => $candidate->id !== $line->id)
+                ->filter(fn (AccountingBankStatementImportLine $candidate) => $candidate->match_status === AccountingBankStatementImportLine::MATCH_STATUS_MATCHED)
+                ->filter(fn (AccountingBankStatementImportLine $candidate) => $candidate->payment_id !== null)
+                ->map(fn (AccountingBankStatementImportLine $candidate) => (string) $candidate->payment_id)
+                ->values()
+                ->all();
+
+            if (in_array($paymentId, $reservedPaymentIds, true)) {
+                abort(422, 'Selected payment is already assigned to another statement line.');
+            }
+
+            $payment = $this->loadEligiblePayments(
+                companyId: (string) $statementImport->company_id,
+                actor: $actor,
+            )->firstWhere('id', $paymentId);
+
+            if (! $payment) {
+                abort(422, 'Selected payment is not available for statement matching.');
+            }
+
+            $line->update([
+                'payment_id' => $payment->id,
+                'match_status' => AccountingBankStatementImportLine::MATCH_STATUS_MATCHED,
+                'updated_by' => $actor?->id,
+            ]);
+
+            return $line->fresh(['payment.invoice.partner']);
         });
     }
 
@@ -417,6 +516,97 @@ class AccountingBankStatementImportService
     }
 
     /**
+     * @param  array{transaction_date: string|null, reference: string|null, description: string|null, amount: float}  $row
+     * @param  array<int, string>  $usedPaymentIds
+     * @return Collection<int, AccountingPayment>
+     */
+    private function findCandidatePayments(
+        array $row,
+        Collection $payments,
+        array $usedPaymentIds = [],
+        ?string $currentPaymentId = null,
+    ): Collection {
+        $referenceToken = $this->normalizeReference(
+            $row['reference'] ?: $row['description'],
+        );
+        $descriptionToken = $this->normalizeReference($row['description']);
+        $amount = round((float) $row['amount'], 2);
+        $transactionDate = $row['transaction_date']
+            ? CarbonImmutable::parse($row['transaction_date'])
+            : null;
+
+        return $payments
+            ->reject(function (AccountingPayment $payment) use ($usedPaymentIds, $currentPaymentId) {
+                return in_array((string) $payment->id, $usedPaymentIds, true)
+                    && (string) $payment->id !== $currentPaymentId;
+            })
+            ->map(function (AccountingPayment $payment) use (
+                $amount,
+                $referenceToken,
+                $descriptionToken,
+                $transactionDate,
+                $currentPaymentId,
+            ) {
+                if (abs(round((float) $payment->amount, 2) - $amount) > 0.01) {
+                    return null;
+                }
+
+                $tokens = collect([
+                    $payment->reference,
+                    $payment->payment_number,
+                    $payment->invoice?->invoice_number,
+                    $payment->invoice?->partner?->name,
+                ])
+                    ->filter()
+                    ->map(fn ($value) => $this->normalizeReference((string) $value))
+                    ->filter()
+                    ->values();
+
+                $score = 0;
+
+                if ($referenceToken && $tokens->contains($referenceToken)) {
+                    $score += 120;
+                }
+
+                if ($descriptionToken && $tokens->contains($descriptionToken)) {
+                    $score += 45;
+                }
+
+                if ($transactionDate && $payment->payment_date) {
+                    $dayDifference = abs($payment->payment_date->diffInDays($transactionDate));
+
+                    if ($dayDifference <= 3) {
+                        $score += 35;
+                    } elseif ($dayDifference <= 7) {
+                        $score += 20;
+                    } elseif ($dayDifference <= 30) {
+                        $score += 10;
+                    }
+                } else {
+                    $score += 5;
+                }
+
+                if ((string) $payment->id === $currentPaymentId) {
+                    $score += 200;
+                }
+
+                if ($score === 0) {
+                    $score = 1;
+                }
+
+                return [
+                    'score' => $score,
+                    'payment' => $payment,
+                ];
+            })
+            ->filter()
+            ->sortByDesc('score')
+            ->take(6)
+            ->map(fn (array $candidate) => $candidate['payment'])
+            ->values();
+    }
+
+    /**
      * @param  array<string, string|null>  $row
      */
     private function resolveAmount(array $row): ?float
@@ -558,5 +748,34 @@ class AccountingBankStatementImportService
         }
 
         return abs($normalizedAmount);
+    }
+
+    private function loadEligiblePayments(string $companyId, ?User $actor = null): Collection
+    {
+        return AccountingPayment::query()
+            ->with(['invoice:id,invoice_number,partner_id', 'invoice.partner:id,name'])
+            ->where('company_id', $companyId)
+            ->whereIn('status', [
+                AccountingPayment::STATUS_POSTED,
+                AccountingPayment::STATUS_RECONCILED,
+            ])
+            ->whereNull('bank_reconciled_at')
+            ->when($actor, fn ($builder) => $actor->applyDataScopeToQuery($builder))
+            ->orderByDesc('payment_date')
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    /**
+     * @return array{transaction_date: string|null, reference: string|null, description: string|null, amount: float}
+     */
+    private function lineToRow(AccountingBankStatementImportLine $line): array
+    {
+        return [
+            'transaction_date' => $line->transaction_date?->toDateString(),
+            'reference' => $line->reference,
+            'description' => $line->description,
+            'amount' => (float) $line->amount,
+        ];
     }
 }
