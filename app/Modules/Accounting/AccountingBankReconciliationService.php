@@ -99,6 +99,68 @@ class AccountingBankReconciliationService
         });
     }
 
+    public function unreconcileBatch(
+        AccountingBankReconciliationBatch $batch,
+        string $reason,
+        ?User $actor = null,
+    ): AccountingBankReconciliationBatch {
+        return DB::transaction(function () use ($batch, $reason, $actor) {
+            $batch = AccountingBankReconciliationBatch::query()
+                ->with(['items.payment'])
+                ->lockForUpdate()
+                ->findOrFail($batch->id);
+
+            if (! $batch->reconciled_at) {
+                abort(422, 'Only reconciled bank batches can be unreconciled.');
+            }
+
+            if ($batch->unreconciled_at) {
+                return $batch;
+            }
+
+            $unreconciledAt = now();
+
+            foreach ($batch->items as $item) {
+                $payment = $item->payment;
+
+                if (! $payment) {
+                    continue;
+                }
+
+                $payment->update([
+                    'bank_reconciled_at' => null,
+                    'bank_reconciled_by' => null,
+                    'updated_by' => $actor?->id,
+                ]);
+
+                AccountingLedgerEntry::query()
+                    ->where('company_id', $batch->company_id)
+                    ->where('source_type', AccountingPayment::class)
+                    ->where('source_id', $payment->id)
+                    ->where('source_action', AccountingLedgerEntry::ACTION_PAYMENT_POST)
+                    ->update([
+                        'reconciled_at' => null,
+                        'updated_by' => $actor?->id,
+                        'updated_at' => $unreconciledAt,
+                    ]);
+            }
+
+            $batch->update([
+                'unreconciled_at' => $unreconciledAt,
+                'unreconciled_by' => $actor?->id,
+                'unreconcile_reason' => $reason,
+                'updated_by' => $actor?->id,
+            ]);
+
+            return $batch->fresh([
+                'journal',
+                'items.payment.invoice.partner',
+                'reconciledBy:id,name',
+                'unreconciledBy:id,name',
+            ]);
+        });
+    }
+
     private function resolveJournal(string $journalId, string $companyId): AccountingJournal
     {
         $journal = AccountingJournal::query()

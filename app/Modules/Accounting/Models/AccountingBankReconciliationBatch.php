@@ -33,6 +33,9 @@ class AccountingBankReconciliationBatch extends Model
         'notes',
         'reconciled_by',
         'reconciled_at',
+        'unreconciled_by',
+        'unreconciled_at',
+        'unreconcile_reason',
         'created_by',
         'updated_by',
     ];
@@ -42,6 +45,7 @@ class AccountingBankReconciliationBatch extends Model
         return [
             'statement_date' => 'date',
             'reconciled_at' => 'datetime',
+            'unreconciled_at' => 'datetime',
         ];
     }
 
@@ -63,6 +67,11 @@ class AccountingBankReconciliationBatch extends Model
     public function reconciledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reconciled_by');
+    }
+
+    public function unreconciledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'unreconciled_by');
     }
 
     public function createdBy(): BelongsTo

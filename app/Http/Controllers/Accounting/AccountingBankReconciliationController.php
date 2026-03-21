@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\AccountingBankReconciliationStoreRequest;
+use App\Http\Requests\Accounting\AccountingBankReconciliationUnreconcileRequest;
 use App\Modules\Accounting\AccountingBankReconciliationService;
 use App\Modules\Accounting\AccountingSetupService;
 use App\Modules\Accounting\Models\AccountingBankReconciliationBatch;
@@ -60,7 +61,12 @@ class AccountingBankReconciliationController extends Controller
             ->all();
 
         $recentBatches = AccountingBankReconciliationBatch::query()
-            ->with(['journal:id,code,name', 'items:id,batch_id,amount'])
+            ->with([
+                'journal:id,code,name',
+                'items:id,batch_id,amount',
+                'reconciledBy:id,name',
+                'unreconciledBy:id,name',
+            ])
             ->latest('statement_date')
             ->latest('created_at')
             ->when($user, fn ($builder) => $user->applyDataScopeToQuery($builder))
@@ -78,6 +84,11 @@ class AccountingBankReconciliationController extends Controller
                     'item_count' => $batch->items->count(),
                     'total_amount' => $totalAmount,
                     'reconciled_at' => $batch->reconciled_at?->toIso8601String(),
+                    'reconciled_by' => $batch->reconciledBy?->name,
+                    'unreconciled_at' => $batch->unreconciled_at?->toIso8601String(),
+                    'unreconciled_by' => $batch->unreconciledBy?->name,
+                    'unreconcile_reason' => $batch->unreconcile_reason,
+                    'can_unreconcile' => $user?->can('unreconcile', $batch) ?? false,
                 ];
             })
             ->values()
@@ -130,5 +141,23 @@ class AccountingBankReconciliationController extends Controller
         return redirect()
             ->route('company.accounting.bank-reconciliation.index')
             ->with('success', 'Bank reconciliation batch created.');
+    }
+
+    public function unreconcile(
+        AccountingBankReconciliationUnreconcileRequest $request,
+        AccountingBankReconciliationBatch $batch,
+        AccountingBankReconciliationService $service,
+    ): RedirectResponse {
+        $this->authorize('unreconcile', $batch);
+
+        $service->unreconcileBatch(
+            batch: $batch,
+            reason: (string) $request->validated('reason'),
+            actor: $request->user(),
+        );
+
+        return redirect()
+            ->route('company.accounting.bank-reconciliation.index')
+            ->with('success', 'Bank reconciliation batch unreconciled.');
     }
 }

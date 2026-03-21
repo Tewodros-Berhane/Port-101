@@ -27,6 +27,8 @@ Route::prefix('accounting')->name('accounting.')->group(function () {
         ->name('bank-reconciliation.index');
     Route::post('bank-reconciliation', [AccountingBankReconciliationController::class, 'store'])
         ->name('bank-reconciliation.store');
+    Route::post('bank-reconciliation/{batch}/unreconcile', [AccountingBankReconciliationController::class, 'unreconcile'])
+        ->name('bank-reconciliation.unreconcile');
     Route::resource('manual-journals', AccountingManualJournalsController::class)
         ->except(['show']);
     Route::post('manual-journals/{manualJournal}/post', [AccountingManualJournalsController::class, 'post'])

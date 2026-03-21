@@ -496,3 +496,110 @@ test('bank reconciliation batches stamp payments and ledger entries', function (
         ])
         ->assertForbidden();
 });
+
+test('bank reconciliation batches can be unreconciled and release payment reversal', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
+        'accounting.bank_reconciliation.manage',
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'name' => 'Bank Unrec Customer '.Str::upper(Str::random(4)),
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.store'), [
+            'partner_id' => $partner->id,
+            'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+            'sales_order_id' => null,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'notes' => 'Bank unreconcile test invoice',
+            'lines' => [[
+                'product_id' => null,
+                'description' => 'Support retainer',
+                'quantity' => 1,
+                'unit_price' => 220,
+                'tax_rate' => 0,
+            ]],
+        ])
+        ->assertRedirect();
+
+    $invoice = AccountingInvoice::query()->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.post', $invoice))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.store'), [
+            'invoice_id' => $invoice?->id,
+            'payment_date' => now()->toDateString(),
+            'amount' => 220,
+            'method' => 'bank_transfer',
+            'reference' => 'BANK-UNREC-220',
+            'notes' => 'Statement line payment',
+        ])
+        ->assertRedirect();
+
+    $payment = AccountingPayment::query()->where('reference', 'BANK-UNREC-220')->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.post', $payment))
+        ->assertRedirect();
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.store'), [
+            'journal_id' => $setup['journals']['bank']->id,
+            'statement_reference' => 'STATEMENT-2026-04',
+            'statement_date' => now()->toDateString(),
+            'notes' => 'Batch for unreconcile',
+            'payment_ids' => [$payment?->id],
+        ])
+        ->assertRedirect();
+
+    $batch = AccountingBankReconciliationBatch::query()->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.unreconcile', $batch), [
+            'reason' => 'Statement imported twice',
+        ])
+        ->assertRedirect();
+
+    expect($batch?->fresh()->unreconciled_at)->not->toBeNull();
+    expect($batch?->fresh()->unreconcile_reason)->toBe('Statement imported twice');
+    expect($payment?->fresh()->bank_reconciled_at)->toBeNull();
+    expect(AccountingLedgerEntry::query()
+        ->where('source_type', AccountingPayment::class)
+        ->where('source_id', $payment?->id)
+        ->where('source_action', AccountingLedgerEntry::ACTION_PAYMENT_POST)
+        ->whereNotNull('reconciled_at')
+        ->count())->toBe(0);
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.reverse', $payment), [
+            'reason' => 'Allowed after unreconcile',
+        ])
+        ->assertRedirect();
+
+    expect($payment?->fresh()->status)->toBe(AccountingPayment::STATUS_REVERSED);
+});

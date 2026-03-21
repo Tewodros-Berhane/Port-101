@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 
 type JournalOption = {
     id: string;
@@ -33,6 +34,11 @@ type BatchRow = {
     item_count: number;
     total_amount: number;
     reconciled_at?: string | null;
+    reconciled_by?: string | null;
+    unreconciled_at?: string | null;
+    unreconciled_by?: string | null;
+    unreconcile_reason?: string | null;
+    can_unreconcile: boolean;
 };
 
 type Props = {
@@ -53,6 +59,7 @@ export default function AccountingBankReconciliationIndex({
     eligiblePayments,
     recentBatches,
 }: Props) {
+    const { hasPermission } = usePermissions();
     const form = useForm({
         journal_id: filters.journal_id,
         statement_reference: filters.statement_reference,
@@ -60,6 +67,7 @@ export default function AccountingBankReconciliationIndex({
         notes: filters.notes,
         payment_ids: [] as string[],
     });
+    const canManage = hasPermission('accounting.bank_reconciliation.manage');
 
     const selectedTotal = eligiblePayments
         .filter((payment) => form.data.payment_ids.includes(payment.id))
@@ -84,6 +92,22 @@ export default function AccountingBankReconciliationIndex({
         form.setData(
             'payment_ids',
             checked ? eligiblePayments.map((payment) => payment.id) : [],
+        );
+    };
+
+    const handleUnreconcile = (batch: BatchRow) => {
+        const reason = window.prompt(
+            `Unreconcile ${batch.statement_reference}. Enter a reason for the audit trail.`,
+        );
+
+        if (!reason || reason.trim() === '') {
+            return;
+        }
+
+        router.post(
+            `/company/accounting/bank-reconciliation/${batch.id}/unreconcile`,
+            { reason: reason.trim() },
+            { preserveScroll: true },
         );
     };
 
@@ -353,7 +377,13 @@ export default function AccountingBankReconciliationIndex({
                                 <th className="px-4 py-3 font-medium">Items</th>
                                 <th className="px-4 py-3 font-medium">Total</th>
                                 <th className="px-4 py-3 font-medium">
-                                    Reconciled at
+                                    Status
+                                </th>
+                                <th className="px-4 py-3 font-medium">
+                                    Reconciliation
+                                </th>
+                                <th className="px-4 py-3 text-right font-medium">
+                                    Actions
                                 </th>
                             </tr>
                         </thead>
@@ -362,7 +392,7 @@ export default function AccountingBankReconciliationIndex({
                                 <tr>
                                     <td
                                         className="px-4 py-8 text-center text-muted-foreground"
-                                        colSpan={6}
+                                        colSpan={8}
                                     >
                                         No bank reconciliation batches created
                                         yet.
@@ -389,7 +419,49 @@ export default function AccountingBankReconciliationIndex({
                                         {batch.total_amount.toFixed(2)}
                                     </td>
                                     <td className="px-4 py-3">
-                                        {batch.reconciled_at ?? '-'}
+                                        {batch.unreconciled_at
+                                            ? 'Unreconciled'
+                                            : 'Reconciled'}
+                                    </td>
+                                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                                        <p>
+                                            {batch.reconciled_by
+                                                ? `${batch.reconciled_by} · ${formatDateTime(batch.reconciled_at)}`
+                                                : formatDateTime(batch.reconciled_at)}
+                                        </p>
+                                        {batch.unreconciled_at && (
+                                            <>
+                                                <p className="mt-1">
+                                                    {batch.unreconciled_by
+                                                        ? `${batch.unreconciled_by} · ${formatDateTime(batch.unreconciled_at)}`
+                                                        : formatDateTime(batch.unreconciled_at)}
+                                                </p>
+                                                <p className="mt-1">
+                                                    {batch.unreconcile_reason ??
+                                                        '-'}
+                                                </p>
+                                            </>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        {canManage && batch.can_unreconcile ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleUnreconcile(batch)
+                                                }
+                                            >
+                                                Unreconcile
+                                            </Button>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                {batch.unreconciled_at
+                                                    ? 'Closed'
+                                                    : '-'}
+                                            </span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -399,4 +471,8 @@ export default function AccountingBankReconciliationIndex({
             </div>
         </AppLayout>
     );
+}
+
+function formatDateTime(value?: string | null) {
+    return value ? new Date(value).toLocaleString() : '-';
 }
