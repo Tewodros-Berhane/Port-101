@@ -10,11 +10,26 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class AccountingBankReconciliationItem extends Model
+class AccountingBankStatementImportLine extends Model
 {
     use CompanyScoped;
     use HasFactory;
     use HasUuids;
+
+    public const MATCH_STATUS_MATCHED = 'matched';
+
+    public const MATCH_STATUS_UNMATCHED = 'unmatched';
+
+    public const MATCH_STATUS_DUPLICATE = 'duplicate';
+
+    /**
+     * @var array<int, string>
+     */
+    public const MATCH_STATUSES = [
+        self::MATCH_STATUS_MATCHED,
+        self::MATCH_STATUS_UNMATCHED,
+        self::MATCH_STATUS_DUPLICATE,
+    ];
 
     public $incrementing = false;
 
@@ -22,12 +37,14 @@ class AccountingBankReconciliationItem extends Model
 
     protected $fillable = [
         'company_id',
-        'batch_id',
-        'payment_id',
+        'bank_statement_import_id',
+        'line_number',
+        'transaction_date',
+        'reference',
+        'description',
         'amount',
-        'statement_line_date',
-        'statement_line_reference',
-        'statement_line_description',
+        'match_status',
+        'payment_id',
         'created_by',
         'updated_by',
     ];
@@ -35,8 +52,8 @@ class AccountingBankReconciliationItem extends Model
     protected function casts(): array
     {
         return [
+            'transaction_date' => 'date',
             'amount' => 'decimal:2',
-            'statement_line_date' => 'date',
         ];
     }
 
@@ -45,9 +62,9 @@ class AccountingBankReconciliationItem extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function batch(): BelongsTo
+    public function import(): BelongsTo
     {
-        return $this->belongsTo(AccountingBankReconciliationBatch::class, 'batch_id');
+        return $this->belongsTo(AccountingBankStatementImport::class, 'bank_statement_import_id');
     }
 
     public function payment(): BelongsTo

@@ -90,6 +90,9 @@
 - Phase B Sales MVP implemented: company Sales module now supports lead -> quote -> order workflow with lifecycle actions, company-scoped permissions/policies, approval-threshold enforcement, numbering sequences, and order-confirmation event emission for downstream inventory/accounting handoffs.
 - Phase C Inventory MVP implemented: warehouses/locations CRUD, stock levels, receipts/deliveries/transfers workflow actions (reserve/complete/cancel), inventory dashboard KPIs, and automatic stock-move reservation on sales-order confirmation.
 - Phase D Accounting foundations expanded beyond lite invoicing: chart of accounts, journals, general-ledger entries, double-entry posting/reversal on invoice and payment workflows, manual journal workflow, bank reconciliation batches, financial statements/trial balance/cash-flow reporting, accounting foundation pages (`/company/accounting/accounts`, `/journals`, `/ledger`, `/statements`, `/manual-journals`, `/bank-reconciliation`), demo-data ledger backfill, and end-to-end feature coverage.
+- Accounting reconciliation controls expanded with explicit bank-batch unreconcile workflow (audit-tracked unreconcile actor/reason, payment/ledger stamp rollback, and reversible import lock release).
+- Manual journals now support approval thresholds and supporting-document attachments (company setting for threshold override, approvals queue sync, posting gate until approval, and attachments panel on edit view).
+- Bank reconciliation now supports persisted bank-statement CSV import with line-level matching, preview/review, and batch creation from imported statement lines instead of manual payment picking.
 - Phase E Purchasing MVP implemented: RFQ + purchase order schema, dashboard + RFQ/PO workflows, approval and placement controls, receipt capture with partial/full handling, and automatic vendor-bill draft handoff to accounting on receipts.
 - Phase F Approvals module implemented: `approval_requests` + `approval_steps` persistence, cross-module queue sync (sales quote/order + purchase order), authority-aware approve/reject actions, and approval SLA metrics at `/company/approvals`.
 - Phase F Reports module implemented: company reports center at `/company/reports` with operational/financial catalog coverage, shared filters/presets, PDF/XLSX exports, and financial statement exports (profit and loss, balance sheet, trial balance, cash flow summary).
@@ -132,7 +135,7 @@
 - Approval authority profile model/service foundation and SoD checks are available for upcoming module approval flows.
 - Sales module is now live at `/company/sales` with leads/quotes/orders CRUD, quote+order approvals, and conversion/confirmation workflow actions.
 - Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, and stock-move lifecycle controls.
-- Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, invoice reconciliation, bank reconciliation batches, reversal safeguards, manual journals, chart of accounts, journals, general-ledger visibility, financial statements, and sales/inventory handoff support.
+- Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, invoice reconciliation, bank reconciliation batches, unreconcile controls, persisted bank-statement CSV imports, reversal safeguards, manual journals, manual-journal approval thresholds, supporting-document attachments, chart of accounts, journals, general-ledger visibility, financial statements, and sales/inventory handoff support.
 - Purchasing module is now live at `/company/purchasing` with RFQ/PO CRUD, approval and placement lifecycle actions, receipt capture, and vendor bill handoff into accounting.
 - Approvals module is now live at `/company/approvals` with unified queue filtering, authority-checked approve/reject actions, and cross-module request tracking.
 - Reports module is now live at `/company/reports` with operational + financial report cards, preset management, PDF/XLSX exports, and financial statement exports.
@@ -156,6 +159,7 @@
 - Scheduled operations report delivery now supports targeted recipients and channel fan-out (in-app/email/webhook/Slack) with PDF/XLSX attachments for email dispatch.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
+- Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 
 ### Present but placeholder-only
 
@@ -166,7 +170,7 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `150` passed, `0` failed.
+- Result summary after latest implementation: `154` passed, `0` failed.
 
 ## Next Steps (Priority Order)
 
@@ -181,4 +185,5 @@
 - Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
+- Extend bank statement import beyond CSV into OFX/CAMT parsers and add interactive rematch rules for ambiguous lines.
 - Formalize API versioning policy (deprecation headers + change log) before exposing `/api/v1` to third parties.

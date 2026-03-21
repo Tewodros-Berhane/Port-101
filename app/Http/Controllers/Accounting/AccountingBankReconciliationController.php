@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\AccountingBankReconciliationStoreRequest;
 use App\Http\Requests\Accounting\AccountingBankReconciliationUnreconcileRequest;
+use App\Http\Requests\Accounting\AccountingBankStatementImportRequest;
 use App\Modules\Accounting\AccountingBankReconciliationService;
+use App\Modules\Accounting\AccountingBankStatementImportService;
 use App\Modules\Accounting\AccountingSetupService;
 use App\Modules\Accounting\Models\AccountingBankReconciliationBatch;
+use App\Modules\Accounting\Models\AccountingBankStatementImport;
+use App\Modules\Accounting\Models\AccountingBankStatementImportLine;
 use App\Modules\Accounting\Models\AccountingJournal;
-use App\Modules\Accounting\Models\AccountingPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -35,30 +38,9 @@ class AccountingBankReconciliationController extends Controller
 
         $user = $request->user();
 
-        $eligiblePayments = AccountingPayment::query()
-            ->with(['invoice:id,invoice_number,partner_id', 'invoice.partner:id,name'])
-            ->whereIn('status', [
-                AccountingPayment::STATUS_POSTED,
-                AccountingPayment::STATUS_RECONCILED,
-            ])
-            ->whereNull('bank_reconciled_at')
-            ->latest('payment_date')
-            ->latest('created_at')
-            ->when($user, fn ($builder) => $user->applyDataScopeToQuery($builder))
-            ->get()
-            ->map(fn (AccountingPayment $payment) => [
-                'id' => $payment->id,
-                'payment_number' => $payment->payment_number,
-                'status' => $payment->status,
-                'invoice_number' => $payment->invoice?->invoice_number,
-                'partner_name' => $payment->invoice?->partner?->name,
-                'payment_date' => $payment->payment_date?->toDateString(),
-                'amount' => (float) $payment->amount,
-                'method' => $payment->method,
-                'reference' => $payment->reference,
-            ])
-            ->values()
-            ->all();
+        $filters = $request->validate([
+            'import_id' => ['nullable', 'uuid'],
+        ]);
 
         $recentBatches = AccountingBankReconciliationBatch::query()
             ->with([
@@ -94,6 +76,93 @@ class AccountingBankReconciliationController extends Controller
             ->values()
             ->all();
 
+        $recentImports = AccountingBankStatementImport::query()
+            ->with(['journal:id,code,name', 'lines:id,bank_statement_import_id,match_status', 'reconciledBatch:id,statement_reference'])
+            ->latest('statement_date')
+            ->latest('created_at')
+            ->when($user, fn ($builder) => $user->applyDataScopeToQuery($builder))
+            ->limit(10)
+            ->get()
+            ->map(function (AccountingBankStatementImport $statementImport) {
+                $matchedCount = $statementImport->lines
+                    ->where('match_status', AccountingBankStatementImportLine::MATCH_STATUS_MATCHED)
+                    ->count();
+                $unmatchedCount = $statementImport->lines
+                    ->where('match_status', AccountingBankStatementImportLine::MATCH_STATUS_UNMATCHED)
+                    ->count();
+                $duplicateCount = $statementImport->lines
+                    ->where('match_status', AccountingBankStatementImportLine::MATCH_STATUS_DUPLICATE)
+                    ->count();
+
+                return [
+                    'id' => $statementImport->id,
+                    'statement_reference' => $statementImport->statement_reference,
+                    'statement_date' => $statementImport->statement_date?->toDateString(),
+                    'journal_name' => $statementImport->journal?->name,
+                    'journal_code' => $statementImport->journal?->code,
+                    'source_file_name' => $statementImport->source_file_name,
+                    'matched_count' => $matchedCount,
+                    'unmatched_count' => $unmatchedCount,
+                    'duplicate_count' => $duplicateCount,
+                    'reconciled_batch_id' => $statementImport->reconciled_batch_id,
+                    'reconciled_batch_reference' => $statementImport->reconciledBatch?->statement_reference,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $activeImport = null;
+
+        if (! empty($filters['import_id'])) {
+            $statementImport = AccountingBankStatementImport::query()
+                ->with([
+                    'journal:id,code,name',
+                    'lines.payment.invoice.partner',
+                    'reconciledBatch:id,statement_reference',
+                ])
+                ->when($user, fn ($builder) => $user->applyDataScopeToQuery($builder))
+                ->findOrFail($filters['import_id']);
+
+            $activeImport = [
+                'id' => $statementImport->id,
+                'statement_reference' => $statementImport->statement_reference,
+                'statement_date' => $statementImport->statement_date?->toDateString(),
+                'journal_name' => $statementImport->journal?->name,
+                'journal_code' => $statementImport->journal?->code,
+                'source_file_name' => $statementImport->source_file_name,
+                'notes' => $statementImport->notes,
+                'reconciled_batch_id' => $statementImport->reconciled_batch_id,
+                'reconciled_batch_reference' => $statementImport->reconciledBatch?->statement_reference,
+                'metrics' => [
+                    'matched' => $statementImport->lines
+                        ->where('match_status', AccountingBankStatementImportLine::MATCH_STATUS_MATCHED)
+                        ->count(),
+                    'unmatched' => $statementImport->lines
+                        ->where('match_status', AccountingBankStatementImportLine::MATCH_STATUS_UNMATCHED)
+                        ->count(),
+                    'duplicate' => $statementImport->lines
+                        ->where('match_status', AccountingBankStatementImportLine::MATCH_STATUS_DUPLICATE)
+                        ->count(),
+                ],
+                'lines' => $statementImport->lines
+                    ->map(fn (AccountingBankStatementImportLine $line) => [
+                        'id' => $line->id,
+                        'line_number' => $line->line_number,
+                        'transaction_date' => $line->transaction_date?->toDateString(),
+                        'reference' => $line->reference,
+                        'description' => $line->description,
+                        'amount' => (float) $line->amount,
+                        'match_status' => $line->match_status,
+                        'payment_id' => $line->payment_id,
+                        'payment_number' => $line->payment?->payment_number,
+                        'invoice_number' => $line->payment?->invoice?->invoice_number,
+                        'partner_name' => $line->payment?->invoice?->partner?->name,
+                    ])
+                    ->values()
+                    ->all(),
+            ];
+        }
+
         $bankJournals = AccountingJournal::query()
             ->where('journal_type', AccountingJournal::TYPE_BANK)
             ->where('is_active', true)
@@ -108,16 +177,43 @@ class AccountingBankReconciliationController extends Controller
             ->all();
 
         return Inertia::render('accounting/bank-reconciliation/index', [
-            'filters' => [
+            'importForm' => [
                 'journal_id' => $bankJournals[0]['id'] ?? '',
                 'statement_reference' => '',
                 'statement_date' => now()->toDateString(),
                 'notes' => '',
             ],
             'bankJournals' => $bankJournals,
-            'eligiblePayments' => $eligiblePayments,
+            'activeImport' => $activeImport,
+            'recentImports' => $recentImports,
             'recentBatches' => $recentBatches,
         ]);
+    }
+
+    public function import(
+        AccountingBankStatementImportRequest $request,
+        AccountingBankStatementImportService $importService,
+    ): RedirectResponse {
+        $this->authorize('create', AccountingBankReconciliationBatch::class);
+
+        $companyId = (string) $request->user()?->current_company_id;
+
+        if (! $companyId) {
+            abort(403, 'Company context not available.');
+        }
+
+        $statementImport = $importService->import(
+            file: $request->file('file'),
+            attributes: $request->validated(),
+            companyId: $companyId,
+            actor: $request->user(),
+        );
+
+        return redirect()
+            ->route('company.accounting.bank-reconciliation.index', [
+                'import_id' => $statementImport->id,
+            ])
+            ->with('success', 'Bank statement imported. Review the matched lines before reconciliation.');
     }
 
     public function store(
@@ -132,11 +228,26 @@ class AccountingBankReconciliationController extends Controller
             abort(403, 'Company context not available.');
         }
 
-        $service->createBatch(
-            attributes: $request->validated(),
-            companyId: $companyId,
-            actor: $request->user(),
-        );
+        $data = $request->validated();
+
+        if (! empty($data['bank_statement_import_id'])) {
+            $statementImport = AccountingBankStatementImport::query()
+                ->when($request->user(), fn ($builder) => $request->user()?->applyDataScopeToQuery($builder))
+                ->where('company_id', $companyId)
+                ->findOrFail((string) $data['bank_statement_import_id']);
+
+            $service->createBatchFromImport(
+                statementImport: $statementImport,
+                lineIds: array_map('strval', $data['line_ids'] ?? []),
+                actor: $request->user(),
+            );
+        } else {
+            $service->createBatch(
+                attributes: $data,
+                companyId: $companyId,
+                actor: $request->user(),
+            );
+        }
 
         return redirect()
             ->route('company.accounting.bank-reconciliation.index')

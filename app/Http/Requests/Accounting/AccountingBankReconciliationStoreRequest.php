@@ -18,12 +18,15 @@ class AccountingBankReconciliationStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'journal_id' => ['required', 'uuid', $this->companyScopedExists('accounting_journals')],
-            'statement_reference' => ['required', 'string', 'max:128'],
-            'statement_date' => ['required', 'date'],
+            'journal_id' => ['nullable', 'uuid', 'required_without:bank_statement_import_id', $this->companyScopedExists('accounting_journals')],
+            'statement_reference' => ['nullable', 'string', 'max:128', 'required_without:bank_statement_import_id'],
+            'statement_date' => ['nullable', 'date', 'required_without:bank_statement_import_id'],
             'notes' => ['nullable', 'string'],
-            'payment_ids' => ['required', 'array', 'min:1'],
+            'payment_ids' => ['nullable', 'array', 'min:1', 'required_without:bank_statement_import_id'],
             'payment_ids.*' => ['required', 'uuid', 'distinct', $this->companyScopedExists('accounting_payments')],
+            'bank_statement_import_id' => ['nullable', 'uuid', 'required_without:payment_ids', $this->companyScopedExists('accounting_bank_statement_imports')],
+            'line_ids' => ['nullable', 'array', 'min:1', 'required_with:bank_statement_import_id'],
+            'line_ids.*' => ['required', 'uuid', 'distinct', $this->companyScopedExists('accounting_bank_statement_import_lines')],
         ];
     }
 

@@ -13,16 +13,50 @@ type JournalOption = {
     name: string;
 };
 
-type EligiblePayment = {
+type ImportLine = {
     id: string;
-    payment_number: string;
-    status: string;
+    line_number: number;
+    transaction_date?: string | null;
+    reference?: string | null;
+    description?: string | null;
+    amount: number;
+    match_status: string;
+    payment_id?: string | null;
+    payment_number?: string | null;
     invoice_number?: string | null;
     partner_name?: string | null;
-    payment_date?: string | null;
-    amount: number;
-    method?: string | null;
-    reference?: string | null;
+};
+
+type ActiveImport = {
+    id: string;
+    statement_reference: string;
+    statement_date?: string | null;
+    journal_name?: string | null;
+    journal_code?: string | null;
+    source_file_name: string;
+    notes?: string | null;
+    reconciled_batch_id?: string | null;
+    reconciled_batch_reference?: string | null;
+    metrics: {
+        matched: number;
+        unmatched: number;
+        duplicate: number;
+    };
+    lines: ImportLine[];
+};
+
+type RecentImportRow = {
+    id: string;
+    statement_reference: string;
+    statement_date?: string | null;
+    journal_name?: string | null;
+    journal_code?: string | null;
+    source_file_name: string;
+    matched_count: number;
+    unmatched_count: number;
+    duplicate_count: number;
+    reconciled_batch_id?: string | null;
+    reconciled_batch_reference?: string | null;
 };
 
 type BatchRow = {
@@ -42,56 +76,67 @@ type BatchRow = {
 };
 
 type Props = {
-    filters: {
+    importForm: {
         journal_id: string;
         statement_reference: string;
         statement_date: string;
         notes: string;
     };
     bankJournals: JournalOption[];
-    eligiblePayments: EligiblePayment[];
+    activeImport?: ActiveImport | null;
+    recentImports: RecentImportRow[];
     recentBatches: BatchRow[];
 };
 
 export default function AccountingBankReconciliationIndex({
-    filters,
+    importForm: importDefaults,
     bankJournals,
-    eligiblePayments,
+    activeImport,
+    recentImports,
     recentBatches,
 }: Props) {
     const { hasPermission } = usePermissions();
-    const form = useForm({
-        journal_id: filters.journal_id,
-        statement_reference: filters.statement_reference,
-        statement_date: filters.statement_date,
-        notes: filters.notes,
-        payment_ids: [] as string[],
-    });
     const canManage = hasPermission('accounting.bank_reconciliation.manage');
+    const importForm = useForm({
+        journal_id: importDefaults.journal_id,
+        statement_reference: importDefaults.statement_reference,
+        statement_date: importDefaults.statement_date,
+        notes: importDefaults.notes,
+        file: null as File | null,
+    });
+    const reconcileForm = useForm({
+        bank_statement_import_id: activeImport?.id ?? '',
+        line_ids:
+            activeImport?.lines
+                .filter((line) => line.match_status === 'matched')
+                .map((line) => line.id) ?? [],
+    });
 
-    const selectedTotal = eligiblePayments
-        .filter((payment) => form.data.payment_ids.includes(payment.id))
-        .reduce((total, payment) => total + payment.amount, 0);
+    const matchedLines =
+        activeImport?.lines.filter((line) => line.match_status === 'matched') ??
+        [];
 
-    const allSelected =
-        eligiblePayments.length > 0 &&
-        eligiblePayments.every((payment) =>
-            form.data.payment_ids.includes(payment.id),
-        );
+    const selectedTotal = matchedLines
+        .filter((line) => reconcileForm.data.line_ids.includes(line.id))
+        .reduce((total, line) => total + line.amount, 0);
 
-    const togglePayment = (paymentId: string, checked: boolean) => {
-        form.setData(
-            'payment_ids',
+    const allMatchedSelected =
+        matchedLines.length > 0 &&
+        matchedLines.every((line) => reconcileForm.data.line_ids.includes(line.id));
+
+    const toggleMatchedLine = (lineId: string, checked: boolean) => {
+        reconcileForm.setData(
+            'line_ids',
             checked
-                ? [...form.data.payment_ids, paymentId]
-                : form.data.payment_ids.filter((id) => id !== paymentId),
+                ? [...reconcileForm.data.line_ids, lineId]
+                : reconcileForm.data.line_ids.filter((id) => id !== lineId),
         );
     };
 
-    const toggleAll = (checked: boolean) => {
-        form.setData(
-            'payment_ids',
-            checked ? eligiblePayments.map((payment) => payment.id) : [],
+    const toggleAllMatchedLines = (checked: boolean) => {
+        reconcileForm.setData(
+            'line_ids',
+            checked ? matchedLines.map((line) => line.id) : [],
         );
     };
 
@@ -130,8 +175,9 @@ export default function AccountingBankReconciliationIndex({
                         Bank reconciliation
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Match posted payments to a bank statement batch without
-                        overloading invoice reconciliation state.
+                        Import statement CSVs, review matched lines, and create
+                        reconciliation batches from the imported statement
+                        itself.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -145,21 +191,41 @@ export default function AccountingBankReconciliationIndex({
             </div>
 
             <form
-                className="mt-6 grid gap-6"
+                className="mt-6 rounded-xl border p-4"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.post('/company/accounting/bank-reconciliation');
+                    importForm.post('/company/accounting/bank-reconciliation/import', {
+                        preserveScroll: true,
+                        forceFormData: true,
+                    });
                 }}
             >
-                <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm font-semibold">
+                            Import statement
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Upload a CSV with date, amount, reference, and
+                            description columns. The matcher will map exact
+                            references first, then fall back to unique amount
+                            matches.
+                        </p>
+                    </div>
+                    <Button type="submit" disabled={importForm.processing}>
+                        Import CSV
+                    </Button>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <div className="grid gap-2 xl:col-span-2">
                         <Label htmlFor="journal_id">Bank journal</Label>
                         <select
                             id="journal_id"
                             className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.journal_id}
+                            value={importForm.data.journal_id}
                             onChange={(event) =>
-                                form.setData('journal_id', event.target.value)
+                                importForm.setData('journal_id', event.target.value)
                             }
                         >
                             <option value="">Select bank journal</option>
@@ -169,7 +235,7 @@ export default function AccountingBankReconciliationIndex({
                                 </option>
                             ))}
                         </select>
-                        <InputError message={form.errors.journal_id} />
+                        <InputError message={importForm.errors.journal_id} />
                     </div>
 
                     <div className="grid gap-2">
@@ -178,16 +244,18 @@ export default function AccountingBankReconciliationIndex({
                         </Label>
                         <Input
                             id="statement_reference"
-                            value={form.data.statement_reference}
+                            value={importForm.data.statement_reference}
                             onChange={(event) =>
-                                form.setData(
+                                importForm.setData(
                                     'statement_reference',
                                     event.target.value,
                                 )
                             }
                             placeholder="e.g. BANK-2026-03"
                         />
-                        <InputError message={form.errors.statement_reference} />
+                        <InputError
+                            message={importForm.errors.statement_reference}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -195,176 +263,345 @@ export default function AccountingBankReconciliationIndex({
                         <Input
                             id="statement_date"
                             type="date"
-                            value={form.data.statement_date}
+                            value={importForm.data.statement_date}
                             onChange={(event) =>
-                                form.setData(
+                                importForm.setData(
                                     'statement_date',
                                     event.target.value,
                                 )
                             }
                         />
-                        <InputError message={form.errors.statement_date} />
+                        <InputError message={importForm.errors.statement_date} />
                     </div>
 
-                    <div className="grid gap-2 xl:col-span-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="statement_file">CSV file</Label>
+                        <input
+                            id="statement_file"
+                            type="file"
+                            accept=".csv,.txt,text/csv"
+                            className="block h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                            onChange={(event) =>
+                                importForm.setData(
+                                    'file',
+                                    event.target.files?.[0] ?? null,
+                                )
+                            }
+                        />
+                        <InputError message={importForm.errors.file} />
+                    </div>
+
+                    <div className="grid gap-2 xl:col-span-5">
                         <Label htmlFor="notes">Notes</Label>
                         <textarea
                             id="notes"
                             className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            value={form.data.notes}
+                            value={importForm.data.notes}
                             onChange={(event) =>
-                                form.setData('notes', event.target.value)
+                                importForm.setData('notes', event.target.value)
                             }
                         />
-                        <InputError message={form.errors.notes} />
+                        <InputError message={importForm.errors.notes} />
                     </div>
                 </div>
+            </form>
 
-                <div className="rounded-xl border p-4">
+            {activeImport && (
+                <div className="mt-6 rounded-xl border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h2 className="text-sm font-semibold">
-                                Eligible payments
+                                Imported statement preview
                             </h2>
                             <p className="text-xs text-muted-foreground">
-                                Select posted payments that appear on the bank
-                                statement.
+                                {activeImport.statement_reference} ·{' '}
+                                {activeImport.source_file_name}
                             </p>
                         </div>
-                        <div className="flex items-center gap-4 text-sm">
-                            <label className="flex items-center gap-2">
-                                <Checkbox
-                                    checked={allSelected}
-                                    onCheckedChange={(checked) =>
-                                        toggleAll(Boolean(checked))
-                                    }
-                                />
-                                <span>Select all</span>
-                            </label>
-                            <span className="font-medium">
-                                Selected total: {selectedTotal.toFixed(2)}
-                            </span>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" asChild>
+                                <Link href="/company/accounting/bank-reconciliation">
+                                    Clear preview
+                                </Link>
+                            </Button>
+                            {activeImport.reconciled_batch_id && (
+                                <Button variant="outline" asChild>
+                                    <Link href="/company/accounting/bank-reconciliation">
+                                        Batch created
+                                    </Link>
+                                </Button>
+                            )}
                         </div>
                     </div>
 
-                    <InputError message={form.errors.payment_ids} />
+                    <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <MetricCard
+                            label="Matched"
+                            value={String(activeImport.metrics.matched)}
+                        />
+                        <MetricCard
+                            label="Unmatched"
+                            value={String(activeImport.metrics.unmatched)}
+                        />
+                        <MetricCard
+                            label="Duplicate"
+                            value={String(activeImport.metrics.duplicate)}
+                        />
+                        <MetricCard
+                            label="Selected total"
+                            value={selectedTotal.toFixed(2)}
+                        />
+                    </div>
 
-                    <div className="mt-4 overflow-x-auto rounded-lg border">
-                        <table className="w-full min-w-[980px] text-sm">
-                            <thead className="bg-muted/60 text-left">
-                                <tr>
-                                    <th className="px-4 py-3 font-medium">
-                                        Select
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Payment
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Invoice
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Partner
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Date
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Method
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Reference
-                                    </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Amount
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {eligiblePayments.length === 0 && (
+                    {activeImport.reconciled_batch_reference && (
+                        <div className="mt-4 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                            This import already created batch{' '}
+                            <span className="font-medium text-foreground">
+                                {activeImport.reconciled_batch_reference}
+                            </span>
+                            .
+                        </div>
+                    )}
+
+                    <form
+                        className="mt-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            reconcileForm.post(
+                                '/company/accounting/bank-reconciliation',
+                                { preserveScroll: true },
+                            );
+                        }}
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-4 text-sm">
+                                <label className="flex items-center gap-2">
+                                    <Checkbox
+                                        checked={allMatchedSelected}
+                                        onCheckedChange={(checked) =>
+                                            toggleAllMatchedLines(Boolean(checked))
+                                        }
+                                        disabled={matchedLines.length === 0}
+                                    />
+                                    <span>Select all matched</span>
+                                </label>
+                            </div>
+                            <Button
+                                type="submit"
+                                disabled={
+                                    reconcileForm.processing ||
+                                    reconcileForm.data.line_ids.length === 0 ||
+                                    Boolean(activeImport.reconciled_batch_id)
+                                }
+                            >
+                                Create reconciliation batch
+                            </Button>
+                        </div>
+
+                        <InputError
+                            message={
+                                reconcileForm.errors.bank_statement_import_id ??
+                                reconcileForm.errors.line_ids
+                            }
+                        />
+
+                        <div className="mt-4 overflow-x-auto rounded-lg border">
+                            <table className="w-full min-w-[1180px] text-sm">
+                                <thead className="bg-muted/60 text-left">
                                     <tr>
-                                        <td
-                                            className="px-4 py-8 text-center text-muted-foreground"
-                                            colSpan={8}
-                                        >
-                                            No unreconciled posted payments are
-                                            available.
-                                        </td>
+                                        <th className="px-4 py-3 font-medium">
+                                            Include
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Line
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Date
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Reference
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Description
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Amount
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Match
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Payment
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Invoice
+                                        </th>
+                                        <th className="px-4 py-3 font-medium">
+                                            Partner
+                                        </th>
                                     </tr>
-                                )}
-                                {eligiblePayments.map((payment) => {
-                                    const checked = form.data.payment_ids.includes(
-                                        payment.id,
-                                    );
-
-                                    return (
-                                        <tr key={payment.id}>
-                                            <td className="px-4 py-3">
-                                                <Checkbox
-                                                    checked={checked}
-                                                    onCheckedChange={(value) =>
-                                                        togglePayment(
-                                                            payment.id,
-                                                            Boolean(value),
-                                                        )
-                                                    }
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 font-medium">
-                                                <Link
-                                                    href={`/company/accounting/payments/${payment.id}/edit`}
-                                                    className="text-primary"
-                                                >
-                                                    {payment.payment_number}
-                                                </Link>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {payment.invoice_number ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {payment.partner_name ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {payment.payment_date ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {payment.method ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {payment.reference ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {payment.amount.toFixed(2)}
+                                </thead>
+                                <tbody className="divide-y">
+                                    {activeImport.lines.length === 0 && (
+                                        <tr>
+                                            <td
+                                                className="px-4 py-8 text-center text-muted-foreground"
+                                                colSpan={10}
+                                            >
+                                                No statement lines were imported.
                                             </td>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                    )}
+                                    {activeImport.lines.map((line) => {
+                                        const isMatched =
+                                            line.match_status === 'matched';
+                                        const checked =
+                                            reconcileForm.data.line_ids.includes(
+                                                line.id,
+                                            );
 
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 text-sm">
-                    <div>
-                        <p className="text-xs text-muted-foreground">
-                            Statement batch total
-                        </p>
-                        <p className="text-lg font-semibold">
-                            {selectedTotal.toFixed(2)}
-                        </p>
-                    </div>
-                    <Button
-                        type="submit"
-                        disabled={form.processing || form.data.payment_ids.length === 0}
-                    >
-                        Create reconciliation batch
-                    </Button>
+                                        return (
+                                            <tr key={line.id}>
+                                                <td className="px-4 py-3">
+                                                    <Checkbox
+                                                        checked={checked}
+                                                        disabled={
+                                                            !isMatched ||
+                                                            Boolean(
+                                                                activeImport.reconciled_batch_id,
+                                                            )
+                                                        }
+                                                        onCheckedChange={(value) =>
+                                                            toggleMatchedLine(
+                                                                line.id,
+                                                                Boolean(value),
+                                                            )
+                                                        }
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.line_number}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.transaction_date ?? '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.reference ?? '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.description ?? '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.amount.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 capitalize">
+                                                    {line.match_status}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.payment_number ?? '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.invoice_number ?? '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {line.partner_name ?? '-'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            )}
+
+            <div className="mt-6 rounded-xl border p-4">
+                <h2 className="text-sm font-semibold">Recent imports</h2>
+                <div className="mt-4 overflow-x-auto rounded-lg border">
+                    <table className="w-full min-w-[1040px] text-sm">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="px-4 py-3 font-medium">
+                                    Statement
+                                </th>
+                                <th className="px-4 py-3 font-medium">Date</th>
+                                <th className="px-4 py-3 font-medium">
+                                    Journal
+                                </th>
+                                <th className="px-4 py-3 font-medium">File</th>
+                                <th className="px-4 py-3 font-medium">
+                                    Matches
+                                </th>
+                                <th className="px-4 py-3 font-medium">
+                                    Status
+                                </th>
+                                <th className="px-4 py-3 text-right font-medium">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {recentImports.length === 0 && (
+                                <tr>
+                                    <td
+                                        className="px-4 py-8 text-center text-muted-foreground"
+                                        colSpan={7}
+                                    >
+                                        No statement imports created yet.
+                                    </td>
+                                </tr>
+                            )}
+                            {recentImports.map((statementImport) => (
+                                <tr key={statementImport.id}>
+                                    <td className="px-4 py-3 font-medium">
+                                        {statementImport.statement_reference}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {statementImport.statement_date ?? '-'}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {statementImport.journal_code
+                                            ? `${statementImport.journal_code} - ${statementImport.journal_name}`
+                                            : '-'}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {statementImport.source_file_name}
+                                    </td>
+                                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                                        <p>Matched: {statementImport.matched_count}</p>
+                                        <p>
+                                            Unmatched: {statementImport.unmatched_count}
+                                        </p>
+                                        <p>
+                                            Duplicate: {statementImport.duplicate_count}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {statementImport.reconciled_batch_reference
+                                            ? `Reconciled to ${statementImport.reconciled_batch_reference}`
+                                            : 'Pending review'}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <Button variant="outline" size="sm" asChild>
+                                            <Link
+                                                href={`/company/accounting/bank-reconciliation?import_id=${statementImport.id}`}
+                                            >
+                                                Review
+                                            </Link>
+                                        </Button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div className="mt-6 rounded-xl border p-4">
                 <h2 className="text-sm font-semibold">Recent batches</h2>
                 <div className="mt-4 overflow-x-auto rounded-lg border">
-                    <table className="w-full min-w-[760px] text-sm">
+                    <table className="w-full min-w-[980px] text-sm">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-4 py-3 font-medium">
@@ -426,14 +663,14 @@ export default function AccountingBankReconciliationIndex({
                                     <td className="px-4 py-3 text-xs text-muted-foreground">
                                         <p>
                                             {batch.reconciled_by
-                                                ? `${batch.reconciled_by} Â· ${formatDateTime(batch.reconciled_at)}`
+                                                ? `${batch.reconciled_by} · ${formatDateTime(batch.reconciled_at)}`
                                                 : formatDateTime(batch.reconciled_at)}
                                         </p>
                                         {batch.unreconciled_at && (
                                             <>
                                                 <p className="mt-1">
                                                     {batch.unreconciled_by
-                                                        ? `${batch.unreconciled_by} Â· ${formatDateTime(batch.unreconciled_at)}`
+                                                        ? `${batch.unreconciled_by} · ${formatDateTime(batch.unreconciled_at)}`
                                                         : formatDateTime(batch.unreconciled_at)}
                                                 </p>
                                                 <p className="mt-1">
@@ -470,6 +707,17 @@ export default function AccountingBankReconciliationIndex({
                 </div>
             </div>
         </AppLayout>
+    );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-lg border p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold">{value}</p>
+        </div>
     );
 }
 

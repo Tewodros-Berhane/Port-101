@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Modules\Accounting\AccountingSetupService;
 use App\Modules\Accounting\Models\AccountingAccount;
 use App\Modules\Accounting\Models\AccountingBankReconciliationBatch;
+use App\Modules\Accounting\Models\AccountingBankStatementImport;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingLedgerEntry;
 use App\Modules\Accounting\Models\AccountingManualJournal;
@@ -775,4 +776,119 @@ test('bank reconciliation batches can be unreconciled and release payment revers
         ->assertRedirect();
 
     expect($payment?->fresh()->status)->toBe(AccountingPayment::STATUS_REVERSED);
+});
+
+test('bank statement csv import matches payments and creates reconciliation batch', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignAccountingWorkflowRole($user, $company->id, [
+        'accounting.bank_reconciliation.view',
+        'accounting.bank_reconciliation.manage',
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'name' => 'Statement Import Customer '.Str::upper(Str::random(4)),
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.store'), [
+            'partner_id' => $partner->id,
+            'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+            'sales_order_id' => null,
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'notes' => 'Statement import invoice',
+            'lines' => [[
+                'product_id' => null,
+                'description' => 'Retainer',
+                'quantity' => 1,
+                'unit_price' => 310,
+                'tax_rate' => 0,
+            ]],
+        ])
+        ->assertRedirect();
+
+    $invoice = AccountingInvoice::query()->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.invoices.post', $invoice))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.store'), [
+            'invoice_id' => $invoice?->id,
+            'payment_date' => now()->toDateString(),
+            'amount' => 310,
+            'method' => 'bank_transfer',
+            'reference' => 'CSV-IMPORT-310',
+            'notes' => 'Statement import payment',
+        ])
+        ->assertRedirect();
+
+    $payment = AccountingPayment::query()->where('reference', 'CSV-IMPORT-310')->first();
+
+    actingAs($user)
+        ->post(route('company.accounting.payments.post', $payment))
+        ->assertRedirect();
+
+    $setup = app(AccountingSetupService::class)->ensureCompanySetup(
+        companyId: $company->id,
+        currencyCode: $company->currency_code,
+        actorId: $user->id,
+    );
+
+    $csv = implode("\n", [
+        'date,reference,description,amount',
+        now()->toDateString().',CSV-IMPORT-310,Primary statement line,310.00',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent(
+        'statement.csv',
+        $csv,
+    );
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.import'), [
+            'journal_id' => $setup['journals']['bank']->id,
+            'statement_reference' => 'CSV-STATEMENT-2026-03',
+            'statement_date' => now()->toDateString(),
+            'notes' => 'CSV import run',
+            'file' => $file,
+        ])
+        ->assertRedirect();
+
+    $statementImport = AccountingBankStatementImport::query()->first();
+
+    expect($statementImport)->not->toBeNull();
+    expect($statementImport?->lines()->count())->toBe(1);
+
+    $line = $statementImport?->lines()->first();
+
+    expect($line?->match_status)->toBe('matched');
+    expect($line?->payment_id)->toBe($payment?->id);
+
+    actingAs($user)
+        ->post(route('company.accounting.bank-reconciliation.store'), [
+            'bank_statement_import_id' => $statementImport?->id,
+            'line_ids' => [$line?->id],
+        ])
+        ->assertRedirect();
+
+    $batch = AccountingBankReconciliationBatch::query()->first();
+
+    expect($batch)->not->toBeNull();
+    expect($statementImport?->fresh()->reconciled_batch_id)->toBe($batch?->id);
+    expect($payment?->fresh()->bank_reconciled_at)->not->toBeNull();
+    expect($batch?->items()->first()?->statement_line_reference)->toBe('CSV-IMPORT-310');
 });
