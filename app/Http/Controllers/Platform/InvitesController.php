@@ -140,38 +140,33 @@ class InvitesController extends Controller
     {
         $invite->delete();
 
-        return redirect()
-            ->route('platform.invites.index')
+        return back(303)
             ->with('success', 'Invite removed.');
     }
 
     public function resend(Invite $invite): RedirectResponse
     {
         if ($invite->accepted_at) {
-            return redirect()
-                ->route('platform.invites.index')
+            return back(303)
                 ->with('error', 'Invite already accepted.');
         }
 
         $this->queueDelivery($invite);
 
-        return redirect()
-            ->route('platform.invites.index')
+        return back(303)
             ->with('success', 'Invite resend queued.');
     }
 
     public function retryDelivery(Invite $invite): RedirectResponse
     {
         if ($invite->accepted_at) {
-            return redirect()
-                ->route('platform.invites.index')
+            return back(303)
                 ->with('error', 'Accepted invites do not require delivery retry.');
         }
 
         $this->queueDelivery($invite);
 
-        return redirect()
-            ->route('platform.invites.index')
+        return back(303)
             ->with('success', 'Invite delivery retry queued.');
     }
 

@@ -1,13 +1,14 @@
 ﻿import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 type AdminRow = {
     id: string;
     name: string;
     email: string;
     status: 'active' | 'pending_invite' | 'expired_invite';
+    invite_id?: string | null;
     delivery_status?: string | null;
     created_at?: string | null;
     expires_at?: string | null;
@@ -48,6 +49,25 @@ const resolveStatusVariant = (status: AdminRow['status']) => {
 };
 
 export default function PlatformAdminUsersIndex({ admins }: Props) {
+    const resendForm = useForm({});
+    const cancelForm = useForm({});
+
+    const handleResend = (inviteId: string) => {
+        resendForm.post(`/platform/invites/${inviteId}/resend`, {
+            preserveScroll: true,
+        });
+    };
+
+    const handleCancel = (inviteId: string) => {
+        if (!confirm('Cancel this platform admin invite?')) {
+            return;
+        }
+
+        cancelForm.delete(`/platform/invites/${inviteId}`, {
+            preserveScroll: true,
+        });
+    };
+
     return (
         <AppLayout
             breadcrumbs={[
@@ -85,7 +105,7 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[920px] text-sm">
+                <table className="w-full min-w-[1100px] text-sm">
                     <thead className="bg-muted/60 text-left">
                         <tr>
                             <th className="px-4 py-3 font-medium">Name</th>
@@ -94,6 +114,9 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                             <th className="px-4 py-3 font-medium">Delivery</th>
                             <th className="px-4 py-3 font-medium">Created</th>
                             <th className="px-4 py-3 font-medium">Expires</th>
+                            <th className="px-4 py-3 text-right font-medium">
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -101,7 +124,7 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={6}
+                                    colSpan={7}
                                 >
                                     No platform admins or invites yet.
                                 </td>
@@ -130,6 +153,47 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                                 </td>
                                 <td className="px-4 py-3">
                                     {formatDate(admin.expires_at)}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                    {admin.status === 'pending_invite' &&
+                                    admin.invite_id ? (
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    handleResend(
+                                                        admin.invite_id as string,
+                                                    )
+                                                }
+                                                disabled={
+                                                    resendForm.processing ||
+                                                    cancelForm.processing
+                                                }
+                                            >
+                                                Resend
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    handleCancel(
+                                                        admin.invite_id as string,
+                                                    )
+                                                }
+                                                disabled={
+                                                    cancelForm.processing ||
+                                                    resendForm.processing
+                                                }
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <span className="text-muted-foreground">
+                                            -
+                                        </span>
+                                    )}
                                 </td>
                             </tr>
                         ))}

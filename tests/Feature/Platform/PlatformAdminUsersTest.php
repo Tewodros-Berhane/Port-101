@@ -42,6 +42,63 @@ test('platform admin creation sends invite and shows pending invite on the admin
         ->assertSee('pending_invite');
 });
 
+test('platform admins page can resend pending platform admin invites in place', function () {
+    Mail::fake();
+
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    $invite = Invite::create([
+        'email' => 'resend-platform-admin@example.com',
+        'name' => 'Resend Platform Admin',
+        'role' => 'platform_admin',
+        'company_id' => null,
+        'token' => Str::random(40),
+        'expires_at' => now()->addDays(7),
+        'delivery_status' => Invite::DELIVERY_FAILED,
+        'delivery_attempts' => 1,
+        'last_delivery_error' => 'SMTP timeout',
+        'created_by' => $superAdmin->id,
+    ]);
+
+    actingAs($superAdmin)
+        ->from(route('platform.admin-users.index'))
+        ->post(route('platform.invites.resend', $invite))
+        ->assertRedirect(route('platform.admin-users.index'));
+
+    $invite->refresh();
+
+    expect($invite->delivery_status)->toBe(Invite::DELIVERY_SENT);
+    expect($invite->delivery_attempts)->toBe(2);
+    expect($invite->last_delivery_error)->toBeNull();
+
+    Mail::assertSent(InviteLinkMail::class);
+});
+
+test('platform admins page can cancel pending platform admin invites in place', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    $invite = Invite::create([
+        'email' => 'cancel-platform-admin@example.com',
+        'name' => 'Cancel Platform Admin',
+        'role' => 'platform_admin',
+        'company_id' => null,
+        'token' => Str::random(40),
+        'expires_at' => now()->addDays(7),
+        'created_by' => $superAdmin->id,
+    ]);
+
+    actingAs($superAdmin)
+        ->from(route('platform.admin-users.index'))
+        ->delete(route('platform.invites.destroy', $invite))
+        ->assertRedirect(route('platform.admin-users.index'));
+
+    expect(Invite::query()->whereKey($invite->id)->exists())->toBeFalse();
+});
+
 test('accepting a platform admin invite promotes the recipient to superadmin', function () {
     $superAdmin = User::factory()->create([
         'is_super_admin' => true,

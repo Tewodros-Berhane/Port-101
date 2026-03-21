@@ -7,8 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\AdminUserStoreRequest;
 use App\Jobs\SendInviteLinkMail;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -28,6 +28,7 @@ class AdminUsersController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'status' => 'active',
+                    'invite_id' => null,
                     'delivery_status' => null,
                     'created_at' => $user->created_at?->toIso8601String(),
                     'expires_at' => null,
@@ -50,6 +51,7 @@ class AdminUsersController extends Controller
                     'name' => $invite->name ?: 'Pending platform admin',
                     'email' => $invite->email,
                     'status' => $status,
+                    'invite_id' => $invite->id,
                     'delivery_status' => $invite->delivery_status,
                     'created_at' => $invite->created_at?->toIso8601String(),
                     'expires_at' => $invite->expires_at?->toIso8601String(),
