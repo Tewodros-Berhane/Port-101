@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Projects\ProjectsController;
 use App\Http\Controllers\Projects\ProjectsDashboardController;
+use App\Http\Controllers\Projects\ProjectMilestonesController;
 use App\Http\Controllers\Projects\ProjectTasksController;
 use App\Http\Controllers\Projects\ProjectTimesheetsController;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,17 @@ Route::prefix('projects')->name('projects.')->group(function () {
         ->name('timesheets.reject');
     Route::delete('timesheets/{timesheet}', [ProjectTimesheetsController::class, 'destroy'])
         ->name('timesheets.destroy');
+
+    Route::get('{project}/milestones/create', [ProjectMilestonesController::class, 'create'])
+        ->name('milestones.create');
+    Route::post('{project}/milestones', [ProjectMilestonesController::class, 'store'])
+        ->name('milestones.store');
+    Route::get('milestones/{milestone}/edit', [ProjectMilestonesController::class, 'edit'])
+        ->name('milestones.edit');
+    Route::put('milestones/{milestone}', [ProjectMilestonesController::class, 'update'])
+        ->name('milestones.update');
+    Route::delete('milestones/{milestone}', [ProjectMilestonesController::class, 'destroy'])
+        ->name('milestones.destroy');
 
     Route::get('{project}', [ProjectsController::class, 'show'])
         ->name('show');

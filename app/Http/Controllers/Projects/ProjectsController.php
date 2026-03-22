@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMember;
+use App\Modules\Projects\Models\ProjectMilestone;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Projects\ProjectWorkspaceService;
@@ -194,6 +195,7 @@ class ProjectsController extends Controller
             'tasks.assignee:id,name',
             'timesheets.user:id,name',
             'timesheets.task:id,task_number,title',
+            'milestones.approvedBy:id,name',
         ]);
 
         $tasks = $project->tasks
@@ -204,6 +206,9 @@ class ProjectsController extends Controller
             ->values();
         $timesheets = $project->timesheets
             ->sortByDesc('work_date')
+            ->values();
+        $milestones = $project->milestones
+            ->sortBy('sequence')
             ->values();
 
         $overdueTaskCount = $tasks
@@ -301,6 +306,21 @@ class ProjectsController extends Controller
                         'can_reject' => $user?->can('reject', $timesheet) ?? false,
                     ])
                     ->all(),
+                'milestones' => $milestones
+                    ->map(fn (ProjectMilestone $milestone) => [
+                        'id' => $milestone->id,
+                        'name' => $milestone->name,
+                        'sequence' => (int) $milestone->sequence,
+                        'status' => $milestone->status,
+                        'due_date' => $milestone->due_date?->toDateString(),
+                        'completed_at' => $milestone->completed_at?->toIso8601String(),
+                        'amount' => (float) $milestone->amount,
+                        'invoice_status' => $milestone->invoice_status,
+                        'approved_by_name' => $milestone->approvedBy?->name,
+                        'approved_at' => $milestone->approved_at?->toIso8601String(),
+                        'can_edit' => $user?->can('update', $milestone) ?? false,
+                    ])
+                    ->all(),
             ],
             'summary' => [
                 'task_total' => $tasks->count(),
@@ -316,6 +336,10 @@ class ProjectsController extends Controller
                     ->where('project_id', $project->id)
                     ->where('approval_status', ProjectTimesheet::APPROVAL_STATUS_SUBMITTED)
                     ->count(),
+                'milestones_total' => $milestones->count(),
+                'milestones_ready_review' => $milestones
+                    ->where('status', ProjectMilestone::STATUS_READY_FOR_REVIEW)
+                    ->count(),
                 'billables_logged' => ProjectBillable::query()
                     ->where('project_id', $project->id)
                     ->count(),
@@ -324,6 +348,8 @@ class ProjectsController extends Controller
                 'can_edit_project' => $user?->can('update', $project) ?? false,
                 'can_create_task' => $user?->can('update', $project) ?? false,
                 'can_create_timesheet' => $user?->can('create', ProjectTimesheet::class) ?? false,
+                'can_create_milestone' => $user?->can('create', ProjectMilestone::class)
+                    && ($user?->can('update', $project) ?? false),
             ],
         ]);
     }

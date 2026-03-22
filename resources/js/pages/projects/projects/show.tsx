@@ -44,6 +44,20 @@ type ProjectTimesheet = {
     can_reject: boolean;
 };
 
+type ProjectMilestone = {
+    id: string;
+    name: string;
+    sequence: number;
+    status: string;
+    due_date?: string | null;
+    completed_at?: string | null;
+    amount: number;
+    invoice_status: string;
+    approved_by_name?: string | null;
+    approved_at?: string | null;
+    can_edit: boolean;
+};
+
 type Props = {
     project: {
         id: string;
@@ -69,6 +83,7 @@ type Props = {
         members: ProjectMember[];
         tasks: ProjectTask[];
         timesheets: ProjectTimesheet[];
+        milestones: ProjectMilestone[];
     };
     summary: {
         task_total: number;
@@ -77,12 +92,15 @@ type Props = {
         team_members: number;
         timesheets_logged: number;
         timesheets_pending_approval: number;
+        milestones_total: number;
+        milestones_ready_review: number;
         billables_logged: number;
     };
     abilities: {
         can_edit_project: boolean;
         can_create_task: boolean;
         can_create_timesheet: boolean;
+        can_create_milestone: boolean;
     };
 };
 
@@ -252,6 +270,14 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                             <SummaryRow
                                 label="Pending approvals"
                                 value={summary.timesheets_pending_approval}
+                            />
+                            <SummaryRow
+                                label="Milestones"
+                                value={summary.milestones_total}
+                            />
+                            <SummaryRow
+                                label="Review ready"
+                                value={summary.milestones_ready_review}
                             />
                             <SummaryRow
                                 label="Billables logged"
@@ -552,6 +578,110 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                                     </button>
                                                 )}
                                             </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section className="rounded-xl border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Milestones
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Delivery checkpoints and milestone billing readiness.
+                            </p>
+                        </div>
+                        {abilities.can_create_milestone && (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/company/projects/${project.id}/milestones/create`}
+                                >
+                                    Add milestone
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto rounded-lg border">
+                        <table className="w-full min-w-[980px] text-sm">
+                            <thead className="bg-muted/60 text-left">
+                                <tr>
+                                    <th className="px-3 py-2 font-medium">Milestone</th>
+                                    <th className="px-3 py-2 font-medium">Status</th>
+                                    <th className="px-3 py-2 font-medium">Due date</th>
+                                    <th className="px-3 py-2 font-medium">Completed</th>
+                                    <th className="px-3 py-2 font-medium">Amount</th>
+                                    <th className="px-3 py-2 font-medium">Invoice</th>
+                                    <th className="px-3 py-2 font-medium">Approved by</th>
+                                    <th className="px-3 py-2 text-right font-medium">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {project.milestones.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="px-3 py-6 text-center text-muted-foreground"
+                                        >
+                                            No milestones created for this project yet.
+                                        </td>
+                                    </tr>
+                                )}
+                                {project.milestones.map((milestone) => (
+                                    <tr key={milestone.id}>
+                                        <td className="px-3 py-2">
+                                            <p className="font-medium">
+                                                {String(milestone.sequence).padStart(2, '0')} -{' '}
+                                                {milestone.name}
+                                            </p>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatLabel(milestone.status)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {milestone.due_date ?? '-'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {milestone.completed_at
+                                                ? new Date(
+                                                      milestone.completed_at,
+                                                  ).toLocaleString()
+                                                : '-'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {milestone.amount.toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatLabel(milestone.invoice_status)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <p>{milestone.approved_by_name ?? '-'}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {milestone.approved_at
+                                                    ? new Date(
+                                                          milestone.approved_at,
+                                                      ).toLocaleString()
+                                                    : '-'}
+                                            </p>
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                            {milestone.can_edit ? (
+                                                <Link
+                                                    href={`/company/projects/milestones/${milestone.id}/edit`}
+                                                    className="font-medium text-primary"
+                                                >
+                                                    Edit
+                                                </Link>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    View only
+                                                </span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
