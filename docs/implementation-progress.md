@@ -52,6 +52,7 @@
 - API v1 Phase 3 Purchasing API implemented: `/api/v1/purchasing/rfqs` and `/api/v1/purchasing/orders` now support CRUD plus explicit RFQ/PO workflow actions (`rfqs.send`, `rfqs.respond`, `rfqs.select`, `orders.approve`, `orders.confirm`, `orders.receive`) through the shared purchasing workflow services, including approval-gated purchase-order confirmation, receipt-line ownership validation, and vendor-bill handoff coverage.
 - API v1 Phase 4 Accounting API implemented: `/api/v1/accounting/invoices` and `/api/v1/accounting/payments` now support CRUD plus explicit finance workflow actions (`invoices.post`, `invoices.cancel`, `payments.post`, `payments.reconcile`, `payments.reverse`) through the shared accounting workflow services, including invoice posting/cancellation, payment application/reversal, and vendor-bill visibility without exposing bank-reconciliation internals.
 - API v1 Phase 5 Approvals API implemented: `/api/v1/approvals/requests` now supports approval-request listing/detail plus explicit decision actions (`approve`, `reject`) through the shared approvals queue service, including company-scoped request discovery, decision-step visibility, authority-aware action gating, and shared JSON error semantics for permission and lifecycle failures.
+- API v1 Phase 6 Reports/Exports API implemented: `/api/v1/reports/exports` now supports queued company-report export job creation plus status polling and file download, with persisted export records, shared PDF/XLSX generation, company-scoped access control, and shared JSON error semantics for validation, permission, and pending-download failures.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
@@ -185,6 +186,7 @@
 - API v1 now exposes Purchasing at `/api/v1/purchasing` with RFQ and purchase-order CRUD plus explicit RFQ selection, approval-aware PO confirmation, receipt capture, and vendor-bill handoff using the same purchasing workflow services as the web module.
 - API v1 now exposes Accounting at `/api/v1/accounting` with invoice/payment CRUD plus posting, cancellation, reconciliation, and reversal actions using the same accounting workflow services as the web module while keeping bank-reconciliation internals web-only.
 - API v1 now exposes Approvals at `/api/v1/approvals` with company-scoped approval request list/detail access plus approve/reject decision actions backed by the shared approvals queue and authority checks.
+- API v1 now exposes Reports at `/api/v1/reports` with queued export-job creation, export-status polling, and download endpoints for company report files without exposing dashboard-specific page payloads.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
@@ -206,8 +208,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `212 passed`, `0 failed`.
-- Result summary after latest implementation: API v1 Approvals Phase 5 verified with the full PostgreSQL-backed suite, including company-scoped approval-request discovery, approve/reject decision actions, and shared 403/422 error-envelope coverage.
+- Latest full-suite count: `214 passed`, `0 failed`.
+- Result summary after latest implementation: API v1 Reports Phase 6 verified with the full PostgreSQL-backed suite, including queued report-export job creation, company-scoped status polling, and pending-download/file-delivery coverage across the shared PDF/XLSX export pipeline.
 
 ## Suggestions
 

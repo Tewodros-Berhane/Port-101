@@ -32,6 +32,7 @@ use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Purchasing\Models\PurchaseRfq;
+use App\Modules\Reports\Models\ReportExport;
 use App\Modules\Sales\Models\SalesLead;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesQuote;
@@ -62,6 +63,7 @@ use App\Policies\ProjectTaskPolicy;
 use App\Policies\ProjectTimesheetPolicy;
 use App\Policies\PurchaseOrderPolicy;
 use App\Policies\PurchaseRfqPolicy;
+use App\Policies\ReportExportPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SalesLeadPolicy;
 use App\Policies\SalesOrderPolicy;
@@ -97,6 +99,7 @@ class AuthServiceProvider extends ServiceProvider
         SalesOrder::class => SalesOrderPolicy::class,
         PurchaseRfq::class => PurchaseRfqPolicy::class,
         PurchaseOrder::class => PurchaseOrderPolicy::class,
+        ReportExport::class => ReportExportPolicy::class,
         Project::class => ProjectPolicy::class,
         ProjectTask::class => ProjectTaskPolicy::class,
         ProjectTimesheet::class => ProjectTimesheetPolicy::class,

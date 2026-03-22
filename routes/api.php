@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\ProjectTasksController as ApiProjectTasksControl
 use App\Http\Controllers\Api\V1\ProjectTimesheetsController as ApiProjectTimesheetsController;
 use App\Http\Controllers\Api\V1\PurchaseOrdersController as ApiPurchaseOrdersController;
 use App\Http\Controllers\Api\V1\PurchaseRfqsController as ApiPurchaseRfqsController;
+use App\Http\Controllers\Api\V1\ReportExportsController as ApiReportExportsController;
 use App\Http\Controllers\Api\V1\SalesLeadsController as ApiSalesLeadsController;
 use App\Http\Controllers\Api\V1\SalesOrdersController as ApiSalesOrdersController;
 use App\Http\Controllers\Api\V1\SalesQuotesController as ApiSalesQuotesController;
@@ -48,6 +49,11 @@ Route::prefix('v1')->group(function () {
         });
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
+        Route::prefix('reports')->group(function () {
+            Route::post('exports', [ApiReportExportsController::class, 'store']);
+            Route::get('exports/{reportExport}', [ApiReportExportsController::class, 'show']);
+            Route::get('exports/{reportExport}/download', [ApiReportExportsController::class, 'download']);
+        });
         Route::prefix('inventory')->group(function () {
             Route::get('stock-balances', [ApiInventoryStockBalancesController::class, 'index']);
             Route::apiResource('stock-moves', ApiInventoryStockMovesController::class)
