@@ -112,10 +112,10 @@
 - Projects/Services billable-generation foundation implemented: approved timesheets and approved milestones now sync idempotently into `project_billables`, non-qualifying source changes cancel existing billables instead of duplicating them, and project billable totals exclude cancelled items.
 - Projects/Services billing queue implemented: dedicated `/company/projects/billables` review page with project/customer/status/approval/type filters, ready-to-invoice and uninvoiced summary metrics, accessible project/customer filter options, and queue entry links from the Projects dashboard/workspace/detail pages.
 - Projects/Services billable approval workflow implemented: company approval-threshold settings now drive whether generated billables require approval, project/finance reviewers can approve, reject, or cancel billables from the queue with decision reasons, and approval-controlled project billables now sync into the shared Approvals module for approver-role handling.
+- Projects/Services invoice draft handoff implemented: selected eligible project billables can now be grouped by project or customer into draft customer invoices, with queue-based selection UI, accounting draft creation through the shared invoice workflow service, billable-to-invoice linkage, and source timesheet/milestone invoice-state stamping.
 
 ## Not Yet Implemented
 
-- Projects/Services invoice draft handoff into Accounting from approved billables.
 - Projects/Services profitability and recurring billing flows.
 
 ## Deferred / Out of Scope
@@ -175,14 +175,14 @@
 
 ### Present but placeholder-only
 
-- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, and approval workflow integration, but invoice draft handoff into Accounting, recurring billing, and profitability flows are still pending.
+- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, approval workflow integration, and draft invoice handoff into Accounting, but recurring billing and profitability flows are still pending.
 
 ### Test run result (2026-03-22)
 
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `183` passed, `0` failed.
+- Result summary after latest implementation: `186` passed, `0` failed.
 
 ## Suggestions
 

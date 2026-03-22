@@ -16,6 +16,8 @@ Route::prefix('projects')->name('projects.')->group(function () {
         ->name('index');
     Route::get('billables', [ProjectBillablesController::class, 'index'])
         ->name('billables.index');
+    Route::post('billables/invoice-drafts', [ProjectBillablesController::class, 'createInvoiceDrafts'])
+        ->name('billables.invoice-drafts.store');
     Route::post('billables/{billable}/approve', [ProjectBillablesController::class, 'approve'])
         ->name('billables.approve');
     Route::post('billables/{billable}/reject', [ProjectBillablesController::class, 'reject'])

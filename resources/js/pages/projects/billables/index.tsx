@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 
 type FilterOption = {
     id: string;
@@ -35,6 +36,7 @@ type BillableRow = {
     unit_price: number;
     amount: number;
     currency_code?: string | null;
+    invoice_id?: string | null;
     invoice_number?: string | null;
     updated_at?: string | null;
     requires_approval: boolean;
@@ -42,6 +44,8 @@ type BillableRow = {
     can_approve: boolean;
     can_reject: boolean;
     can_cancel: boolean;
+    can_create_invoice: boolean;
+    can_open_invoice: boolean;
 };
 
 type Props = {
@@ -69,6 +73,8 @@ type Props = {
     };
     abilities: {
         can_view_projects_workspace: boolean;
+        can_create_invoice_drafts: boolean;
+        invoiceGroupingOptions: string[];
     };
 };
 
@@ -86,6 +92,12 @@ export default function ProjectBillablesIndex({
     billables,
     abilities,
 }: Props) {
+    const [selectedBillableIds, setSelectedBillableIds] = useState<string[]>(
+        [],
+    );
+    const [groupBy, setGroupBy] = useState(
+        abilities.invoiceGroupingOptions[0] ?? 'project',
+    );
     const form = useForm({
         project_id: filters.project_id,
         customer_id: filters.customer_id,
@@ -111,6 +123,24 @@ export default function ProjectBillablesIndex({
         callback(reason);
     };
 
+    const selectableBillableIds = useMemo(
+        () =>
+            billables.data
+                .filter((billable) => billable.can_create_invoice)
+                .map((billable) => billable.id),
+        [billables.data],
+    );
+
+    useEffect(() => {
+        setSelectedBillableIds((current) =>
+            current.filter((id) => selectableBillableIds.includes(id)),
+        );
+    }, [selectableBillableIds]);
+
+    const allSelectableRowsChecked =
+        selectableBillableIds.length > 0 &&
+        selectableBillableIds.every((id) => selectedBillableIds.includes(id));
+
     return (
         <AppLayout
             breadcrumbs={[
@@ -129,7 +159,8 @@ export default function ProjectBillablesIndex({
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             Review generated project billables before approval
-                            and invoice handoff.
+                            and create accounting invoice drafts from eligible
+                            items.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -142,6 +173,51 @@ export default function ProjectBillablesIndex({
                                     Workspace
                                 </Link>
                             </Button>
+                        )}
+                        {abilities.can_create_invoice_drafts && (
+                            <>
+                                <select
+                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    value={groupBy}
+                                    onChange={(event) =>
+                                        setGroupBy(event.target.value)
+                                    }
+                                >
+                                    {abilities.invoiceGroupingOptions.map(
+                                        (option) => (
+                                            <option
+                                                key={option}
+                                                value={option}
+                                            >
+                                                Group by {formatLabel(option)}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+                                <Button
+                                    type="button"
+                                    disabled={
+                                        selectedBillableIds.length === 0
+                                    }
+                                    onClick={() =>
+                                        router.post(
+                                            '/company/projects/billables/invoice-drafts',
+                                            {
+                                                billable_ids:
+                                                    selectedBillableIds,
+                                                group_by: groupBy,
+                                            },
+                                            {
+                                                preserveScroll: true,
+                                            },
+                                        )
+                                    }
+                                >
+                                    Create draft invoice
+                                    {selectedBillableIds.length > 0 &&
+                                        ` (${selectedBillableIds.length})`}
+                                </Button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -287,6 +363,14 @@ export default function ProjectBillablesIndex({
                     </div>
                 </form>
 
+                {abilities.can_create_invoice_drafts && (
+                    <div className="rounded-xl border px-4 py-3 text-sm text-muted-foreground">
+                        Select ready billables from the table to create draft
+                        customer invoices in Accounting. Pending, rejected,
+                        cancelled, or already invoiced rows are excluded.
+                    </div>
+                )}
+
                 <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <MetricCard
                         label="Ready to invoice"
@@ -307,9 +391,24 @@ export default function ProjectBillablesIndex({
                 </section>
 
                 <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-[1320px] text-sm">
+                    <table className="w-full min-w-[1380px] text-sm">
                         <thead className="bg-muted/60 text-left">
                             <tr>
+                                <th className="px-4 py-3 font-medium">
+                                    <input
+                                        type="checkbox"
+                                        className="size-4 rounded border-input"
+                                        checked={allSelectableRowsChecked}
+                                        onChange={(event) =>
+                                            setSelectedBillableIds(
+                                                event.target.checked
+                                                    ? selectableBillableIds
+                                                    : [],
+                                            )
+                                        }
+                                        aria-label="Select all invoice-eligible billables"
+                                    />
+                                </th>
                                 <th className="px-4 py-3 font-medium">
                                     Project
                                 </th>
@@ -348,7 +447,7 @@ export default function ProjectBillablesIndex({
                             {billables.data.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={12}
+                                        colSpan={13}
                                         className="px-4 py-8 text-center text-muted-foreground"
                                     >
                                         No billables match the current filters.
@@ -357,6 +456,41 @@ export default function ProjectBillablesIndex({
                             )}
                             {billables.data.map((billable) => (
                                 <tr key={billable.id}>
+                                    <td className="px-4 py-3">
+                                        {billable.can_create_invoice ? (
+                                            <input
+                                                type="checkbox"
+                                                className="size-4 rounded border-input"
+                                                checked={selectedBillableIds.includes(
+                                                    billable.id,
+                                                )}
+                                                onChange={(event) =>
+                                                    setSelectedBillableIds(
+                                                        (current) =>
+                                                            event.target.checked
+                                                                ? current.includes(
+                                                                      billable.id,
+                                                                  )
+                                                                    ? current
+                                                                    : [
+                                                                          ...current,
+                                                                          billable.id,
+                                                                      ]
+                                                                : current.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          billable.id,
+                                                                  ),
+                                                    )
+                                                }
+                                                aria-label={`Select billable ${billable.id}`}
+                                            />
+                                        ) : (
+                                            <span className="text-muted-foreground">
+                                                -
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <p className="font-medium">
                                             {billable.project_code ?? '-'}
@@ -431,10 +565,22 @@ export default function ProjectBillablesIndex({
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        {billable.invoice_number ??
-                                            (billable.status === 'invoiced'
-                                                ? 'Invoiced'
-                                                : 'Not invoiced')}
+                                        {billable.invoice_number ? (
+                                            billable.can_open_invoice ? (
+                                                <Link
+                                                    href={`/company/accounting/invoices/${billable.invoice_id}/edit`}
+                                                    className="font-medium text-primary"
+                                                >
+                                                    {billable.invoice_number}
+                                                </Link>
+                                            ) : (
+                                                billable.invoice_number
+                                            )
+                                        ) : billable.status === 'invoiced' ? (
+                                            'Invoiced'
+                                        ) : (
+                                            'Not invoiced'
+                                        )}
                                     </td>
                                     <td className="px-4 py-3">
                                         {billable.updated_at
