@@ -166,6 +166,7 @@ class ProjectWorkspaceService
             'actual_billable_amount' => round(
                 (float) ProjectBillable::query()
                     ->where('project_id', $project->id)
+                    ->where('status', '!=', ProjectBillable::STATUS_CANCELLED)
                     ->sum('amount'),
                 2,
             ),

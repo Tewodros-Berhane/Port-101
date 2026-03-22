@@ -4,10 +4,12 @@ use App\Core\MasterData\Models\Currency;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMember;
 use App\Modules\Projects\Models\ProjectStage;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
+use App\Modules\Projects\ProjectBillingService;
 use Database\Seeders\CoreRolesSeeder;
 use Illuminate\Support\Str;
 
@@ -188,6 +190,28 @@ test('project user can create submit and project manager can approve timesheets'
     expect($timesheet?->approved_by)->toBe($manager->id);
     expect($timesheet?->invoice_status)->toBe(ProjectTimesheet::INVOICE_STATUS_READY);
 
+    $billable = ProjectBillable::query()
+        ->where('source_type', ProjectTimesheet::class)
+        ->where('source_id', $timesheet?->id)
+        ->first();
+
+    expect($billable)->not->toBeNull();
+    expect($billable?->billable_type)->toBe(ProjectBillable::TYPE_TIMESHEET);
+    expect((float) $billable?->quantity)->toBe(2.5);
+    expect((float) $billable?->unit_price)->toBe(110.0);
+    expect((float) $billable?->amount)->toBe(275.0);
+    expect($billable?->status)->toBe(ProjectBillable::STATUS_READY);
+    expect((float) $records['project']->fresh()?->actual_billable_amount)->toBe(275.0);
+
+    app(ProjectBillingService::class)->syncFromTimesheet($timesheet, $manager->id);
+
+    expect(
+        ProjectBillable::query()
+            ->where('source_type', ProjectTimesheet::class)
+            ->where('source_id', $timesheet?->id)
+            ->count()
+    )->toBe(1);
+
     expect((float) $records['task']->fresh()?->actual_hours)->toBe(2.5);
     expect((float) $records['project']->fresh()?->actual_cost_amount)->toBe(112.5);
 });
@@ -280,8 +304,29 @@ test('deleting a draft timesheet refreshes task and project rollups', function (
         'updated_by' => $member->id,
     ]);
 
+    ProjectBillable::create([
+        'company_id' => $company->id,
+        'project_id' => $records['project']->id,
+        'billable_type' => ProjectBillable::TYPE_TIMESHEET,
+        'source_type' => ProjectTimesheet::class,
+        'source_id' => $timesheet->id,
+        'customer_id' => null,
+        'description' => 'Initial work.',
+        'quantity' => 4,
+        'unit_price' => 110,
+        'amount' => 440,
+        'currency_id' => $currency->id,
+        'status' => ProjectBillable::STATUS_READY,
+        'approval_status' => ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
+        'created_by' => $member->id,
+        'updated_by' => $member->id,
+    ]);
+
     $records['task']->forceFill(['actual_hours' => 4])->save();
-    $records['project']->forceFill(['actual_cost_amount' => 180])->save();
+    $records['project']->forceFill([
+        'actual_cost_amount' => 180,
+        'actual_billable_amount' => 440,
+    ])->save();
 
     actingAs($member)
         ->delete(route('company.projects.timesheets.destroy', $timesheet))
@@ -293,4 +338,11 @@ test('deleting a draft timesheet refreshes task and project rollups', function (
 
     expect((float) $records['task']->fresh()?->actual_hours)->toBe(0.0);
     expect((float) $records['project']->fresh()?->actual_cost_amount)->toBe(0.0);
+    expect((float) $records['project']->fresh()?->actual_billable_amount)->toBe(0.0);
+    expect(
+        ProjectBillable::query()
+            ->where('source_type', ProjectTimesheet::class)
+            ->where('source_id', $timesheet->id)
+            ->value('status')
+    )->toBe(ProjectBillable::STATUS_CANCELLED);
 });

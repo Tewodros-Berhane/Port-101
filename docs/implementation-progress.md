@@ -109,10 +109,13 @@
 - Projects/Services initial workspace implemented: module dashboard, sidebar/module route wiring, workspace list with filters, project CRUD, project detail summary, task CRUD, automatic default-stage provisioning, project-member sync for managers/assignees, and end-to-end feature coverage.
 - Projects/Services timesheet workflow implemented: project-level timesheet create/edit/delete, own-vs-team rate handling, submission/approval/rejection actions, task-hour rollups, and role-aware UI/actions from the project workspace.
 - Projects/Services milestone workflow implemented: project milestone create/edit/delete, sequence management, review/approval-ready status tracking, milestone billing-readiness stamping, and workspace visibility/tests.
+- Projects/Services billable-generation foundation implemented: approved timesheets and approved milestones now sync idempotently into `project_billables`, non-qualifying source changes cancel existing billables instead of duplicating them, and project billable totals exclude cancelled items.
 
 ## Not Yet Implemented
 
-- None in current priority scope.
+- Projects/Services billing queue and billable approval review UI.
+- Projects/Services invoice draft handoff into Accounting from approved billables.
+- Projects/Services profitability and recurring billing flows.
 
 ## Deferred / Out of Scope
 
@@ -171,7 +174,7 @@
 
 ### Present but placeholder-only
 
-- Projects/Services now covers project/task/timesheet/milestone execution, but billables, recurring billing, and accounting invoice handoff flows are still pending.
+- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, but the billables review queue, invoice draft handoff into Accounting, recurring billing, and profitability flows are still pending.
 
 ### Test run result (2026-03-22)
 

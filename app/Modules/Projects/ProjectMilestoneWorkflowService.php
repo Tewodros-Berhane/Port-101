@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProjectMilestoneWorkflowService
 {
+    public function __construct(
+        private readonly ProjectBillingService $billingService,
+    ) {}
+
     /**
      * @param  array{
      *     name: string,
@@ -46,6 +50,8 @@ class ProjectMilestoneWorkflowService
                 'created_by' => $actorId,
                 'updated_by' => $actorId,
             ]);
+
+            $this->syncMilestoneBillable($milestone, $actorId);
 
             return $milestone->fresh(['project', 'approvedBy']) ?? $milestone;
         });
@@ -94,13 +100,39 @@ class ProjectMilestoneWorkflowService
                 'updated_by' => $actorId,
             ]);
 
+            $this->syncMilestoneBillable($milestone, $actorId);
+
             return $milestone->fresh(['project', 'approvedBy']) ?? $milestone;
         });
     }
 
     public function delete(ProjectMilestone $milestone): void
     {
-        $milestone->delete();
+        DB::transaction(function () use ($milestone) {
+            $milestone = ProjectMilestone::query()
+                ->with('project')
+                ->lockForUpdate()
+                ->findOrFail($milestone->id);
+
+            $this->billingService->cancelBillableForSource($milestone);
+            $milestone->delete();
+        });
+    }
+
+    private function syncMilestoneBillable(
+        ProjectMilestone $milestone,
+        ?string $actorId = null,
+    ): void {
+        if (
+            $milestone->status === ProjectMilestone::STATUS_APPROVED
+            && round((float) $milestone->amount, 2) > 0
+        ) {
+            $this->billingService->syncFromMilestone($milestone, $actorId);
+
+            return;
+        }
+
+        $this->billingService->cancelBillableForSource($milestone, $actorId);
     }
 
     private function resolveSequence(

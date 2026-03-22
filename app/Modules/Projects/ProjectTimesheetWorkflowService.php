@@ -12,6 +12,7 @@ class ProjectTimesheetWorkflowService
 {
     public function __construct(
         private readonly ProjectWorkspaceService $workspaceService,
+        private readonly ProjectBillingService $billingService,
     ) {}
 
     /**
@@ -200,6 +201,7 @@ class ProjectTimesheetWorkflowService
     {
         return DB::transaction(function () use ($timesheet, $actorId) {
             $timesheet = ProjectTimesheet::query()
+                ->with(['project', 'task'])
                 ->lockForUpdate()
                 ->findOrFail($timesheet->id);
 
@@ -218,6 +220,8 @@ class ProjectTimesheetWorkflowService
                 'updated_by' => $actorId,
             ]);
 
+            $this->billingService->syncFromTimesheet($timesheet, $actorId);
+
             return $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
         });
     }
@@ -229,6 +233,7 @@ class ProjectTimesheetWorkflowService
     ): ProjectTimesheet {
         return DB::transaction(function () use ($timesheet, $reason, $actorId) {
             $timesheet = ProjectTimesheet::query()
+                ->with(['project', 'task'])
                 ->lockForUpdate()
                 ->findOrFail($timesheet->id);
 
@@ -247,6 +252,8 @@ class ProjectTimesheetWorkflowService
                 'updated_by' => $actorId,
             ]);
 
+            $this->billingService->cancelBillableForSource($timesheet, $actorId);
+
             return $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
         });
     }
@@ -262,6 +269,7 @@ class ProjectTimesheetWorkflowService
             $task = $timesheet->task;
             $project = $timesheet->project;
 
+            $this->billingService->cancelBillableForSource($timesheet);
             $timesheet->delete();
 
             if ($task) {

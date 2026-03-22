@@ -4,6 +4,7 @@ use App\Core\MasterData\Models\Currency;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMember;
 use App\Modules\Projects\Models\ProjectMilestone;
 use Database\Seeders\CoreRolesSeeder;
@@ -135,6 +136,37 @@ test('project manager can create update and delete milestones', function () {
     expect($milestone?->invoice_status)->toBe(ProjectMilestone::INVOICE_STATUS_READY);
     expect($milestone?->approved_by)->toBe($manager->id);
     expect((float) $milestone?->amount)->toBe(1750.0);
+
+    $billable = ProjectBillable::query()
+        ->where('source_type', ProjectMilestone::class)
+        ->where('source_id', $milestone?->id)
+        ->first();
+
+    expect($billable)->not->toBeNull();
+    expect($billable?->billable_type)->toBe(ProjectBillable::TYPE_MILESTONE);
+    expect((float) $billable?->quantity)->toBe(1.0);
+    expect((float) $billable?->amount)->toBe(1750.0);
+    expect($billable?->status)->toBe(ProjectBillable::STATUS_READY);
+    expect((float) $project->fresh()?->actual_billable_amount)->toBe(1750.0);
+
+    actingAs($manager)
+        ->put(route('company.projects.milestones.update', $milestone), [
+            'name' => 'Kickoff paused',
+            'description' => 'Approval rolled back pending change request.',
+            'sequence' => 1,
+            'status' => ProjectMilestone::STATUS_IN_PROGRESS,
+            'due_date' => now()->addDays(10)->toDateString(),
+            'amount' => 1750,
+        ])
+        ->assertRedirect(route('company.projects.milestones.edit', $milestone));
+
+    expect(
+        ProjectBillable::query()
+            ->where('source_type', ProjectMilestone::class)
+            ->where('source_id', $milestone?->id)
+            ->value('status')
+    )->toBe(ProjectBillable::STATUS_CANCELLED);
+    expect((float) $project->fresh()?->actual_billable_amount)->toBe(0.0);
 
     actingAs($manager)
         ->delete(route('company.projects.milestones.destroy', $milestone))
