@@ -102,6 +102,7 @@ class ProjectsController extends Controller
             ]),
             'abilities' => [
                 'can_create_project' => $user->can('create', Project::class),
+                'can_view_billables' => $user->can('viewAny', ProjectBillable::class),
             ],
         ]);
     }
@@ -342,6 +343,7 @@ class ProjectsController extends Controller
                     ->count(),
                 'billables_logged' => ProjectBillable::query()
                     ->where('project_id', $project->id)
+                    ->where('status', '!=', ProjectBillable::STATUS_CANCELLED)
                     ->count(),
             ],
             'abilities' => [
@@ -350,6 +352,7 @@ class ProjectsController extends Controller
                 'can_create_timesheet' => $user?->can('create', ProjectTimesheet::class) ?? false,
                 'can_create_milestone' => $user?->can('create', ProjectMilestone::class)
                     && ($user?->can('update', $project) ?? false),
+                'can_view_billables' => $user?->can('viewAny', ProjectBillable::class) ?? false,
             ],
         ]);
     }

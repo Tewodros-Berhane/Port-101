@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Projects;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectTask;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -128,6 +129,7 @@ class ProjectsDashboardController extends Controller
             'abilities' => [
                 'can_create_project' => $user->can('create', Project::class),
                 'can_view_tasks' => $canViewTasks,
+                'can_view_billables' => $user->can('viewAny', ProjectBillable::class),
             ],
         ]);
     }

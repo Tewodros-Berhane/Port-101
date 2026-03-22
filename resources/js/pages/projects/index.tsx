@@ -43,6 +43,7 @@ type Props = {
     abilities: {
         can_create_project: boolean;
         can_view_tasks: boolean;
+        can_view_billables: boolean;
     };
 };
 
@@ -77,6 +78,13 @@ export default function ProjectsDashboard({
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
+                            {abilities.can_view_billables && (
+                                <Button variant="outline" asChild>
+                                    <Link href="/company/projects/billables">
+                                        Billing queue
+                                    </Link>
+                                </Button>
+                            )}
                             {abilities.can_create_project && (
                                 <Button asChild>
                                     <Link href="/company/projects/create">

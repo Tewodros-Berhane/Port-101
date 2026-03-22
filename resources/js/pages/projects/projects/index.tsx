@@ -35,6 +35,7 @@ type Props = {
     };
     abilities: {
         can_create_project: boolean;
+        can_view_billables: boolean;
     };
 };
 
@@ -75,6 +76,13 @@ export default function ProjectsIndex({
                     <Button variant="outline" asChild>
                         <Link href="/company/projects">Dashboard</Link>
                     </Button>
+                    {abilities.can_view_billables && (
+                        <Button variant="outline" asChild>
+                            <Link href="/company/projects/billables">
+                                Billing queue
+                            </Link>
+                        </Button>
+                    )}
                     {abilities.can_create_project && (
                         <Button asChild>
                             <Link href="/company/projects/create">New project</Link>

@@ -1,8 +1,9 @@
 <?php
 
+use App\Http\Controllers\Projects\ProjectBillablesController;
+use App\Http\Controllers\Projects\ProjectMilestonesController;
 use App\Http\Controllers\Projects\ProjectsController;
 use App\Http\Controllers\Projects\ProjectsDashboardController;
-use App\Http\Controllers\Projects\ProjectMilestonesController;
 use App\Http\Controllers\Projects\ProjectTasksController;
 use App\Http\Controllers\Projects\ProjectTimesheetsController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,8 @@ Route::get('projects', [ProjectsDashboardController::class, 'index'])
 Route::prefix('projects')->name('projects.')->group(function () {
     Route::get('workspace', [ProjectsController::class, 'index'])
         ->name('index');
+    Route::get('billables', [ProjectBillablesController::class, 'index'])
+        ->name('billables.index');
     Route::get('create', [ProjectsController::class, 'create'])
         ->name('create');
     Route::post('/', [ProjectsController::class, 'store'])

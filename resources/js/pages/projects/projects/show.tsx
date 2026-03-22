@@ -101,6 +101,7 @@ type Props = {
         can_create_task: boolean;
         can_create_timesheet: boolean;
         can_create_milestone: boolean;
+        can_view_billables: boolean;
     };
 };
 
@@ -154,6 +155,15 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                     Back to workspace
                                 </Link>
                             </Button>
+                            {abilities.can_view_billables && (
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={`/company/projects/billables?project_id=${project.id}`}
+                                    >
+                                        Billing queue
+                                    </Link>
+                                </Button>
+                            )}
                             {abilities.can_create_task && (
                                 <Button asChild>
                                     <Link
