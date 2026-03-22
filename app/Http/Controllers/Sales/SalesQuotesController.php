@@ -4,18 +4,16 @@ namespace App\Http\Controllers\Sales;
 
 use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
-use App\Modules\Sales\SalesApprovalPolicyService;
-use App\Modules\Sales\SalesDocumentTotalsService;
-use App\Modules\Sales\SalesNumberingService;
-use App\Modules\Sales\SalesQuoteConversionService;
-use App\Modules\Sales\Models\SalesLead;
-use App\Modules\Sales\Models\SalesQuote;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Sales\SalesQuoteRejectRequest;
 use App\Http\Requests\Sales\SalesQuoteStoreRequest;
 use App\Http\Requests\Sales\SalesQuoteUpdateRequest;
+use App\Modules\Sales\Models\SalesLead;
+use App\Modules\Sales\Models\SalesQuote;
+use App\Modules\Sales\SalesQuoteWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -83,74 +81,11 @@ class SalesQuotesController extends Controller
 
     public function store(
         SalesQuoteStoreRequest $request,
-        SalesDocumentTotalsService $totalsService,
-        SalesApprovalPolicyService $approvalPolicyService,
-        SalesNumberingService $numberingService
+        SalesQuoteWorkflowService $workflowService
     ): RedirectResponse {
         $this->authorize('create', SalesQuote::class);
 
-        $user = $request->user();
-        $companyId = $user?->current_company_id;
-
-        if (! $companyId) {
-            abort(403, 'Company context not available.');
-        }
-
-        $validated = $request->validated();
-        $calculated = $totalsService->calculate($validated['lines']);
-        $totals = $calculated['totals'];
-
-        $quote = DB::transaction(function () use (
-            $validated,
-            $calculated,
-            $totals,
-            $approvalPolicyService,
-            $numberingService,
-            $companyId,
-            $user
-        ) {
-            $quote = SalesQuote::create([
-                'company_id' => $companyId,
-                'lead_id' => $validated['lead_id'] ?? null,
-                'partner_id' => $validated['partner_id'],
-                'quote_number' => $numberingService->nextQuoteNumber($companyId, $user?->id),
-                'status' => SalesQuote::STATUS_DRAFT,
-                'quote_date' => $validated['quote_date'],
-                'valid_until' => $validated['valid_until'] ?? null,
-                'subtotal' => $totals['subtotal'],
-                'discount_total' => $totals['discount_total'],
-                'tax_total' => $totals['tax_total'],
-                'grand_total' => $totals['grand_total'],
-                'requires_approval' => $approvalPolicyService->requiresApproval(
-                    companyId: $companyId,
-                    amount: $totals['grand_total'],
-                ),
-                'created_by' => $user?->id,
-                'updated_by' => $user?->id,
-            ]);
-
-            $quote->lines()->createMany(
-                collect($calculated['lines'])
-                    ->map(fn (array $line) => [
-                        ...$line,
-                        'company_id' => $companyId,
-                        'created_by' => $user?->id,
-                        'updated_by' => $user?->id,
-                    ])
-                    ->all()
-            );
-
-            if ($quote->lead_id) {
-                SalesLead::query()
-                    ->where('id', $quote->lead_id)
-                    ->update([
-                        'stage' => 'quoted',
-                        'updated_by' => $user?->id,
-                    ]);
-            }
-
-            return $quote;
-        });
+        $quote = $workflowService->create($request->validated(), $request->user());
 
         return redirect()
             ->route('company.sales.quotes.edit', $quote)
@@ -198,138 +133,69 @@ class SalesQuotesController extends Controller
     public function update(
         SalesQuoteUpdateRequest $request,
         SalesQuote $quote,
-        SalesDocumentTotalsService $totalsService,
-        SalesApprovalPolicyService $approvalPolicyService
+        SalesQuoteWorkflowService $workflowService
     ): RedirectResponse {
         $this->authorize('update', $quote);
 
-        $validated = $request->validated();
-        $user = $request->user();
-        $companyId = (string) $quote->company_id;
-
-        $calculated = $totalsService->calculate($validated['lines']);
-        $totals = $calculated['totals'];
-
-        DB::transaction(function () use (
-            $quote,
-            $validated,
-            $calculated,
-            $totals,
-            $approvalPolicyService,
-            $user,
-            $companyId
-        ) {
-            $requiresApproval = $approvalPolicyService->requiresApproval(
-                companyId: $companyId,
-                amount: $totals['grand_total'],
-            );
-
-            $resetApproval = $quote->status === SalesQuote::STATUS_APPROVED;
-
-            $quote->update([
-                'lead_id' => $validated['lead_id'] ?? null,
-                'partner_id' => $validated['partner_id'],
-                'quote_date' => $validated['quote_date'],
-                'valid_until' => $validated['valid_until'] ?? null,
-                'subtotal' => $totals['subtotal'],
-                'discount_total' => $totals['discount_total'],
-                'tax_total' => $totals['tax_total'],
-                'grand_total' => $totals['grand_total'],
-                'requires_approval' => $requiresApproval,
-                'approved_by' => $resetApproval ? null : $quote->approved_by,
-                'approved_at' => $resetApproval ? null : $quote->approved_at,
-                'status' => $resetApproval
-                    ? SalesQuote::STATUS_DRAFT
-                    : ($quote->status === SalesQuote::STATUS_REJECTED
-                        ? SalesQuote::STATUS_DRAFT
-                        : $quote->status),
-                'updated_by' => $user?->id,
-            ]);
-
-            $quote->lines()->delete();
-            $quote->lines()->createMany(
-                collect($calculated['lines'])
-                    ->map(fn (array $line) => [
-                        ...$line,
-                        'company_id' => $companyId,
-                        'created_by' => $user?->id,
-                        'updated_by' => $user?->id,
-                    ])
-                    ->all()
-            );
-
-            if ($quote->lead_id) {
-                SalesLead::query()
-                    ->where('id', $quote->lead_id)
-                    ->update([
-                        'stage' => 'quoted',
-                        'updated_by' => $user?->id,
-                    ]);
-            }
-        });
+        $workflowService->update($quote, $request->validated(), $request->user());
 
         return redirect()
             ->route('company.sales.quotes.edit', $quote)
             ->with('success', 'Quote updated.');
     }
 
-    public function send(Request $request, SalesQuote $quote): RedirectResponse
-    {
+    public function send(
+        Request $request,
+        SalesQuote $quote,
+        SalesQuoteWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('update', $quote);
 
-        if (! in_array($quote->status, [SalesQuote::STATUS_DRAFT, SalesQuote::STATUS_REJECTED], true)) {
-            return back()->with('error', 'Only draft or rejected quotes can be sent.');
+        try {
+            $workflowService->send($quote, $request->user());
+        } catch (ValidationException $exception) {
+            return back()->with('error', $this->workflowErrorMessage($exception));
         }
-
-        $quote->update([
-            'status' => SalesQuote::STATUS_SENT,
-            'rejection_reason' => null,
-            'updated_by' => $request->user()?->id,
-        ]);
 
         return redirect()
             ->route('company.sales.quotes.edit', $quote)
             ->with('success', 'Quote marked as sent.');
     }
 
-    public function approve(Request $request, SalesQuote $quote): RedirectResponse
-    {
+    public function approve(
+        Request $request,
+        SalesQuote $quote,
+        SalesQuoteWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('approve', $quote);
 
-        if ($quote->status === SalesQuote::STATUS_CONFIRMED) {
-            return back()->with('error', 'Confirmed quotes cannot be approved again.');
+        try {
+            $workflowService->approve($quote, $request->user());
+        } catch (ValidationException $exception) {
+            return back()->with('error', $this->workflowErrorMessage($exception));
         }
-
-        $quote->update([
-            'status' => SalesQuote::STATUS_APPROVED,
-            'approved_by' => $request->user()?->id,
-            'approved_at' => now(),
-            'rejection_reason' => null,
-            'updated_by' => $request->user()?->id,
-        ]);
 
         return redirect()
             ->route('company.sales.quotes.edit', $quote)
             ->with('success', 'Quote approved.');
     }
 
-    public function reject(Request $request, SalesQuote $quote): RedirectResponse
-    {
+    public function reject(
+        SalesQuoteRejectRequest $request,
+        SalesQuote $quote,
+        SalesQuoteWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('approve', $quote);
 
-        if ($quote->status === SalesQuote::STATUS_CONFIRMED) {
-            return back()->with('error', 'Confirmed quotes cannot be rejected.');
+        try {
+            $workflowService->reject(
+                $quote,
+                $request->user(),
+                $request->validated('reason')
+            );
+        } catch (ValidationException $exception) {
+            return back()->with('error', $this->workflowErrorMessage($exception));
         }
-
-        $reason = $request->string('reason')->toString();
-
-        $quote->update([
-            'status' => SalesQuote::STATUS_REJECTED,
-            'rejection_reason' => $reason ?: null,
-            'approved_by' => null,
-            'approved_at' => null,
-            'updated_by' => $request->user()?->id,
-        ]);
 
         return redirect()
             ->route('company.sales.quotes.edit', $quote)
@@ -339,34 +205,28 @@ class SalesQuotesController extends Controller
     public function confirm(
         Request $request,
         SalesQuote $quote,
-        SalesQuoteConversionService $conversionService
+        SalesQuoteWorkflowService $workflowService
     ): RedirectResponse {
         $this->authorize('confirm', $quote);
 
-        if ($quote->requires_approval && $quote->status !== SalesQuote::STATUS_APPROVED) {
-            return back()->with('error', 'This quote requires manager approval before confirmation.');
+        try {
+            $order = $workflowService->confirm($quote, $request->user());
+        } catch (ValidationException $exception) {
+            return back()->with('error', $this->workflowErrorMessage($exception));
         }
-
-        $quote->loadMissing(['lines', 'order']);
-
-        $order = $conversionService->createOrderFromQuote($quote, $request->user());
-
-        $quote->update([
-            'status' => SalesQuote::STATUS_CONFIRMED,
-            'updated_by' => $request->user()?->id,
-        ]);
 
         return redirect()
             ->route('company.sales.orders.edit', $order)
             ->with('success', 'Quote confirmed and sales order created.');
     }
 
-    public function destroy(SalesQuote $quote): RedirectResponse
-    {
+    public function destroy(
+        SalesQuote $quote,
+        SalesQuoteWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('delete', $quote);
 
-        $quote->lines()->delete();
-        $quote->delete();
+        $workflowService->delete($quote);
 
         return redirect()
             ->route('company.sales.quotes.index')
@@ -432,6 +292,9 @@ class SalesQuotesController extends Controller
             ->values()
             ->all();
     }
+
+    private function workflowErrorMessage(ValidationException $exception): string
+    {
+        return (string) (collect($exception->errors())->flatten()->first() ?? $exception->getMessage());
+    }
 }
-
-

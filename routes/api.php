@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\V1\ProductsController as ApiProductsController;
 use App\Http\Controllers\Api\V1\ProjectsController as ApiProjectsController;
 use App\Http\Controllers\Api\V1\ProjectTasksController as ApiProjectTasksController;
 use App\Http\Controllers\Api\V1\ProjectTimesheetsController as ApiProjectTimesheetsController;
+use App\Http\Controllers\Api\V1\SalesLeadsController as ApiSalesLeadsController;
+use App\Http\Controllers\Api\V1\SalesOrdersController as ApiSalesOrdersController;
+use App\Http\Controllers\Api\V1\SalesQuotesController as ApiSalesQuotesController;
 use App\Http\Controllers\Api\V1\SettingsController as ApiSettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +23,17 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'company.context', 'company'])->group(function () {
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
+        Route::prefix('sales')->group(function () {
+            Route::apiResource('leads', ApiSalesLeadsController::class);
+            Route::apiResource('quotes', ApiSalesQuotesController::class);
+            Route::post('quotes/{quote}/send', [ApiSalesQuotesController::class, 'send']);
+            Route::post('quotes/{quote}/approve', [ApiSalesQuotesController::class, 'approve']);
+            Route::post('quotes/{quote}/reject', [ApiSalesQuotesController::class, 'reject']);
+            Route::post('quotes/{quote}/confirm', [ApiSalesQuotesController::class, 'confirm']);
+            Route::apiResource('orders', ApiSalesOrdersController::class);
+            Route::post('orders/{order}/approve', [ApiSalesOrdersController::class, 'approve']);
+            Route::post('orders/{order}/confirm', [ApiSalesOrdersController::class, 'confirm']);
+        });
         Route::apiResource('projects', ApiProjectsController::class);
 
         Route::prefix('projects')->group(function () {

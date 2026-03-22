@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Sales;
 
 use App\Core\MasterData\Models\Partner;
-use App\Modules\Sales\Models\SalesLead;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesLeadStoreRequest;
 use App\Http\Requests\Sales\SalesLeadUpdateRequest;
+use App\Modules\Sales\Models\SalesLead;
+use App\Modules\Sales\SalesLeadWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -52,18 +53,13 @@ class SalesLeadsController extends Controller
         ]);
     }
 
-    public function store(SalesLeadStoreRequest $request): RedirectResponse
-    {
+    public function store(
+        SalesLeadStoreRequest $request,
+        SalesLeadWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('create', SalesLead::class);
 
-        $user = $request->user();
-
-        $lead = SalesLead::create([
-            ...$request->validated(),
-            'company_id' => $user?->current_company_id,
-            'created_by' => $user?->id,
-            'updated_by' => $user?->id,
-        ]);
+        $lead = $workflowService->create($request->validated(), $request->user());
 
         return redirect()
             ->route('company.sales.leads.edit', $lead)
@@ -92,25 +88,25 @@ class SalesLeadsController extends Controller
 
     public function update(
         SalesLeadUpdateRequest $request,
-        SalesLead $lead
+        SalesLead $lead,
+        SalesLeadWorkflowService $workflowService
     ): RedirectResponse {
         $this->authorize('update', $lead);
 
-        $lead->update([
-            ...$request->validated(),
-            'updated_by' => $request->user()?->id,
-        ]);
+        $workflowService->update($lead, $request->validated(), $request->user());
 
         return redirect()
             ->route('company.sales.leads.edit', $lead)
             ->with('success', 'Lead updated.');
     }
 
-    public function destroy(SalesLead $lead): RedirectResponse
-    {
+    public function destroy(
+        SalesLead $lead,
+        SalesLeadWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('delete', $lead);
 
-        $lead->delete();
+        $workflowService->delete($lead);
 
         return redirect()
             ->route('company.sales.leads.index')
@@ -135,5 +131,3 @@ class SalesLeadsController extends Controller
             ->all();
     }
 }
-
-

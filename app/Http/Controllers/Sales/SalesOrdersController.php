@@ -4,18 +4,15 @@ namespace App\Http\Controllers\Sales;
 
 use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
-use App\Modules\Sales\SalesApprovalPolicyService;
-use App\Modules\Sales\SalesDocumentTotalsService;
-use App\Modules\Sales\SalesNumberingService;
-use App\Modules\Sales\SalesOrderWorkflowService;
-use App\Modules\Sales\Models\SalesOrder;
-use App\Modules\Sales\Models\SalesQuote;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesOrderStoreRequest;
 use App\Http\Requests\Sales\SalesOrderUpdateRequest;
+use App\Modules\Sales\Models\SalesOrder;
+use App\Modules\Sales\Models\SalesQuote;
+use App\Modules\Sales\SalesOrderWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,73 +79,11 @@ class SalesOrdersController extends Controller
 
     public function store(
         SalesOrderStoreRequest $request,
-        SalesDocumentTotalsService $totalsService,
-        SalesApprovalPolicyService $approvalPolicyService,
-        SalesNumberingService $numberingService
+        SalesOrderWorkflowService $workflowService
     ): RedirectResponse {
         $this->authorize('create', SalesOrder::class);
 
-        $user = $request->user();
-        $companyId = $user?->current_company_id;
-
-        if (! $companyId) {
-            abort(403, 'Company context not available.');
-        }
-
-        $validated = $request->validated();
-        $calculated = $totalsService->calculate($validated['lines']);
-        $totals = $calculated['totals'];
-
-        $order = DB::transaction(function () use (
-            $validated,
-            $calculated,
-            $totals,
-            $approvalPolicyService,
-            $numberingService,
-            $companyId,
-            $user
-        ) {
-            $order = SalesOrder::create([
-                'company_id' => $companyId,
-                'quote_id' => $validated['quote_id'] ?? null,
-                'partner_id' => $validated['partner_id'],
-                'order_number' => $numberingService->nextOrderNumber($companyId, $user?->id),
-                'status' => SalesOrder::STATUS_DRAFT,
-                'order_date' => $validated['order_date'],
-                'subtotal' => $totals['subtotal'],
-                'discount_total' => $totals['discount_total'],
-                'tax_total' => $totals['tax_total'],
-                'grand_total' => $totals['grand_total'],
-                'requires_approval' => $approvalPolicyService->requiresApproval(
-                    companyId: $companyId,
-                    amount: $totals['grand_total'],
-                ),
-                'created_by' => $user?->id,
-                'updated_by' => $user?->id,
-            ]);
-
-            $order->lines()->createMany(
-                collect($calculated['lines'])
-                    ->map(fn (array $line) => [
-                        ...$line,
-                        'company_id' => $companyId,
-                        'created_by' => $user?->id,
-                        'updated_by' => $user?->id,
-                    ])
-                    ->all()
-            );
-
-            if ($order->quote_id) {
-                SalesQuote::query()
-                    ->where('id', $order->quote_id)
-                    ->update([
-                        'status' => SalesQuote::STATUS_CONFIRMED,
-                        'updated_by' => $user?->id,
-                    ]);
-            }
-
-            return $order;
-        });
+        $order = $workflowService->create($request->validated(), $request->user());
 
         return redirect()
             ->route('company.sales.orders.edit', $order)
@@ -195,74 +130,29 @@ class SalesOrdersController extends Controller
     public function update(
         SalesOrderUpdateRequest $request,
         SalesOrder $order,
-        SalesDocumentTotalsService $totalsService,
-        SalesApprovalPolicyService $approvalPolicyService
+        SalesOrderWorkflowService $workflowService
     ): RedirectResponse {
         $this->authorize('update', $order);
 
-        $validated = $request->validated();
-        $user = $request->user();
-        $companyId = (string) $order->company_id;
-
-        $calculated = $totalsService->calculate($validated['lines']);
-        $totals = $calculated['totals'];
-
-        DB::transaction(function () use (
-            $order,
-            $validated,
-            $calculated,
-            $totals,
-            $approvalPolicyService,
-            $user,
-            $companyId
-        ) {
-            $requiresApproval = $approvalPolicyService->requiresApproval(
-                companyId: $companyId,
-                amount: $totals['grand_total'],
-            );
-
-            $resetApproval = $order->approved_at !== null && $requiresApproval;
-
-            $order->update([
-                'partner_id' => $validated['partner_id'],
-                'order_date' => $validated['order_date'],
-                'subtotal' => $totals['subtotal'],
-                'discount_total' => $totals['discount_total'],
-                'tax_total' => $totals['tax_total'],
-                'grand_total' => $totals['grand_total'],
-                'requires_approval' => $requiresApproval,
-                'approved_by' => $resetApproval ? null : $order->approved_by,
-                'approved_at' => $resetApproval ? null : $order->approved_at,
-                'updated_by' => $user?->id,
-            ]);
-
-            $order->lines()->delete();
-            $order->lines()->createMany(
-                collect($calculated['lines'])
-                    ->map(fn (array $line) => [
-                        ...$line,
-                        'company_id' => $companyId,
-                        'created_by' => $user?->id,
-                        'updated_by' => $user?->id,
-                    ])
-                    ->all()
-            );
-        });
+        $workflowService->update($order, $request->validated(), $request->user());
 
         return redirect()
             ->route('company.sales.orders.edit', $order)
             ->with('success', 'Sales order updated.');
     }
 
-    public function approve(Request $request, SalesOrder $order): RedirectResponse
-    {
+    public function approve(
+        Request $request,
+        SalesOrder $order,
+        SalesOrderWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('approve', $order);
 
-        $order->update([
-            'approved_by' => $request->user()?->id,
-            'approved_at' => now(),
-            'updated_by' => $request->user()?->id,
-        ]);
+        try {
+            $workflowService->approve($order, $request->user());
+        } catch (ValidationException $exception) {
+            return back()->with('error', $this->workflowErrorMessage($exception));
+        }
 
         return redirect()
             ->route('company.sales.orders.edit', $order)
@@ -276,19 +166,10 @@ class SalesOrdersController extends Controller
     ): RedirectResponse {
         $this->authorize('confirm', $order);
 
-        if ($order->requires_approval && ! $order->approved_at) {
-            return back()->with('error', 'This order requires manager approval before confirmation.');
-        }
-
-        $workflowService->confirm($order, $request->user());
-
-        if ($order->quote_id) {
-            SalesQuote::query()
-                ->where('id', $order->quote_id)
-                ->update([
-                    'status' => SalesQuote::STATUS_CONFIRMED,
-                    'updated_by' => $request->user()?->id,
-                ]);
+        try {
+            $workflowService->confirm($order, $request->user());
+        } catch (ValidationException $exception) {
+            return back()->with('error', $this->workflowErrorMessage($exception));
         }
 
         return redirect()
@@ -296,12 +177,13 @@ class SalesOrdersController extends Controller
             ->with('success', 'Sales order confirmed.');
     }
 
-    public function destroy(SalesOrder $order): RedirectResponse
-    {
+    public function destroy(
+        SalesOrder $order,
+        SalesOrderWorkflowService $workflowService
+    ): RedirectResponse {
         $this->authorize('delete', $order);
 
-        $order->lines()->delete();
-        $order->delete();
+        $workflowService->delete($order);
 
         return redirect()
             ->route('company.sales.orders.index')
@@ -374,6 +256,9 @@ class SalesOrdersController extends Controller
             ->values()
             ->all();
     }
+
+    private function workflowErrorMessage(ValidationException $exception): string
+    {
+        return (string) (collect($exception->errors())->flatten()->first() ?? $exception->getMessage());
+    }
 }
-
-
