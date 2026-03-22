@@ -34,6 +34,8 @@ class ProjectBillable extends Model
 
     public const TYPE_MANUAL = 'manual';
 
+    public const TYPE_RECURRING = 'recurring';
+
     /**
      * @var array<int, string>
      */
@@ -43,6 +45,7 @@ class ProjectBillable extends Model
         self::TYPE_EXPENSE,
         self::TYPE_MATERIAL,
         self::TYPE_MANUAL,
+        self::TYPE_RECURRING,
     ];
 
     public const STATUS_DRAFT = 'draft';

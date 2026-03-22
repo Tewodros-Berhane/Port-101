@@ -27,6 +27,7 @@ use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMilestone;
+use App\Modules\Projects\Models\ProjectRecurringBilling;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Purchasing\Models\PurchaseOrder;
@@ -56,6 +57,7 @@ use App\Policies\ProductPolicy;
 use App\Policies\ProjectBillablePolicy;
 use App\Policies\ProjectMilestonePolicy;
 use App\Policies\ProjectPolicy;
+use App\Policies\ProjectRecurringBillingPolicy;
 use App\Policies\ProjectTaskPolicy;
 use App\Policies\ProjectTimesheetPolicy;
 use App\Policies\PurchaseOrderPolicy;
@@ -100,6 +102,7 @@ class AuthServiceProvider extends ServiceProvider
         ProjectTimesheet::class => ProjectTimesheetPolicy::class,
         ProjectMilestone::class => ProjectMilestonePolicy::class,
         ProjectBillable::class => ProjectBillablePolicy::class,
+        ProjectRecurringBilling::class => ProjectRecurringBillingPolicy::class,
         AccountingBankReconciliationBatch::class => AccountingBankReconciliationPolicy::class,
         AccountingInvoice::class => AccountingInvoicePolicy::class,
         AccountingManualJournal::class => AccountingManualJournalPolicy::class,

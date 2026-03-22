@@ -115,10 +115,11 @@
 - Projects/Services invoice draft handoff implemented: selected eligible project billables can now be grouped by project or customer into draft customer invoices, with queue-based selection UI, accounting draft creation through the shared invoice workflow service, billable-to-invoice linkage, and source timesheet/milestone invoice-state stamping.
 - Projects/Services project detail billing integration implemented: project detail pages now surface billing-status summary cards, project-scoped billable rows with invoice eligibility selection, direct invoice-draft creation from the project page, and linked accounting invoice visibility without leaving the project workspace.
 - Projects/Services profitability layer implemented: shared project profitability service now computes logged-vs-budget hours, utilization, billable pipeline, ready-to-invoice value, invoiced value, realization, and gross-margin signals for both project detail pages and the portfolio dashboard.
+- Projects/Services recurring billing engine implemented: recurring schedule/run tables, schedule processing service, schedule state transitions, idempotent due-cycle generation into `project_billables`, auto-invoice draft handoff into Accounting, approval-queue sync hooks, and the scheduled processing command `projects:recurring-billing:run`.
 
 ## Not Yet Implemented
 
-- Projects/Services recurring billing flows.
+- Projects/Services recurring billing workspace UI and project/dashboard visibility.
 
 ## Deferred / Out of Scope
 
@@ -177,7 +178,7 @@
 
 ### Present but placeholder-only
 
-- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, approval workflow integration, draft invoice handoff into Accounting, project detail billing visibility, and portfolio profitability signals, but recurring billing flows are still pending.
+- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, approval workflow integration, draft invoice handoff into Accounting, project detail billing visibility, portfolio profitability signals, and the recurring billing engine, but recurring billing workspace UI is still pending.
 
 ### Test run result (2026-03-22)
 

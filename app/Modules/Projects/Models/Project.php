@@ -173,6 +173,11 @@ class Project extends Model
         return $this->hasMany(ProjectBillable::class, 'project_id');
     }
 
+    public function recurringBillings(): HasMany
+    {
+        return $this->hasMany(ProjectRecurringBilling::class, 'project_id');
+    }
+
     public function scopeAccessibleTo(Builder $query, User $user): Builder
     {
         if ($user->is_super_admin) {

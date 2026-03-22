@@ -38,6 +38,9 @@ class ProjectInvoiceDraftService
         string $companyId,
         string $groupBy = self::GROUP_BY_PROJECT,
         ?string $actorId = null,
+        ?string $invoiceDate = null,
+        ?string $dueDate = null,
+        ?string $notesOverride = null,
     ): Collection {
         $selectedIds = collect($billableIds)
             ->filter()
@@ -57,7 +60,15 @@ class ProjectInvoiceDraftService
             ]);
         }
 
-        return DB::transaction(function () use ($selectedIds, $companyId, $groupBy, $actorId) {
+        return DB::transaction(function () use (
+            $selectedIds,
+            $companyId,
+            $groupBy,
+            $actorId,
+            $invoiceDate,
+            $dueDate,
+            $notesOverride,
+        ) {
             $billables = ProjectBillable::query()
                 ->with([
                     'project:id,project_code,name,customer_id,currency_id',
@@ -113,10 +124,10 @@ class ProjectInvoiceDraftService
                         'partner_id' => $partnerId,
                         'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
                         'sales_order_id' => null,
-                        'invoice_date' => now()->toDateString(),
-                        'due_date' => now()->addDays(30)->toDateString(),
+                        'invoice_date' => $invoiceDate ?? now()->toDateString(),
+                        'due_date' => $dueDate ?? now()->addDays(30)->toDateString(),
                         'currency_code' => $currencyCode,
-                        'notes' => $this->invoiceNotes($group, $groupBy),
+                        'notes' => $notesOverride ?? $this->invoiceNotes($group, $groupBy),
                         'lines' => $group
                             ->map(fn (ProjectBillable $billable) => [
                                 'product_id' => null,

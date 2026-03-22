@@ -11,6 +11,10 @@ use App\Core\Settings\SettingsService;
 use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
 use App\Modules\Accounting\AccountingLedgerBackfillService;
+use App\Modules\Approvals\ApprovalQueueService;
+use App\Modules\Projects\Models\ProjectRecurringBilling;
+use App\Modules\Projects\Models\ProjectRecurringBillingRun;
+use App\Modules\Projects\ProjectRecurringBillingService;
 use App\Modules\Reports\CompanyReportingSettingsService;
 use App\Modules\Reports\CompanyReportsService;
 use App\Notifications\CompanyReportDeliveryNotification;
@@ -615,7 +619,67 @@ Artisan::command('accounting:backfill-ledger {companyId?}', function (?string $c
     return self::SUCCESS;
 })->purpose('Backfill accounting ledger entries and default chart of accounts for existing companies');
 
+Artisan::command('projects:recurring-billing:run {companyId?} {--schedule=}', function (?string $companyId = null) {
+    $service = app(ProjectRecurringBillingService::class);
+    $approvalQueueService = app(ApprovalQueueService::class);
+    $scheduleId = $this->option('schedule');
+
+    if (is_string($scheduleId) && trim($scheduleId) !== '') {
+        $schedule = ProjectRecurringBilling::query()
+            ->when(
+                filled($companyId),
+                fn ($query) => $query->where('company_id', $companyId),
+            )
+            ->findOrFail($scheduleId);
+
+        $run = $service->runNow($schedule);
+        $processed = collect($run ? [$run] : []);
+    } else {
+        $processed = $service->processDueSchedules($companyId);
+    }
+
+    if ($processed->isEmpty()) {
+        $this->line('No recurring billing schedules were processed.');
+
+        return self::SUCCESS;
+    }
+
+    $companyIds = $processed
+        ->pluck('company_id')
+        ->filter()
+        ->unique()
+        ->values();
+
+    if ($companyIds->isNotEmpty()) {
+        Company::query()
+            ->whereIn('id', $companyIds)
+            ->get()
+            ->each(fn (Company $company) => $approvalQueueService->syncPendingRequests($company));
+    }
+
+    $failed = $processed
+        ->where('status', ProjectRecurringBillingRun::STATUS_FAILED)
+        ->count();
+    $invoiced = $processed
+        ->where('status', ProjectRecurringBillingRun::STATUS_INVOICED)
+        ->count();
+    $pendingApproval = $processed
+        ->where('status', ProjectRecurringBillingRun::STATUS_PENDING_APPROVAL)
+        ->count();
+    $ready = $processed
+        ->where('status', ProjectRecurringBillingRun::STATUS_READY)
+        ->count();
+
+    $this->info(
+        "Processed {$processed->count()} recurring billing run(s). "
+        ."Ready: {$ready}, pending approval: {$pendingApproval}, invoiced: {$invoiced}, failed: {$failed}."
+    );
+
+    return self::SUCCESS;
+})->purpose('Process due project recurring billing schedules and create billables or invoices');
+
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:notifications:send-digest')->everyMinute();
 Schedule::command('platform:operations-reports:deliver-scheduled')->everyMinute();
 Schedule::command('company:reports:deliver-scheduled')->everyMinute();
+Schedule::command('projects:recurring-billing:run')->everyMinute();
