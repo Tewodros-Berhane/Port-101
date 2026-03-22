@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Projects\ProjectBillablesController;
 use App\Http\Controllers\Projects\ProjectMilestonesController;
+use App\Http\Controllers\Projects\ProjectRecurringBillingController;
 use App\Http\Controllers\Projects\ProjectsController;
 use App\Http\Controllers\Projects\ProjectsDashboardController;
 use App\Http\Controllers\Projects\ProjectTasksController;
@@ -16,6 +17,24 @@ Route::prefix('projects')->name('projects.')->group(function () {
         ->name('index');
     Route::get('billables', [ProjectBillablesController::class, 'index'])
         ->name('billables.index');
+    Route::get('recurring-billing', [ProjectRecurringBillingController::class, 'index'])
+        ->name('recurring-billing.index');
+    Route::get('recurring-billing/create', [ProjectRecurringBillingController::class, 'create'])
+        ->name('recurring-billing.create');
+    Route::post('recurring-billing', [ProjectRecurringBillingController::class, 'store'])
+        ->name('recurring-billing.store');
+    Route::get('recurring-billing/{recurringBilling}/edit', [ProjectRecurringBillingController::class, 'edit'])
+        ->name('recurring-billing.edit');
+    Route::put('recurring-billing/{recurringBilling}', [ProjectRecurringBillingController::class, 'update'])
+        ->name('recurring-billing.update');
+    Route::post('recurring-billing/{recurringBilling}/activate', [ProjectRecurringBillingController::class, 'activate'])
+        ->name('recurring-billing.activate');
+    Route::post('recurring-billing/{recurringBilling}/pause', [ProjectRecurringBillingController::class, 'pause'])
+        ->name('recurring-billing.pause');
+    Route::post('recurring-billing/{recurringBilling}/cancel', [ProjectRecurringBillingController::class, 'cancel'])
+        ->name('recurring-billing.cancel');
+    Route::post('recurring-billing/{recurringBilling}/run-now', [ProjectRecurringBillingController::class, 'runNow'])
+        ->name('recurring-billing.run-now');
     Route::post('billables/invoice-drafts', [ProjectBillablesController::class, 'createInvoiceDrafts'])
         ->name('billables.invoice-drafts.store');
     Route::post('billables/{billable}/approve', [ProjectBillablesController::class, 'approve'])

@@ -36,6 +36,7 @@ type Props = {
     abilities: {
         can_create_project: boolean;
         can_view_billables: boolean;
+        can_view_recurring: boolean;
     };
 };
 
@@ -80,6 +81,13 @@ export default function ProjectsIndex({
                         <Button variant="outline" asChild>
                             <Link href="/company/projects/billables">
                                 Billing queue
+                            </Link>
+                        </Button>
+                    )}
+                    {abilities.can_view_recurring && (
+                        <Button variant="outline" asChild>
+                            <Link href="/company/projects/recurring-billing">
+                                Recurring billing
                             </Link>
                         </Button>
                     )}

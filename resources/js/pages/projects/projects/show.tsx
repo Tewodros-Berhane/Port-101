@@ -88,6 +88,30 @@ type LinkedInvoice = {
     can_open: boolean;
 };
 
+type ProjectRecurringBilling = {
+    id: string;
+    name: string;
+    description?: string | null;
+    customer_name?: string | null;
+    frequency: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+    currency_code?: string | null;
+    status: string;
+    next_run_on?: string | null;
+    ends_on?: string | null;
+    auto_create_invoice_draft: boolean;
+    invoice_grouping: string;
+    last_invoice_id?: string | null;
+    last_invoice_number?: string | null;
+    latest_run_status?: string | null;
+    latest_cycle_label?: string | null;
+    latest_error_message?: string | null;
+    can_edit: boolean;
+    can_run: boolean;
+};
+
 type Props = {
     project: {
         id: string;
@@ -116,6 +140,7 @@ type Props = {
         milestones: ProjectMilestone[];
         billables: ProjectBillable[];
         linked_invoices: LinkedInvoice[];
+        recurring_billings: ProjectRecurringBilling[];
     };
     summary: {
         task_total: number;
@@ -133,6 +158,10 @@ type Props = {
         billables_pending_approval_amount: number;
         billables_invoiced: number;
         billables_invoiced_amount: number;
+        recurring_billing_total: number;
+        recurring_billing_active: number;
+        recurring_billing_due_now: number;
+        recurring_billing_amount: number;
     };
     profitability: {
         budget_hours?: number | null;
@@ -157,6 +186,8 @@ type Props = {
         can_create_timesheet: boolean;
         can_create_milestone: boolean;
         can_view_billables: boolean;
+        can_view_recurring: boolean;
+        can_manage_recurring: boolean;
         can_create_invoice_drafts: boolean;
         invoice_grouping_options: string[];
     };
@@ -249,6 +280,15 @@ export default function ProjectShow({
                                     </Link>
                                 </Button>
                             )}
+                            {abilities.can_view_recurring && (
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={`/company/projects/recurring-billing?project_id=${project.id}`}
+                                    >
+                                        Recurring billing
+                                    </Link>
+                                </Button>
+                            )}
                             {abilities.can_create_invoice_drafts && (
                                 <>
                                     <select
@@ -337,6 +377,10 @@ export default function ProjectShow({
                     <MetricCard
                         label="Ready to invoice"
                         value={`${summary.billables_ready_to_invoice} / ${summary.billables_ready_to_invoice_amount.toFixed(2)}`}
+                    />
+                    <MetricCard
+                        label="Recurring billing"
+                        value={`${summary.recurring_billing_active} / ${summary.recurring_billing_amount.toFixed(2)}`}
                     />
                     <MetricCard
                         label="Overdue tasks"
@@ -550,6 +594,170 @@ export default function ProjectShow({
                         </div>
                     </div>
                 </section>
+
+                {abilities.can_view_recurring && (
+                    <section className="rounded-xl border p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Recurring billing
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Service retainers and scheduled invoice
+                                    cycles attached to this project.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button variant="ghost" asChild>
+                                    <Link
+                                        href={`/company/projects/recurring-billing?project_id=${project.id}`}
+                                    >
+                                        Open schedules
+                                    </Link>
+                                </Button>
+                                {abilities.can_manage_recurring && (
+                                    <Button variant="outline" asChild>
+                                        <Link
+                                            href={`/company/projects/recurring-billing/create?project_id=${project.id}`}
+                                        >
+                                            New schedule
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <BillingMetricCard
+                                label="Schedules"
+                                count={summary.recurring_billing_total}
+                                amount={summary.recurring_billing_amount}
+                                tone="blue"
+                                countLabel="total"
+                                amountLabel="active amount"
+                            />
+                            <BillingMetricCard
+                                label="Active"
+                                count={summary.recurring_billing_active}
+                                amount={summary.recurring_billing_due_now}
+                                tone="emerald"
+                                countLabel="active"
+                                amountLabel="due now"
+                            />
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {project.recurring_billings.length === 0 && (
+                                <div className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+                                    No recurring billing schedules have been
+                                    added to this project yet.
+                                </div>
+                            )}
+                            {project.recurring_billings.map((schedule) => (
+                                <div
+                                    key={schedule.id}
+                                    className="rounded-xl border px-3 py-3"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-medium">
+                                                {schedule.name}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {formatLabel(schedule.frequency)}{' '}
+                                                | {schedule.amount.toFixed(2)}{' '}
+                                                {schedule.currency_code ?? ''}
+                                                {' | '}
+                                                {formatLabel(schedule.status)}
+                                            </p>
+                                            {schedule.description && (
+                                                <p className="mt-1 max-w-[520px] truncate text-xs text-muted-foreground">
+                                                    {schedule.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="text-right text-xs text-muted-foreground">
+                                            <p>
+                                                Next run {schedule.next_run_on ?? '-'}
+                                            </p>
+                                            <p>
+                                                {schedule.auto_create_invoice_draft
+                                                    ? 'Auto invoice'
+                                                    : 'Manual invoice'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                        <span>
+                                            Qty {schedule.quantity.toFixed(2)}
+                                        </span>
+                                        <span>
+                                            Unit {schedule.unit_price.toFixed(2)}
+                                        </span>
+                                        <span>
+                                            Group by{' '}
+                                            {formatLabel(
+                                                schedule.invoice_grouping,
+                                            )}
+                                        </span>
+                                        <span>
+                                            Customer{' '}
+                                            {schedule.customer_name ?? '-'}
+                                        </span>
+                                        {schedule.latest_cycle_label && (
+                                            <span>
+                                                Latest cycle{' '}
+                                                {schedule.latest_cycle_label}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {schedule.latest_error_message && (
+                                        <p className="mt-2 text-xs text-red-500">
+                                            {schedule.latest_error_message}
+                                        </p>
+                                    )}
+                                    <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                                        {schedule.can_edit && (
+                                            <Link
+                                                href={`/company/projects/recurring-billing/${schedule.id}/edit`}
+                                                className="font-medium text-primary"
+                                            >
+                                                Edit
+                                            </Link>
+                                        )}
+                                        {schedule.can_run && (
+                                            <button
+                                                type="button"
+                                                className="font-medium text-primary"
+                                                onClick={() =>
+                                                    router.post(
+                                                        `/company/projects/recurring-billing/${schedule.id}/run-now`,
+                                                        {},
+                                                        {
+                                                            preserveScroll:
+                                                                true,
+                                                        },
+                                                    )
+                                                }
+                                            >
+                                                Run now
+                                            </button>
+                                        )}
+                                        {schedule.last_invoice_id &&
+                                            schedule.last_invoice_number && (
+                                                <Link
+                                                    href={`/company/accounting/invoices/${schedule.last_invoice_id}/edit`}
+                                                    className="font-medium text-primary"
+                                                >
+                                                    {schedule.last_invoice_number}
+                                                </Link>
+                                            )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 <section className="rounded-xl border p-4">
                     <div className="flex items-center justify-between gap-3">

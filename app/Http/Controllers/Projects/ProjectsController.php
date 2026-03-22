@@ -13,6 +13,7 @@ use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMember;
 use App\Modules\Projects\Models\ProjectMilestone;
+use App\Modules\Projects\Models\ProjectRecurringBilling;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Projects\ProjectInvoiceDraftService;
@@ -105,6 +106,7 @@ class ProjectsController extends Controller
             'abilities' => [
                 'can_create_project' => $user->can('create', Project::class),
                 'can_view_billables' => $user->can('viewAny', ProjectBillable::class),
+                'can_view_recurring' => $user->can('viewAny', ProjectRecurringBilling::class),
             ],
         ]);
     }
@@ -204,6 +206,13 @@ class ProjectsController extends Controller
             'milestones.approvedBy:id,name',
             'billables.currency:id,code,symbol',
             'billables.invoice:id,invoice_number,status,invoice_date,due_date,grand_total,balance_due',
+            'recurringBillings.customer:id,name',
+            'recurringBillings.currency:id,code,symbol',
+            'recurringBillings.lastInvoice:id,invoice_number',
+            'recurringBillings.runs' => fn ($builder) => $builder
+                ->latest('scheduled_for')
+                ->latest('created_at')
+                ->limit(1),
         ]);
 
         $tasks = $project->tasks
@@ -220,6 +229,12 @@ class ProjectsController extends Controller
             ->values();
         $billables = $project->billables
             ->sortByDesc('updated_at')
+            ->values();
+        $recurringBillings = $project->recurringBillings
+            ->sortBy([
+                ['status', 'asc'],
+                ['next_run_on', 'asc'],
+            ])
             ->values();
         $linkedInvoices = $billables
             ->map(fn (ProjectBillable $billable) => $billable->invoice)
@@ -382,6 +397,35 @@ class ProjectsController extends Controller
                         'can_open' => $user?->can('view', $invoice) ?? false,
                     ])
                     ->all(),
+                'recurring_billings' => $recurringBillings
+                    ->map(function (ProjectRecurringBilling $schedule) use ($user) {
+                        $latestRun = $schedule->runs->first();
+
+                        return [
+                            'id' => $schedule->id,
+                            'name' => $schedule->name,
+                            'description' => $schedule->description,
+                            'customer_name' => $schedule->customer?->name,
+                            'frequency' => $schedule->frequency,
+                            'quantity' => (float) $schedule->quantity,
+                            'unit_price' => (float) $schedule->unit_price,
+                            'amount' => round((float) $schedule->quantity * (float) $schedule->unit_price, 2),
+                            'currency_code' => $schedule->currency?->code,
+                            'status' => $schedule->status,
+                            'next_run_on' => $schedule->next_run_on?->toDateString(),
+                            'ends_on' => $schedule->ends_on?->toDateString(),
+                            'auto_create_invoice_draft' => (bool) $schedule->auto_create_invoice_draft,
+                            'invoice_grouping' => $schedule->invoice_grouping,
+                            'last_invoice_id' => $schedule->last_invoice_id,
+                            'last_invoice_number' => $schedule->lastInvoice?->invoice_number,
+                            'latest_run_status' => $latestRun?->status,
+                            'latest_cycle_label' => $latestRun?->cycle_label,
+                            'latest_error_message' => $latestRun?->error_message,
+                            'can_edit' => $user?->can('update', $schedule) ?? false,
+                            'can_run' => $user?->can('run', $schedule) ?? false,
+                        ];
+                    })
+                    ->all(),
             ],
             'summary' => [
                 'task_total' => $tasks->count(),
@@ -454,6 +498,21 @@ class ProjectsController extends Controller
                         ->sum('amount'),
                     2,
                 ),
+                'recurring_billing_total' => $recurringBillings->count(),
+                'recurring_billing_active' => $recurringBillings
+                    ->where('status', ProjectRecurringBilling::STATUS_ACTIVE)
+                    ->count(),
+                'recurring_billing_due_now' => $recurringBillings
+                    ->filter(fn (ProjectRecurringBilling $schedule) => $schedule->status === ProjectRecurringBilling::STATUS_ACTIVE
+                        && $schedule->next_run_on !== null
+                        && $schedule->next_run_on->toDateString() <= now()->toDateString())
+                    ->count(),
+                'recurring_billing_amount' => round(
+                    (float) $recurringBillings
+                        ->where('status', ProjectRecurringBilling::STATUS_ACTIVE)
+                        ->sum(fn (ProjectRecurringBilling $schedule) => (float) $schedule->quantity * (float) $schedule->unit_price),
+                    2,
+                ),
             ],
             'profitability' => $profitability,
             'abilities' => [
@@ -463,6 +522,9 @@ class ProjectsController extends Controller
                 'can_create_milestone' => $user?->can('create', ProjectMilestone::class)
                     && ($user?->can('update', $project) ?? false),
                 'can_view_billables' => $user?->can('viewAny', ProjectBillable::class) ?? false,
+                'can_view_recurring' => $user?->can('viewAny', ProjectRecurringBilling::class) ?? false,
+                'can_manage_recurring' => $user?->can('update', $project) ?? false
+                    && ($user?->can('create', ProjectRecurringBilling::class) ?? false),
                 'can_create_invoice_drafts' => $user?->hasPermission('projects.invoices.create') ?? false,
                 'invoice_grouping_options' => ProjectInvoiceDraftService::GROUP_BY_OPTIONS,
             ],

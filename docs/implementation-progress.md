@@ -116,10 +116,7 @@
 - Projects/Services project detail billing integration implemented: project detail pages now surface billing-status summary cards, project-scoped billable rows with invoice eligibility selection, direct invoice-draft creation from the project page, and linked accounting invoice visibility without leaving the project workspace.
 - Projects/Services profitability layer implemented: shared project profitability service now computes logged-vs-budget hours, utilization, billable pipeline, ready-to-invoice value, invoiced value, realization, and gross-margin signals for both project detail pages and the portfolio dashboard.
 - Projects/Services recurring billing engine implemented: recurring schedule/run tables, schedule processing service, schedule state transitions, idempotent due-cycle generation into `project_billables`, auto-invoice draft handoff into Accounting, approval-queue sync hooks, and the scheduled processing command `projects:recurring-billing:run`.
-
-## Not Yet Implemented
-
-- Projects/Services recurring billing workspace UI and project/dashboard visibility.
+- Projects/Services recurring billing workspace implemented: `/company/projects/recurring-billing` now supports filtered schedule management, project-linked create/edit flows, activate/pause/cancel/run-now actions, dashboard recurring KPIs, project-detail recurring schedule visibility, and route/test coverage for manager-vs-user access.
 
 ## Deferred / Out of Scope
 
@@ -174,17 +171,18 @@
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
-- Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, project detail pages, project/task CRUD, timesheet approvals, and milestone tracking for delivery teams with role-aware access.
+- Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
 
 ### Present but placeholder-only
 
-- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, approval workflow integration, draft invoice handoff into Accounting, project detail billing visibility, portfolio profitability signals, and the recurring billing engine, but recurring billing workspace UI is still pending.
+- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, approval workflow integration, draft invoice handoff into Accounting, project detail billing visibility, portfolio profitability signals, and recurring billing management with scheduled or manual cycle processing.
 
 ### Test run result (2026-03-22)
 
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
+- Latest full-suite count: `195 passed`, `0 failed`.
 - Result summary after latest implementation: `188` passed, `0` failed.
 
 ## Suggestions

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
+use App\Modules\Projects\Models\ProjectRecurringBilling;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\ProjectProfitabilityService;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +43,8 @@ class ProjectsDashboardController extends Controller
             ->whereHas('project', function (Builder $builder) use ($user): void {
                 $builder->accessibleTo($user);
             });
+        $recurringBillingQuery = ProjectRecurringBilling::query()
+            ->accessibleTo($user);
 
         $today = now()->toDateString();
         $dueWindowEnd = now()->addDays(7)->toDateString();
@@ -151,6 +154,25 @@ class ProjectsDashboardController extends Controller
                         ->count()
                     : 0,
             ],
+            'recurring' => [
+                'active_count' => (clone $recurringBillingQuery)
+                    ->where('status', ProjectRecurringBilling::STATUS_ACTIVE)
+                    ->count(),
+                'due_now_count' => (clone $recurringBillingQuery)
+                    ->where('status', ProjectRecurringBilling::STATUS_ACTIVE)
+                    ->whereDate('next_run_on', '<=', $today)
+                    ->count(),
+                'auto_invoice_count' => (clone $recurringBillingQuery)
+                    ->where('auto_create_invoice_draft', true)
+                    ->count(),
+                'active_recurring_amount' => round(
+                    (float) (clone $recurringBillingQuery)
+                        ->where('status', ProjectRecurringBilling::STATUS_ACTIVE)
+                        ->get(['quantity', 'unit_price'])
+                        ->sum(fn (ProjectRecurringBilling $schedule) => (float) $schedule->quantity * (float) $schedule->unit_price),
+                    2,
+                ),
+            ],
             'profitability' => $portfolioSummary,
             'recentProjects' => $recentProjects,
             'recentTasks' => $recentTasks,
@@ -158,6 +180,7 @@ class ProjectsDashboardController extends Controller
                 'can_create_project' => $user->can('create', Project::class),
                 'can_view_tasks' => $canViewTasks,
                 'can_view_billables' => $user->can('viewAny', ProjectBillable::class),
+                'can_view_recurring' => $user->can('viewAny', ProjectRecurringBilling::class),
             ],
         ]);
     }

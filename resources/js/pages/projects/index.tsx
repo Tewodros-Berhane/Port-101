@@ -55,12 +55,19 @@ type Props = {
         negative_margin_projects: number;
         over_budget_hour_projects: number;
     };
+    recurring: {
+        active_count: number;
+        due_now_count: number;
+        auto_invoice_count: number;
+        active_recurring_amount: number;
+    };
     recentProjects: ProjectRow[];
     recentTasks: TaskRow[];
     abilities: {
         can_create_project: boolean;
         can_view_tasks: boolean;
         can_view_billables: boolean;
+        can_view_recurring: boolean;
     };
 };
 
@@ -70,6 +77,7 @@ const formatLabel = (value: string) =>
 export default function ProjectsDashboard({
     kpis,
     profitability,
+    recurring,
     recentProjects,
     recentTasks,
     abilities,
@@ -100,6 +108,13 @@ export default function ProjectsDashboard({
                                 <Button variant="outline" asChild>
                                     <Link href="/company/projects/billables">
                                         Billing queue
+                                    </Link>
+                                </Button>
+                            )}
+                            {abilities.can_view_recurring && (
+                                <Button variant="outline" asChild>
+                                    <Link href="/company/projects/recurring-billing">
+                                        Recurring billing
                                     </Link>
                                 </Button>
                             )}
@@ -222,6 +237,54 @@ export default function ProjectsDashboard({
                         />
                     </div>
                 </section>
+
+                {abilities.can_view_recurring && (
+                    <section className="rounded-xl border p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Recurring billing
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Service retainers and repeat invoice cadence
+                                    across the current projects portfolio.
+                                </p>
+                            </div>
+                            <Button variant="ghost" asChild>
+                                <Link href="/company/projects/recurring-billing">
+                                    Open schedules
+                                </Link>
+                            </Button>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <ProfitabilityCard
+                                label="Active schedules"
+                                value={String(recurring.active_count)}
+                                helper="Live recurring contracts"
+                                tone="blue"
+                            />
+                            <ProfitabilityCard
+                                label="Due now"
+                                value={String(recurring.due_now_count)}
+                                helper="Cycles ready to run"
+                                tone="amber"
+                            />
+                            <ProfitabilityCard
+                                label="Auto invoice"
+                                value={String(recurring.auto_invoice_count)}
+                                helper="Schedules that draft invoices automatically"
+                                tone="emerald"
+                            />
+                            <ProfitabilityCard
+                                label="Active recurring amount"
+                                value={recurring.active_recurring_amount.toFixed(2)}
+                                helper="Per scheduled cycle"
+                                tone="violet"
+                            />
+                        </div>
+                    </section>
+                )}
 
                 <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
                     <div className="rounded-xl border p-4">
