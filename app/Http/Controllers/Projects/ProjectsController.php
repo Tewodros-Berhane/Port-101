@@ -16,6 +16,7 @@ use App\Modules\Projects\Models\ProjectMilestone;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Projects\ProjectInvoiceDraftService;
+use App\Modules\Projects\ProjectProfitabilityService;
 use App\Modules\Projects\ProjectWorkspaceService;
 use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Http\RedirectResponse;
@@ -181,8 +182,11 @@ class ProjectsController extends Controller
             ->with('success', 'Project created.');
     }
 
-    public function show(Project $project, Request $request): Response
-    {
+    public function show(
+        Project $project,
+        Request $request,
+        ProjectProfitabilityService $profitabilityService,
+    ): Response {
         $this->authorize('view', $project);
 
         $user = $request->user();
@@ -233,6 +237,7 @@ class ProjectsController extends Controller
                 && $task->due_date->isPast()
             )
             ->count();
+        $profitability = $profitabilityService->summarizeProject($project);
 
         return Inertia::render('projects/projects/show', [
             'project' => [
@@ -450,6 +455,7 @@ class ProjectsController extends Controller
                     2,
                 ),
             ],
+            'profitability' => $profitability,
             'abilities' => [
                 'can_edit_project' => $user?->can('update', $project) ?? false,
                 'can_create_task' => $user?->can('update', $project) ?? false,

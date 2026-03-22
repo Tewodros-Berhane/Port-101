@@ -134,6 +134,23 @@ type Props = {
         billables_invoiced: number;
         billables_invoiced_amount: number;
     };
+    profitability: {
+        budget_hours?: number | null;
+        logged_hours: number;
+        approved_hours: number;
+        remaining_hours?: number | null;
+        utilization_percent?: number | null;
+        budget_amount?: number | null;
+        actual_cost_amount: number;
+        budget_consumed_percent?: number | null;
+        billable_pipeline_amount: number;
+        ready_to_invoice_amount: number;
+        pending_approval_amount: number;
+        invoiced_amount: number;
+        gross_margin_amount: number;
+        gross_margin_percent?: number | null;
+        realization_percent?: number | null;
+    };
     abilities: {
         can_edit_project: boolean;
         can_create_task: boolean;
@@ -148,7 +165,12 @@ type Props = {
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
-export default function ProjectShow({ project, summary, abilities }: Props) {
+export default function ProjectShow({
+    project,
+    summary,
+    profitability,
+    abilities,
+}: Props) {
     const [selectedBillableIds, setSelectedBillableIds] = useState<string[]>([]);
     const [groupBy, setGroupBy] = useState(
         abilities.invoice_grouping_options[0] ?? 'project',
@@ -526,6 +548,130 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </section>
+
+                <section className="rounded-xl border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Profitability
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Budget, effort, billing pipeline, and margin
+                                signals for this project.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <BillingMetricCard
+                            label="Logged hours"
+                            count={Number(profitability.logged_hours.toFixed(2))}
+                            amount={profitability.budget_hours ?? 0}
+                            tone="blue"
+                            countLabel="logged"
+                            amountLabel={
+                                profitability.budget_hours !== null &&
+                                profitability.budget_hours !== undefined
+                                    ? 'budget'
+                                    : 'no budget'
+                            }
+                        />
+                        <BillingMetricCard
+                            label="Billable pipeline"
+                            count={Number(
+                                profitability.ready_to_invoice_amount.toFixed(2),
+                            )}
+                            amount={profitability.billable_pipeline_amount}
+                            tone="emerald"
+                            countLabel="ready"
+                            amountLabel="pipeline"
+                        />
+                        <BillingMetricCard
+                            label="Invoiced"
+                            count={Number(
+                                profitability.invoiced_amount.toFixed(2),
+                            )}
+                            amount={profitability.pending_approval_amount}
+                            tone="amber"
+                            countLabel="invoiced"
+                            amountLabel="pending"
+                        />
+                        <BillingMetricCard
+                            label="Gross margin"
+                            count={Number(
+                                profitability.gross_margin_amount.toFixed(2),
+                            )}
+                            amount={profitability.gross_margin_percent ?? 0}
+                            tone="violet"
+                            countLabel="amount"
+                            amountLabel="margin %"
+                        />
+                    </div>
+
+                    <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                        <SignalCard
+                            label="Utilization"
+                            value={
+                                profitability.utilization_percent !== null &&
+                                profitability.utilization_percent !== undefined
+                                    ? `${profitability.utilization_percent.toFixed(1)}%`
+                                    : '-'
+                            }
+                            helper={
+                                profitability.remaining_hours !== null &&
+                                profitability.remaining_hours !== undefined
+                                    ? `${profitability.remaining_hours.toFixed(2)} hours remaining`
+                                    : 'Budget hours not defined'
+                            }
+                            progress={profitability.utilization_percent ?? 0}
+                        />
+                        <SignalCard
+                            label="Budget consumed"
+                            value={
+                                profitability.budget_consumed_percent !==
+                                    null &&
+                                profitability.budget_consumed_percent !==
+                                    undefined
+                                    ? `${profitability.budget_consumed_percent.toFixed(1)}%`
+                                    : '-'
+                            }
+                            helper={
+                                profitability.budget_amount !== null &&
+                                profitability.budget_amount !== undefined
+                                    ? `${profitability.actual_cost_amount.toFixed(2)} cost against ${profitability.budget_amount.toFixed(2)} budget`
+                                    : 'Budget amount not defined'
+                            }
+                            progress={
+                                profitability.budget_consumed_percent ?? 0
+                            }
+                        />
+                        <SignalCard
+                            label="Realization"
+                            value={
+                                profitability.realization_percent !== null &&
+                                profitability.realization_percent !== undefined
+                                    ? `${profitability.realization_percent.toFixed(1)}%`
+                                    : '-'
+                            }
+                            helper={`${profitability.invoiced_amount.toFixed(2)} invoiced from ${profitability.billable_pipeline_amount.toFixed(2)} pipeline`}
+                            progress={
+                                profitability.realization_percent ?? 0
+                            }
+                        />
+                        <SignalCard
+                            label="Approved hours"
+                            value={profitability.approved_hours.toFixed(2)}
+                            helper="Timesheets already approved for this project"
+                            progress={
+                                profitability.logged_hours > 0
+                                    ? (profitability.approved_hours /
+                                          profitability.logged_hours) *
+                                      100
+                                    : 0
+                            }
+                        />
                     </div>
                 </section>
 
@@ -1039,7 +1185,7 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                         <td className="px-3 py-2">
                                             {billable.amount.toFixed(2)}
                                             <p className="text-xs text-muted-foreground">
-                                                {billable.quantity.toFixed(2)} ×{' '}
+                                                {billable.quantity.toFixed(2)} x{' '}
                                                 {billable.unit_price.toFixed(2)}{' '}
                                                 {billable.currency_code ?? ''}
                                             </p>
@@ -1121,18 +1267,24 @@ function BillingMetricCard({
     count,
     amount,
     tone,
+    countLabel = 'records',
+    amountLabel = 'amount',
 }: {
     label: string;
     count: number;
     amount: number;
-    tone: 'emerald' | 'amber' | 'blue';
+    tone: 'emerald' | 'amber' | 'blue' | 'violet';
+    countLabel?: string;
+    amountLabel?: string;
 }) {
     const toneClass =
         tone === 'emerald'
             ? 'from-emerald-500/10 to-emerald-500/0'
             : tone === 'amber'
               ? 'from-amber-500/10 to-amber-500/0'
-              : 'from-blue-500/10 to-blue-500/0';
+              : tone === 'violet'
+                ? 'from-violet-500/10 to-violet-500/0'
+                : 'from-blue-500/10 to-blue-500/0';
 
     return (
         <div className={`rounded-lg border bg-gradient-to-br ${toneClass} px-4 py-4`}>
@@ -1143,11 +1295,46 @@ function BillingMetricCard({
                 <div>
                     <p className="text-2xl font-semibold">{count}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        records
+                        {countLabel}
                     </p>
                 </div>
-                <p className="text-sm font-medium">{amount.toFixed(2)}</p>
+                <div className="text-right">
+                    <p className="text-sm font-medium">{amount.toFixed(2)}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                        {amountLabel}
+                    </p>
+                </div>
             </div>
+        </div>
+    );
+}
+
+function SignalCard({
+    label,
+    value,
+    helper,
+    progress,
+}: {
+    label: string;
+    value: string;
+    helper: string;
+    progress: number;
+}) {
+    const normalizedProgress = Math.max(0, Math.min(progress, 100));
+
+    return (
+        <div className="rounded-lg border px-4 py-4">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold">{value}</p>
+            <div className="mt-4 h-2 rounded-full bg-muted">
+                <div
+                    className="h-2 rounded-full bg-primary/80"
+                    style={{ width: `${normalizedProgress}%` }}
+                />
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{helper}</p>
         </div>
     );
 }

@@ -12,6 +12,10 @@ type ProjectRow = {
     project_manager_name?: string | null;
     progress_percent: number;
     target_end_date?: string | null;
+    ready_to_invoice_amount: number;
+    invoiced_amount: number;
+    gross_margin_percent?: number | null;
+    utilization_percent?: number | null;
     can_edit: boolean;
 };
 
@@ -38,6 +42,19 @@ type Props = {
         tasks_due_7d: number;
         unassigned_tasks: number;
     };
+    profitability: {
+        total_budget_hours: number;
+        total_logged_hours: number;
+        utilization_percent?: number | null;
+        billable_pipeline_amount: number;
+        ready_to_invoice_amount: number;
+        pending_approval_amount: number;
+        invoiced_amount: number;
+        gross_margin_amount: number;
+        gross_margin_percent?: number | null;
+        negative_margin_projects: number;
+        over_budget_hour_projects: number;
+    };
     recentProjects: ProjectRow[];
     recentTasks: TaskRow[];
     abilities: {
@@ -52,6 +69,7 @@ const formatLabel = (value: string) =>
 
 export default function ProjectsDashboard({
     kpis,
+    profitability,
     recentProjects,
     recentTasks,
     abilities,
@@ -128,6 +146,83 @@ export default function ProjectsDashboard({
                     />
                 </section>
 
+                <section className="rounded-xl border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Profitability overview
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Revenue pipeline, invoicing progress, and margin
+                                signals across accessible projects.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-md border px-2 py-1">
+                                Budget hours {profitability.total_budget_hours.toFixed(2)}
+                            </span>
+                            <span className="rounded-md border px-2 py-1">
+                                Logged hours {profitability.total_logged_hours.toFixed(2)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <ProfitabilityCard
+                            label="Billable pipeline"
+                            value={profitability.billable_pipeline_amount.toFixed(
+                                2,
+                            )}
+                            helper="All non-cancelled billables"
+                            tone="blue"
+                        />
+                        <ProfitabilityCard
+                            label="Ready to invoice"
+                            value={profitability.ready_to_invoice_amount.toFixed(
+                                2,
+                            )}
+                            helper="Approved or approval-free billables"
+                            tone="emerald"
+                        />
+                        <ProfitabilityCard
+                            label="Pending approval"
+                            value={profitability.pending_approval_amount.toFixed(
+                                2,
+                            )}
+                            helper="Billables awaiting review"
+                            tone="amber"
+                        />
+                        <ProfitabilityCard
+                            label="Invoiced"
+                            value={profitability.invoiced_amount.toFixed(2)}
+                            helper="Already handed off to Accounting"
+                            tone="slate"
+                        />
+                        <ProfitabilityCard
+                            label="Gross margin"
+                            value={`${profitability.gross_margin_amount.toFixed(2)}${
+                                profitability.gross_margin_percent !== null &&
+                                profitability.gross_margin_percent !== undefined
+                                    ? ` • ${profitability.gross_margin_percent.toFixed(1)}%`
+                                    : ''
+                            }`}
+                            helper={`${profitability.negative_margin_projects} negative-margin projects`}
+                            tone="violet"
+                        />
+                        <ProfitabilityCard
+                            label="Utilization"
+                            value={
+                                profitability.utilization_percent !== null &&
+                                profitability.utilization_percent !== undefined
+                                    ? `${profitability.utilization_percent.toFixed(1)}%`
+                                    : '-'
+                            }
+                            helper={`${profitability.over_budget_hour_projects} projects over budgeted hours`}
+                            tone="rose"
+                        />
+                    </div>
+                </section>
+
                 <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
                     <div className="rounded-xl border p-4">
                         <div className="flex items-center justify-between gap-3">
@@ -148,7 +243,7 @@ export default function ProjectsDashboard({
                         </div>
 
                         <div className="mt-4 overflow-x-auto rounded-lg border">
-                            <table className="w-full min-w-[920px] text-sm">
+                            <table className="w-full min-w-[1220px] text-sm">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
                                         <th className="px-3 py-2 font-medium">
@@ -170,6 +265,15 @@ export default function ProjectsDashboard({
                                             Progress
                                         </th>
                                         <th className="px-3 py-2 font-medium">
+                                            Ready
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Invoiced
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Margin
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
                                             Target end
                                         </th>
                                         <th className="px-3 py-2 text-right font-medium">
@@ -181,7 +285,7 @@ export default function ProjectsDashboard({
                                     {recentProjects.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={8}
+                                                colSpan={11}
                                                 className="px-3 py-6 text-center text-muted-foreground"
                                             >
                                                 No projects yet.
@@ -221,6 +325,33 @@ export default function ProjectsDashboard({
                                                     1,
                                                 )}
                                                 %
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {project.ready_to_invoice_amount.toFixed(
+                                                    2,
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {project.invoiced_amount.toFixed(
+                                                    2,
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {project.gross_margin_percent !==
+                                                    null &&
+                                                project.gross_margin_percent !==
+                                                    undefined
+                                                    ? `${project.gross_margin_percent.toFixed(1)}%`
+                                                    : '-'}
+                                                <p className="text-xs text-muted-foreground">
+                                                    Utilization{' '}
+                                                    {project.utilization_percent !==
+                                                        null &&
+                                                    project.utilization_percent !==
+                                                        undefined
+                                                        ? `${project.utilization_percent.toFixed(1)}%`
+                                                        : '-'}
+                                                </p>
                                             </td>
                                             <td className="px-3 py-2">
                                                 {project.target_end_date ?? '-'}
@@ -336,6 +467,41 @@ function MetricCard({ label, value }: { label: string; value: string }) {
                 {label}
             </p>
             <p className="mt-2 text-3xl font-semibold">{value}</p>
+        </div>
+    );
+}
+
+function ProfitabilityCard({
+    label,
+    value,
+    helper,
+    tone,
+}: {
+    label: string;
+    value: string;
+    helper: string;
+    tone: 'blue' | 'emerald' | 'amber' | 'slate' | 'violet' | 'rose';
+}) {
+    const toneClass =
+        tone === 'blue'
+            ? 'from-blue-500/10 to-blue-500/0'
+            : tone === 'emerald'
+              ? 'from-emerald-500/10 to-emerald-500/0'
+              : tone === 'amber'
+                ? 'from-amber-500/10 to-amber-500/0'
+                : tone === 'slate'
+                  ? 'from-slate-500/10 to-slate-500/0'
+                  : tone === 'violet'
+                    ? 'from-violet-500/10 to-violet-500/0'
+                    : 'from-rose-500/10 to-rose-500/0';
+
+    return (
+        <div className={`rounded-lg border bg-gradient-to-br ${toneClass} px-4 py-4`}>
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {label}
+            </p>
+            <p className="mt-3 text-2xl font-semibold">{value}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{helper}</p>
         </div>
     );
 }

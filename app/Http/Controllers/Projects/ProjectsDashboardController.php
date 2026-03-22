@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectTask;
+use App\Modules\Projects\ProjectProfitabilityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,8 +15,10 @@ use Inertia\Response;
 
 class ProjectsDashboardController extends Controller
 {
-    public function index(Request $request): Response
-    {
+    public function index(
+        Request $request,
+        ProjectProfitabilityService $profitabilityService,
+    ): Response {
         abort_unless(
             $request->user()?->hasPermission('projects.projects.view'),
             403,
@@ -43,23 +46,47 @@ class ProjectsDashboardController extends Controller
         $today = now()->toDateString();
         $dueWindowEnd = now()->addDays(7)->toDateString();
         $canViewTasks = $user->hasPermission('projects.tasks.view');
+        $portfolioProjects = (clone $projectQuery)
+            ->get([
+                'id',
+                'budget_hours',
+                'budget_amount',
+                'actual_cost_amount',
+            ]);
+        $portfolioSummary = $profitabilityService->summarizePortfolio($portfolioProjects);
 
-        $recentProjects = (clone $projectQuery)
+        $recentProjectsCollection = (clone $projectQuery)
             ->latest('updated_at')
             ->limit(5)
-            ->get()
-            ->map(fn (Project $project) => [
-                'id' => $project->id,
-                'project_code' => $project->project_code,
-                'name' => $project->name,
-                'status' => $project->status,
-                'health_status' => $project->health_status,
-                'customer_name' => $project->customer?->name,
-                'project_manager_name' => $project->projectManager?->name,
-                'progress_percent' => (float) $project->progress_percent,
-                'target_end_date' => $project->target_end_date?->toDateString(),
-                'can_edit' => $user->can('update', $project),
-            ])
+            ->get();
+        $recentProjectProfitability = $profitabilityService->summarizeProjects(
+            $recentProjectsCollection,
+        );
+
+        $recentProjects = $recentProjectsCollection
+            ->map(function (Project $project) use ($recentProjectProfitability, $user): array {
+                $profitability = $recentProjectProfitability->get(
+                    (string) $project->id,
+                    [],
+                );
+
+                return [
+                    'id' => $project->id,
+                    'project_code' => $project->project_code,
+                    'name' => $project->name,
+                    'status' => $project->status,
+                    'health_status' => $project->health_status,
+                    'customer_name' => $project->customer?->name,
+                    'project_manager_name' => $project->projectManager?->name,
+                    'progress_percent' => (float) $project->progress_percent,
+                    'target_end_date' => $project->target_end_date?->toDateString(),
+                    'ready_to_invoice_amount' => (float) ($profitability['ready_to_invoice_amount'] ?? 0),
+                    'invoiced_amount' => (float) ($profitability['invoiced_amount'] ?? 0),
+                    'gross_margin_percent' => $profitability['gross_margin_percent'] ?? null,
+                    'utilization_percent' => $profitability['utilization_percent'] ?? null,
+                    'can_edit' => $user->can('update', $project),
+                ];
+            })
             ->values()
             ->all();
 
@@ -124,6 +151,7 @@ class ProjectsDashboardController extends Controller
                         ->count()
                     : 0,
             ],
+            'profitability' => $portfolioSummary,
             'recentProjects' => $recentProjects,
             'recentTasks' => $recentTasks,
             'abilities' => [

@@ -314,6 +314,11 @@ test('project detail page exposes billing summary and linked invoices', function
     $currency = createProjectsWorkspaceCurrency($company->id, $manager->id);
     $records = createProjectsWorkspaceProject($company->id, $manager, $currency);
     $project = $records['project'];
+    $project->update([
+        'budget_amount' => 1000,
+        'budget_hours' => 10,
+        'actual_cost_amount' => 200,
+    ]);
     $customer = Partner::create([
         'company_id' => $company->id,
         'code' => 'CUST-PRJ-'.Str::upper(Str::random(4)),
@@ -417,10 +422,110 @@ test('project detail page exposes billing summary and linked invoices', function
             ->where('summary.billables_ready_to_invoice_amount', 400)
             ->where('summary.billables_invoiced', 1)
             ->where('summary.billables_invoiced_amount', 900)
+            ->where('profitability.logged_hours', 4)
+            ->where('profitability.utilization_percent', 40)
+            ->where('profitability.billable_pipeline_amount', 1300)
+            ->where('profitability.ready_to_invoice_amount', 400)
+            ->where('profitability.invoiced_amount', 900)
+            ->where('profitability.gross_margin_amount', 1100)
+            ->where('profitability.gross_margin_percent', 84.62)
             ->has('project.billables', 2)
             ->where('project.billables.0.id', $invoicedBillable->id)
             ->where('project.billables.1.id', $readyBillable->id)
             ->has('project.linked_invoices', 1)
             ->where('project.linked_invoices.0.invoice_number', 'INV-PRJ-001')
             ->where('abilities.can_create_invoice_drafts', true));
+});
+
+test('projects dashboard exposes portfolio profitability metrics', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$manager, $company] = makeActiveCompanyMember();
+    assignProjectsWorkspaceRole($manager, $company->id, 'project_manager');
+    $currency = createProjectsWorkspaceCurrency($company->id, $manager->id);
+    $records = createProjectsWorkspaceProject($company->id, $manager, $currency);
+    $project = $records['project'];
+
+    $project->update([
+        'budget_amount' => 2000,
+        'budget_hours' => 20,
+        'actual_cost_amount' => 600,
+    ]);
+
+    $timesheet = ProjectTimesheet::create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'task_id' => null,
+        'user_id' => $manager->id,
+        'work_date' => now()->toDateString(),
+        'description' => 'Discovery and setup',
+        'hours' => 10,
+        'is_billable' => true,
+        'cost_rate' => 60,
+        'bill_rate' => 120,
+        'cost_amount' => 600,
+        'billable_amount' => 1200,
+        'approval_status' => ProjectTimesheet::APPROVAL_STATUS_APPROVED,
+        'approved_by' => $manager->id,
+        'approved_at' => now(),
+        'invoice_status' => ProjectTimesheet::INVOICE_STATUS_READY,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    ProjectBillable::create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'billable_type' => ProjectBillable::TYPE_TIMESHEET,
+        'source_type' => ProjectTimesheet::class,
+        'source_id' => $timesheet->id,
+        'customer_id' => null,
+        'description' => 'Discovery and setup',
+        'quantity' => 10,
+        'unit_price' => 120,
+        'amount' => 1200,
+        'currency_id' => $currency->id,
+        'status' => ProjectBillable::STATUS_READY,
+        'approval_status' => ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    ProjectBillable::create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'billable_type' => ProjectBillable::TYPE_MANUAL,
+        'source_type' => Project::class,
+        'source_id' => $project->id,
+        'customer_id' => null,
+        'description' => 'Implementation milestone',
+        'quantity' => 1,
+        'unit_price' => 800,
+        'amount' => 800,
+        'currency_id' => $currency->id,
+        'status' => ProjectBillable::STATUS_INVOICED,
+        'approval_status' => ProjectBillable::APPROVAL_STATUS_APPROVED,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    actingAs($manager)
+        ->get(route('company.modules.projects'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('projects/index')
+            ->where('profitability.total_budget_hours', 20)
+            ->where('profitability.total_logged_hours', 10)
+            ->where('profitability.utilization_percent', 50)
+            ->where('profitability.billable_pipeline_amount', 2000)
+            ->where('profitability.ready_to_invoice_amount', 1200)
+            ->where('profitability.invoiced_amount', 800)
+            ->where('profitability.gross_margin_amount', 1400)
+            ->where('profitability.gross_margin_percent', 70)
+            ->where('profitability.negative_margin_projects', 0)
+            ->where('profitability.over_budget_hour_projects', 0)
+            ->where('recentProjects.0.ready_to_invoice_amount', 1200)
+            ->where('recentProjects.0.invoiced_amount', 800)
+            ->where('recentProjects.0.gross_margin_percent', 70)
+            ->where('recentProjects.0.utilization_percent', 50));
 });
