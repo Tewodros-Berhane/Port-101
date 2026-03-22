@@ -18,6 +18,8 @@ type Props = {
     attachments: Attachment[];
     canView: boolean;
     canManage: boolean;
+    uploadUrl?: string;
+    deleteUrlBase?: string;
 };
 
 const formatBytes = (size: number) => {
@@ -41,6 +43,8 @@ export default function AttachmentsPanel({
     attachments,
     canView,
     canManage,
+    uploadUrl = '/core/attachments',
+    deleteUrlBase = '/core/attachments',
 }: Props) {
     const uploadForm = useForm({
         attachable_type: attachableType,
@@ -65,7 +69,7 @@ export default function AttachmentsPanel({
                     className="mt-4 flex flex-wrap items-end gap-3"
                     onSubmit={(event) => {
                         event.preventDefault();
-                        uploadForm.post('/core/attachments', {
+                        uploadForm.post(uploadUrl, {
                             preserveScroll: true,
                             forceFormData: true,
                             onSuccess: () => {
@@ -149,7 +153,7 @@ export default function AttachmentsPanel({
                                                 variant="destructive"
                                                 onClick={() =>
                                                     deleteForm.delete(
-                                                        `/core/attachments/${attachment.id}`,
+                                                        `${deleteUrlBase}/${attachment.id}`,
                                                         {
                                                             preserveScroll: true,
                                                         },
@@ -170,4 +174,3 @@ export default function AttachmentsPanel({
         </div>
     );
 }
-

@@ -1,3 +1,4 @@
+import AttachmentsPanel from '@/components/attachments-panel';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
@@ -112,6 +113,27 @@ type ProjectRecurringBilling = {
     can_run: boolean;
 };
 
+type Attachment = {
+    id: string;
+    original_name: string;
+    mime_type?: string | null;
+    size: number;
+    created_at?: string | null;
+    download_url: string;
+};
+
+type ActivityItem = {
+    id: string;
+    action: string;
+    action_label: string;
+    subject_type: string;
+    subject_label: string;
+    actor_name: string;
+    summary: string;
+    changed_fields: string[];
+    created_at?: string | null;
+};
+
 type Props = {
     project: {
         id: string;
@@ -180,6 +202,8 @@ type Props = {
         gross_margin_percent?: number | null;
         realization_percent?: number | null;
     };
+    attachments: Attachment[];
+    activity: ActivityItem[];
     abilities: {
         can_edit_project: boolean;
         can_create_task: boolean;
@@ -189,6 +213,7 @@ type Props = {
         can_view_recurring: boolean;
         can_manage_recurring: boolean;
         can_create_invoice_drafts: boolean;
+        can_manage_files: boolean;
         invoice_grouping_options: string[];
     };
 };
@@ -200,6 +225,8 @@ export default function ProjectShow({
     project,
     summary,
     profitability,
+    attachments,
+    activity,
     abilities,
 }: Props) {
     const [selectedBillableIds, setSelectedBillableIds] = useState<string[]>([]);
@@ -880,6 +907,75 @@ export default function ProjectShow({
                                     : 0
                             }
                         />
+                    </div>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
+                    <AttachmentsPanel
+                        attachableType="project"
+                        attachableId={project.id}
+                        attachments={attachments}
+                        canView
+                        canManage={abilities.can_manage_files}
+                        uploadUrl={`/company/projects/${project.id}/files`}
+                        deleteUrlBase="/company/projects/files"
+                    />
+
+                    <div className="rounded-xl border p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Activity feed
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Recent project, task, billing, and file activity.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {activity.length === 0 && (
+                                <div className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+                                    No activity recorded for this project yet.
+                                </div>
+                            )}
+                            {activity.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="rounded-xl border px-3 py-3"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium">
+                                                {item.subject_type}: {item.subject_label}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {item.summary}
+                                            </p>
+                                        </div>
+                                        <span className="rounded-md border px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                            {item.action_label}
+                                        </span>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                        <span>{item.actor_name}</span>
+                                        <span>
+                                            {item.created_at
+                                                ? new Date(
+                                                      item.created_at,
+                                                  ).toLocaleString()
+                                                : '-'}
+                                        </span>
+                                        {item.changed_fields.length > 0 && (
+                                            <span>
+                                                Fields:{' '}
+                                                {item.changed_fields.join(', ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </section>
 

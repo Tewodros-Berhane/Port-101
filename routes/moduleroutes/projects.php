@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Projects\ProjectBillablesController;
+use App\Http\Controllers\Projects\ProjectFilesController;
 use App\Http\Controllers\Projects\ProjectMilestonesController;
 use App\Http\Controllers\Projects\ProjectRecurringBillingController;
 use App\Http\Controllers\Projects\ProjectsController;
@@ -35,6 +36,12 @@ Route::prefix('projects')->name('projects.')->group(function () {
         ->name('recurring-billing.cancel');
     Route::post('recurring-billing/{recurringBilling}/run-now', [ProjectRecurringBillingController::class, 'runNow'])
         ->name('recurring-billing.run-now');
+    Route::post('{project}/files', [ProjectFilesController::class, 'store'])
+        ->name('files.store');
+    Route::get('files/{attachment}/download', [ProjectFilesController::class, 'download'])
+        ->name('files.download');
+    Route::delete('files/{attachment}', [ProjectFilesController::class, 'destroy'])
+        ->name('files.destroy');
     Route::post('billables/invoice-drafts', [ProjectBillablesController::class, 'createInvoiceDrafts'])
         ->name('billables.invoice-drafts.store');
     Route::post('billables/{billable}/approve', [ProjectBillablesController::class, 'approve'])

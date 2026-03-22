@@ -119,6 +119,7 @@
 - Projects/Services recurring billing workspace implemented: `/company/projects/recurring-billing` now supports filtered schedule management, project-linked create/edit flows, activate/pause/cancel/run-now actions, dashboard recurring KPIs, project-detail recurring schedule visibility, and route/test coverage for manager-vs-user access.
 - Projects/Services sales-order provisioning implemented: confirmed sales orders with service products now auto-create or refresh a linked project, seed default project stages/members, and generate initial delivery tasks directly from service order lines.
 - Projects/Services API v1 endpoints implemented: `/api/v1/projects` now supports project CRUD plus nested task and timesheet list/create/update actions, submit/approve/reject timesheet workflow endpoints, Sanctum token auth, company scoping, and feature coverage aligned with the web workflow services.
+- Projects/Services project files and activity feed implemented: project detail pages now expose project-scoped file upload/download/delete actions, file events are written into project audit activity, and the project detail UI now surfaces both recent activity and project files without relying on the broader core attachment routes.
 
 ## Deferred / Out of Scope
 
@@ -176,6 +177,7 @@
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
 - Confirmed service orders now provision a linked project workspace automatically, so service delivery can move from Sales into Projects without manual project setup.
 - API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
+- Project detail pages now include a project-scoped files panel plus recent activity feed covering project, task, billing, recurring, and file events.
 
 ### Present but placeholder-only
 

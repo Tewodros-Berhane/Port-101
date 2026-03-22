@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Projects;
 
+use App\Core\Attachments\Models\Attachment;
 use App\Core\Company\Models\CompanyUser;
 use App\Core\MasterData\Models\Currency;
 use App\Core\MasterData\Models\Partner;
@@ -16,6 +17,7 @@ use App\Modules\Projects\Models\ProjectMilestone;
 use App\Modules\Projects\Models\ProjectRecurringBilling;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
+use App\Modules\Projects\ProjectActivityFeedService;
 use App\Modules\Projects\ProjectInvoiceDraftService;
 use App\Modules\Projects\ProjectProfitabilityService;
 use App\Modules\Projects\ProjectWorkspaceService;
@@ -188,6 +190,7 @@ class ProjectsController extends Controller
         Project $project,
         Request $request,
         ProjectProfitabilityService $profitabilityService,
+        ProjectActivityFeedService $activityFeedService,
     ): Response {
         $this->authorize('view', $project);
 
@@ -253,6 +256,22 @@ class ProjectsController extends Controller
             )
             ->count();
         $profitability = $profitabilityService->summarizeProject($project);
+        $attachments = Attachment::query()
+            ->where('attachable_type', Project::class)
+            ->where('attachable_id', $project->id)
+            ->latest('created_at')
+            ->get()
+            ->map(fn (Attachment $attachment) => [
+                'id' => $attachment->id,
+                'original_name' => $attachment->original_name,
+                'mime_type' => $attachment->mime_type,
+                'size' => (int) $attachment->size,
+                'created_at' => $attachment->created_at?->toIso8601String(),
+                'download_url' => route('company.projects.files.download', $attachment),
+            ])
+            ->values()
+            ->all();
+        $activity = $activityFeedService->timeline($project);
 
         return Inertia::render('projects/projects/show', [
             'project' => [
@@ -515,6 +534,8 @@ class ProjectsController extends Controller
                 ),
             ],
             'profitability' => $profitability,
+            'attachments' => $attachments,
+            'activity' => $activity,
             'abilities' => [
                 'can_edit_project' => $user?->can('update', $project) ?? false,
                 'can_create_task' => $user?->can('update', $project) ?? false,
@@ -526,6 +547,7 @@ class ProjectsController extends Controller
                 'can_manage_recurring' => $user?->can('update', $project) ?? false
                     && ($user?->can('create', ProjectRecurringBilling::class) ?? false),
                 'can_create_invoice_drafts' => $user?->hasPermission('projects.invoices.create') ?? false,
+                'can_manage_files' => $user?->can('update', $project) ?? false,
                 'invoice_grouping_options' => ProjectInvoiceDraftService::GROUP_BY_OPTIONS,
             ],
         ]);
