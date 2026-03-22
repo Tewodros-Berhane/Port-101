@@ -120,6 +120,7 @@
 - Projects/Services sales-order provisioning implemented: confirmed sales orders with service products now auto-create or refresh a linked project, seed default project stages/members, and generate initial delivery tasks directly from service order lines.
 - Projects/Services API v1 endpoints implemented: `/api/v1/projects` now supports project CRUD plus nested task and timesheet list/create/update actions, submit/approve/reject timesheet workflow endpoints, Sanctum token auth, company scoping, and feature coverage aligned with the web workflow services.
 - Projects/Services project files and activity feed implemented: project detail pages now expose project-scoped file upload/download/delete actions, file events are written into project audit activity, and the project detail UI now surfaces both recent activity and project files without relying on the broader core attachment routes.
+- Projects/Services project notifications implemented: project provisioning, task assignment, timesheet submission/approval/rejection, and recurring billing failure notifications now flow through the in-app notifications system with project-aware deep links and severity/context metadata.
 
 ## Deferred / Out of Scope
 
@@ -178,6 +179,7 @@
 - Confirmed service orders now provision a linked project workspace automatically, so service delivery can move from Sales into Projects without manual project setup.
 - API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
 - Project detail pages now include a project-scoped files panel plus recent activity feed covering project, task, billing, recurring, and file events.
+- Project workflows now emit in-app notifications for assignment, approval, provisioning, and recurring-billing failure events with direct links back into the relevant project screens.
 
 ### Present but placeholder-only
 

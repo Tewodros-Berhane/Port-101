@@ -16,6 +16,7 @@ class ProjectRecurringBillingService
     public function __construct(
         private readonly ProjectBillableApprovalPolicyService $approvalPolicyService,
         private readonly ProjectInvoiceDraftService $invoiceDraftService,
+        private readonly ProjectNotificationService $notificationService,
         private readonly ProjectWorkspaceService $workspaceService,
     ) {}
 
@@ -378,7 +379,10 @@ class ProjectRecurringBillingService
                     'updated_by' => $actorId,
                 ])->saveQuietly();
 
-                return $run->fresh(['billable', 'invoice', 'recurringBilling']) ?? $run;
+                $run = $run->fresh(['billable', 'invoice', 'recurringBilling', 'project']) ?? $run;
+                $this->notificationService->notifyRecurringBillingFailure($run, $actorId);
+
+                return $run;
             }
         });
     }

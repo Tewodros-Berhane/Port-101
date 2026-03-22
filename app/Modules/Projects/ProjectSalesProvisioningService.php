@@ -15,6 +15,7 @@ class ProjectSalesProvisioningService
 {
     public function __construct(
         private readonly ProjectWorkspaceService $workspaceService,
+        private readonly ProjectNotificationService $notificationService,
     ) {}
 
     public function createOrRefreshFromSalesOrder(string $companyId, string $orderId): ?Project
@@ -47,6 +48,7 @@ class ProjectSalesProvisioningService
                 ->where('company_id', $order->company_id)
                 ->where('sales_order_id', $order->id)
                 ->first();
+            $wasNew = ! $project;
 
             if (! $project) {
                 $project = new Project;
@@ -93,12 +95,22 @@ class ProjectSalesProvisioningService
             );
             $this->workspaceService->refreshProjectRollup($project);
 
-            return $project->fresh([
+            $project = $project->fresh([
                 'customer:id,name',
                 'salesOrder:id,order_number',
                 'currency:id,code',
                 'projectManager:id,name,email',
             ]) ?? $project;
+
+            if ($wasNew) {
+                $this->notificationService->notifyProjectProvisioned(
+                    project: $project,
+                    order: $order,
+                    actorId: $actorId,
+                );
+            }
+
+            return $project;
         });
     }
 

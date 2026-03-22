@@ -13,6 +13,7 @@ class ProjectTimesheetWorkflowService
     public function __construct(
         private readonly ProjectWorkspaceService $workspaceService,
         private readonly ProjectBillingService $billingService,
+        private readonly ProjectNotificationService $notificationService,
     ) {}
 
     /**
@@ -193,7 +194,10 @@ class ProjectTimesheetWorkflowService
                 'updated_by' => $actorId,
             ]);
 
-            return $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
+            $timesheet = $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
+            $this->notificationService->notifyTimesheetSubmitted($timesheet, $actorId);
+
+            return $timesheet;
         });
     }
 
@@ -222,7 +226,14 @@ class ProjectTimesheetWorkflowService
 
             $this->billingService->syncFromTimesheet($timesheet, $actorId);
 
-            return $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
+            $timesheet = $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
+            $this->notificationService->notifyTimesheetDecision(
+                timesheet: $timesheet,
+                decision: 'approved',
+                actorId: $actorId,
+            );
+
+            return $timesheet;
         });
     }
 
@@ -254,7 +265,14 @@ class ProjectTimesheetWorkflowService
 
             $this->billingService->cancelBillableForSource($timesheet, $actorId);
 
-            return $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
+            $timesheet = $timesheet->fresh(['project', 'task', 'user']) ?? $timesheet;
+            $this->notificationService->notifyTimesheetDecision(
+                timesheet: $timesheet,
+                decision: 'rejected',
+                actorId: $actorId,
+            );
+
+            return $timesheet;
         });
     }
 

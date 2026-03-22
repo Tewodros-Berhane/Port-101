@@ -10,6 +10,7 @@ use App\Http\Requests\Projects\ProjectTaskUpdateRequest;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectStage;
 use App\Modules\Projects\Models\ProjectTask;
+use App\Modules\Projects\ProjectNotificationService;
 use App\Modules\Projects\ProjectWorkspaceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,7 +65,8 @@ class ProjectTasksController extends Controller
     public function store(
         ProjectTaskStoreRequest $request,
         Project $project,
-        ProjectWorkspaceService $workspaceService
+        ProjectWorkspaceService $workspaceService,
+        ProjectNotificationService $notificationService,
     ): RedirectResponse {
         $this->authorize('view', $project);
         abort_unless($request->user()?->can('update', $project), 403);
@@ -91,6 +93,11 @@ class ProjectTasksController extends Controller
             actorId: $request->user()?->id,
         );
         $workspaceService->refreshProjectRollup($project);
+        $notificationService->notifyTaskAssigned(
+            task: $task->fresh(['project:id,project_code', 'assignee:id,name']) ?? $task,
+            previousAssigneeId: null,
+            actorId: $request->user()?->id,
+        );
 
         return redirect()
             ->route('company.projects.tasks.edit', $task)
@@ -154,11 +161,13 @@ class ProjectTasksController extends Controller
     public function update(
         ProjectTaskUpdateRequest $request,
         ProjectTask $task,
-        ProjectWorkspaceService $workspaceService
+        ProjectWorkspaceService $workspaceService,
+        ProjectNotificationService $notificationService,
     ): RedirectResponse {
         $this->authorize('update', $task);
 
         $validated = $request->validated();
+        $previousAssignedTo = $task->assigned_to ? (string) $task->assigned_to : null;
         $assignedToChanged = (string) ($validated['assigned_to'] ?? '')
             !== (string) ($task->assigned_to ?? '');
 
@@ -180,6 +189,11 @@ class ProjectTasksController extends Controller
             actorId: $request->user()?->id,
         );
         $workspaceService->refreshProjectRollup($task->project);
+        $notificationService->notifyTaskAssigned(
+            task: $task->fresh(['project:id,project_code', 'assignee:id,name']) ?? $task,
+            previousAssigneeId: $previousAssignedTo,
+            actorId: $request->user()?->id,
+        );
 
         return redirect()
             ->route('company.projects.tasks.edit', $task)
