@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\V1\InventoryStockBalancesController as ApiInventoryStockBalancesController;
+use App\Http\Controllers\Api\V1\InventoryStockMovesController as ApiInventoryStockMovesController;
 use App\Http\Controllers\Api\V1\PartnersController as ApiPartnersController;
 use App\Http\Controllers\Api\V1\ProductsController as ApiProductsController;
 use App\Http\Controllers\Api\V1\ProjectsController as ApiProjectsController;
@@ -23,6 +25,16 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'company.context', 'company'])->group(function () {
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
+        Route::prefix('inventory')->group(function () {
+            Route::get('stock-balances', [ApiInventoryStockBalancesController::class, 'index']);
+            Route::apiResource('stock-moves', ApiInventoryStockMovesController::class)
+                ->parameters(['stock-moves' => 'move']);
+            Route::post('stock-moves/{move}/reserve', [ApiInventoryStockMovesController::class, 'reserve']);
+            Route::post('stock-moves/{move}/dispatch', [ApiInventoryStockMovesController::class, 'dispatch']);
+            Route::post('stock-moves/{move}/receive', [ApiInventoryStockMovesController::class, 'receive']);
+            Route::post('stock-moves/{move}/complete', [ApiInventoryStockMovesController::class, 'complete']);
+            Route::post('stock-moves/{move}/cancel', [ApiInventoryStockMovesController::class, 'cancel']);
+        });
         Route::prefix('sales')->group(function () {
             Route::apiResource('leads', ApiSalesLeadsController::class);
             Route::apiResource('quotes', ApiSalesQuotesController::class);

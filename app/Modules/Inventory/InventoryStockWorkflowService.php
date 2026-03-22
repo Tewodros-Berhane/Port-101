@@ -172,6 +172,24 @@ class InventoryStockWorkflowService
         });
     }
 
+    public function dispatch(InventoryStockMove $move, ?string $actorId = null): InventoryStockMove
+    {
+        if ($move->move_type !== InventoryStockMove::TYPE_DELIVERY) {
+            abort(422, 'Only delivery moves can be dispatched.');
+        }
+
+        return $this->complete($move, $actorId);
+    }
+
+    public function receive(InventoryStockMove $move, ?string $actorId = null): InventoryStockMove
+    {
+        if ($move->move_type !== InventoryStockMove::TYPE_RECEIPT) {
+            abort(422, 'Only receipt moves can be received.');
+        }
+
+        return $this->complete($move, $actorId);
+    }
+
     public function cancel(InventoryStockMove $move, ?string $actorId = null): InventoryStockMove
     {
         return DB::transaction(function () use ($move, $actorId) {
@@ -387,5 +405,3 @@ class InventoryStockWorkflowService
         );
     }
 }
-
-
