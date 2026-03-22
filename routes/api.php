@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AccountingInvoicesController as ApiAccountingInvoicesController;
+use App\Http\Controllers\Api\V1\AccountingPaymentsController as ApiAccountingPaymentsController;
 use App\Http\Controllers\Api\V1\InventoryStockBalancesController as ApiInventoryStockBalancesController;
 use App\Http\Controllers\Api\V1\InventoryStockMovesController as ApiInventoryStockMovesController;
 use App\Http\Controllers\Api\V1\PartnersController as ApiPartnersController;
@@ -25,6 +27,18 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware(['auth:sanctum', 'company.context', 'company'])->group(function () {
+        Route::prefix('accounting')->group(function () {
+            Route::apiResource('invoices', ApiAccountingInvoicesController::class)
+                ->parameters(['invoices' => 'invoice']);
+            Route::post('invoices/{invoice}/post', [ApiAccountingInvoicesController::class, 'post']);
+            Route::post('invoices/{invoice}/cancel', [ApiAccountingInvoicesController::class, 'cancel']);
+
+            Route::apiResource('payments', ApiAccountingPaymentsController::class)
+                ->parameters(['payments' => 'payment']);
+            Route::post('payments/{payment}/post', [ApiAccountingPaymentsController::class, 'post']);
+            Route::post('payments/{payment}/reconcile', [ApiAccountingPaymentsController::class, 'reconcile']);
+            Route::post('payments/{payment}/reverse', [ApiAccountingPaymentsController::class, 'reverse']);
+        });
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
         Route::prefix('inventory')->group(function () {
