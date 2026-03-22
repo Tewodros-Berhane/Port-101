@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccountingInvoicesController as ApiAccountingInvoicesController;
 use App\Http\Controllers\Api\V1\AccountingPaymentsController as ApiAccountingPaymentsController;
+use App\Http\Controllers\Api\V1\ApprovalRequestsController as ApiApprovalRequestsController;
 use App\Http\Controllers\Api\V1\InventoryStockBalancesController as ApiInventoryStockBalancesController;
 use App\Http\Controllers\Api\V1\InventoryStockMovesController as ApiInventoryStockMovesController;
 use App\Http\Controllers\Api\V1\PartnersController as ApiPartnersController;
@@ -38,6 +39,12 @@ Route::prefix('v1')->group(function () {
             Route::post('payments/{payment}/post', [ApiAccountingPaymentsController::class, 'post']);
             Route::post('payments/{payment}/reconcile', [ApiAccountingPaymentsController::class, 'reconcile']);
             Route::post('payments/{payment}/reverse', [ApiAccountingPaymentsController::class, 'reverse']);
+        });
+        Route::prefix('approvals')->group(function () {
+            Route::get('requests', [ApiApprovalRequestsController::class, 'index']);
+            Route::get('requests/{approvalRequest}', [ApiApprovalRequestsController::class, 'show']);
+            Route::post('requests/{approvalRequest}/approve', [ApiApprovalRequestsController::class, 'approve']);
+            Route::post('requests/{approvalRequest}/reject', [ApiApprovalRequestsController::class, 'reject']);
         });
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
