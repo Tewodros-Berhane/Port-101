@@ -2,13 +2,14 @@
 
 namespace App\Providers;
 
+use App\Core\Support\CompanyContext;
 use App\Modules\Accounting\AccountingInvoiceWorkflowService;
 use App\Modules\Inventory\Events\StockDelivered;
 use App\Modules\Inventory\InventoryStockWorkflowService;
+use App\Modules\Projects\ProjectSalesProvisioningService;
 use App\Modules\Purchasing\Events\PurchaseReceiptCompleted;
 use App\Modules\Sales\Events\SalesOrderConfirmed;
 use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
-use App\Core\Support\CompanyContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(CompanyContext::class, function () {
-            return new CompanyContext();
+            return new CompanyContext;
         });
     }
 
@@ -64,6 +65,12 @@ class AppServiceProvider extends ServiceProvider
                     companyId: $event->companyId,
                     orderId: $event->orderId,
                 );
+
+            app(ProjectSalesProvisioningService::class)
+                ->createOrRefreshFromSalesOrder(
+                    companyId: $event->companyId,
+                    orderId: $event->orderId,
+                );
         });
 
         Event::listen(SalesOrderReadyForInvoice::class, function (SalesOrderReadyForInvoice $event): void {
@@ -91,5 +98,3 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 }
-
-
