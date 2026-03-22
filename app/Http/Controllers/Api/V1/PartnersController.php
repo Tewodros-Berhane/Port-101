@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Core\MasterData\Models\Partner;
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\PartnerStoreRequest;
 use App\Http\Requests\Core\PartnerUpdateRequest;
+use App\Support\Api\ApiQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class PartnersController extends Controller
+class PartnersController extends ApiController
 {
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Partner::class);
 
-        $perPage = min((int) $request->integer('per_page', 20), 100);
+        $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
+        ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
+            $request,
+            allowed: ['name', 'code', 'created_at', 'updated_at'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
 
         $partners = Partner::query()
             ->when($search !== '', function ($query) use ($search) {
@@ -26,19 +32,17 @@ class PartnersController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('name')
+            ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json([
-            'data' => $partners->items(),
-            'meta' => [
-                'current_page' => $partners->currentPage(),
-                'last_page' => $partners->lastPage(),
-                'per_page' => $partners->perPage(),
-                'total' => $partners->total(),
-            ],
-        ]);
+        return $this->respondPaginated(
+            paginator: $partners,
+            data: $partners->items(),
+            sort: $sort,
+            direction: $direction,
+            filters: ['search' => $search],
+        );
     }
 
     public function store(PartnerStoreRequest $request): JsonResponse
@@ -54,18 +58,14 @@ class PartnersController extends Controller
             'updated_by' => $user?->id,
         ]);
 
-        return response()->json([
-            'data' => $partner,
-        ], 201);
+        return $this->respond($partner, 201);
     }
 
     public function show(Partner $partner): JsonResponse
     {
         $this->authorize('view', $partner);
 
-        return response()->json([
-            'data' => $partner,
-        ]);
+        return $this->respond($partner);
     }
 
     public function update(PartnerUpdateRequest $request, Partner $partner): JsonResponse
@@ -77,9 +77,7 @@ class PartnersController extends Controller
             'updated_by' => $request->user()?->id,
         ]);
 
-        return response()->json([
-            'data' => $partner->fresh(),
-        ]);
+        return $this->respond($partner->fresh());
     }
 
     public function destroy(Partner $partner): JsonResponse
@@ -88,7 +86,6 @@ class PartnersController extends Controller
 
         $partner->delete();
 
-        return response()->json(status: 204);
+        return $this->respondNoContent();
     }
 }
-

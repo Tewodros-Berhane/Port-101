@@ -2,27 +2,33 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Projects\ProjectTaskStoreRequest;
 use App\Http\Requests\Projects\ProjectTaskUpdateRequest;
 use App\Models\User;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\ProjectWorkspaceService;
+use App\Support\Api\ApiQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class ProjectTasksController extends Controller
+class ProjectTasksController extends ApiController
 {
     public function index(Project $project, Request $request): JsonResponse
     {
         $this->authorize('view', $project);
         $this->authorize('viewAny', ProjectTask::class);
 
-        $perPage = min((int) $request->integer('per_page', 20), 100);
+        $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
         $status = trim((string) $request->input('status', ''));
         $assignedTo = trim((string) $request->input('assigned_to', ''));
+        ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
+            $request,
+            allowed: ['task_number', 'title', 'status', 'due_date', 'updated_at'],
+            defaultSort: 'task_number',
+            defaultDirection: 'asc',
+        );
 
         $tasks = ProjectTask::query()
             ->with(['stage:id,name', 'assignee:id,name'])
@@ -35,21 +41,23 @@ class ProjectTasksController extends Controller
             })
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($assignedTo !== '', fn ($query) => $query->where('assigned_to', $assignedTo))
-            ->orderBy('task_number')
+            ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json([
-            'data' => collect($tasks->items())
+        return $this->respondPaginated(
+            paginator: $tasks,
+            data: collect($tasks->items())
                 ->map(fn (ProjectTask $task) => $this->mapTask($task, $request->user()))
                 ->all(),
-            'meta' => [
-                'current_page' => $tasks->currentPage(),
-                'last_page' => $tasks->lastPage(),
-                'per_page' => $tasks->perPage(),
-                'total' => $tasks->total(),
+            sort: $sort,
+            direction: $direction,
+            filters: [
+                'search' => $search,
+                'status' => $status,
+                'assigned_to' => $assignedTo,
             ],
-        ]);
+        );
     }
 
     public function store(
@@ -84,24 +92,25 @@ class ProjectTasksController extends Controller
         );
         $workspaceService->refreshProjectRollup($project);
 
-        return response()->json([
-            'data' => $this->mapTask(
+        return $this->respond(
+            $this->mapTask(
                 $task->fresh(['stage:id,name', 'assignee:id,name', 'project:id,project_code,name']),
                 $request->user(),
             ),
-        ], 201);
+            201,
+        );
     }
 
     public function show(ProjectTask $task, Request $request): JsonResponse
     {
         $this->authorize('view', $task);
 
-        return response()->json([
-            'data' => $this->mapTask(
+        return $this->respond(
+            $this->mapTask(
                 $task->load(['stage:id,name', 'assignee:id,name', 'project:id,project_code,name']),
                 $request->user(),
             ),
-        ]);
+        );
     }
 
     public function update(
@@ -133,12 +142,12 @@ class ProjectTasksController extends Controller
         );
         $workspaceService->refreshProjectRollup($task->project);
 
-        return response()->json([
-            'data' => $this->mapTask(
+        return $this->respond(
+            $this->mapTask(
                 $task->fresh(['stage:id,name', 'assignee:id,name', 'project:id,project_code,name']),
                 $request->user(),
             ),
-        ]);
+        );
     }
 
     public function destroy(
@@ -151,7 +160,7 @@ class ProjectTasksController extends Controller
         $task->delete();
         $workspaceService->refreshProjectRollup($project);
 
-        return response()->json(status: 204);
+        return $this->respondNoContent();
     }
 
     private function mapTask(ProjectTask $task, ?User $user = null): array

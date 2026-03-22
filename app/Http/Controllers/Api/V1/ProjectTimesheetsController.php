@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Projects\ProjectTimesheetRejectRequest;
 use App\Http\Requests\Projects\ProjectTimesheetStoreRequest;
 use App\Http\Requests\Projects\ProjectTimesheetUpdateRequest;
@@ -10,41 +9,49 @@ use App\Models\User;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTimesheet;
 use App\Modules\Projects\ProjectTimesheetWorkflowService;
+use App\Support\Api\ApiQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class ProjectTimesheetsController extends Controller
+class ProjectTimesheetsController extends ApiController
 {
     public function index(Project $project, Request $request): JsonResponse
     {
         $this->authorize('view', $project);
         $this->authorize('viewAny', ProjectTimesheet::class);
 
-        $perPage = min((int) $request->integer('per_page', 20), 100);
+        $perPage = ApiQuery::perPage($request);
         $approvalStatus = trim((string) $request->input('approval_status', ''));
         $userId = trim((string) $request->input('user_id', ''));
+        ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
+            $request,
+            allowed: ['work_date', 'created_at', 'hours', 'updated_at'],
+            defaultSort: 'work_date',
+            defaultDirection: 'desc',
+        );
 
         $timesheets = ProjectTimesheet::query()
             ->with(['user:id,name', 'task:id,task_number,title', 'approvedBy:id,name'])
             ->where('project_id', $project->id)
             ->when($approvalStatus !== '', fn ($query) => $query->where('approval_status', $approvalStatus))
             ->when($userId !== '', fn ($query) => $query->where('user_id', $userId))
-            ->latest('work_date')
-            ->latest('created_at')
+            ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
+            ->when($sort !== 'created_at', fn ($query) => $query->orderBy('created_at', 'desc'))
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json([
-            'data' => collect($timesheets->items())
+        return $this->respondPaginated(
+            paginator: $timesheets,
+            data: collect($timesheets->items())
                 ->map(fn (ProjectTimesheet $timesheet) => $this->mapTimesheet($timesheet, $request->user()))
                 ->all(),
-            'meta' => [
-                'current_page' => $timesheets->currentPage(),
-                'last_page' => $timesheets->lastPage(),
-                'per_page' => $timesheets->perPage(),
-                'total' => $timesheets->total(),
+            sort: $sort,
+            direction: $direction,
+            filters: [
+                'approval_status' => $approvalStatus,
+                'user_id' => $userId,
             ],
-        ]);
+        );
     }
 
     public function store(
@@ -62,17 +69,15 @@ class ProjectTimesheetsController extends Controller
             actorId: $request->user()?->id,
         );
 
-        return response()->json([
-            'data' => $this->mapTimesheet($timesheet, $request->user()),
-        ], 201);
+        return $this->respond($this->mapTimesheet($timesheet, $request->user()), 201);
     }
 
     public function show(ProjectTimesheet $timesheet, Request $request): JsonResponse
     {
         $this->authorize('view', $timesheet);
 
-        return response()->json([
-            'data' => $this->mapTimesheet(
+        return $this->respond(
+            $this->mapTimesheet(
                 $timesheet->load([
                     'project:id,project_code,name',
                     'task:id,task_number,title',
@@ -81,7 +86,7 @@ class ProjectTimesheetsController extends Controller
                 ]),
                 $request->user(),
             ),
-        ]);
+        );
     }
 
     public function update(
@@ -98,9 +103,7 @@ class ProjectTimesheetsController extends Controller
             actorId: $request->user()?->id,
         );
 
-        return response()->json([
-            'data' => $this->mapTimesheet($timesheet, $request->user()),
-        ]);
+        return $this->respond($this->mapTimesheet($timesheet, $request->user()));
     }
 
     public function submit(
@@ -112,9 +115,12 @@ class ProjectTimesheetsController extends Controller
 
         $workflowService->submit($timesheet, $request->user()?->id);
 
-        return response()->json([
-            'data' => $this->mapTimesheet($timesheet->fresh(['project:id,project_code,name', 'task:id,task_number,title', 'user:id,name', 'approvedBy:id,name']), $request->user()),
-        ]);
+        return $this->respond(
+            $this->mapTimesheet(
+                $timesheet->fresh(['project:id,project_code,name', 'task:id,task_number,title', 'user:id,name', 'approvedBy:id,name']),
+                $request->user(),
+            )
+        );
     }
 
     public function approve(
@@ -126,9 +132,12 @@ class ProjectTimesheetsController extends Controller
 
         $workflowService->approve($timesheet, $request->user()?->id);
 
-        return response()->json([
-            'data' => $this->mapTimesheet($timesheet->fresh(['project:id,project_code,name', 'task:id,task_number,title', 'user:id,name', 'approvedBy:id,name']), $request->user()),
-        ]);
+        return $this->respond(
+            $this->mapTimesheet(
+                $timesheet->fresh(['project:id,project_code,name', 'task:id,task_number,title', 'user:id,name', 'approvedBy:id,name']),
+                $request->user(),
+            )
+        );
     }
 
     public function reject(
@@ -144,9 +153,12 @@ class ProjectTimesheetsController extends Controller
             actorId: $request->user()?->id,
         );
 
-        return response()->json([
-            'data' => $this->mapTimesheet($timesheet->fresh(['project:id,project_code,name', 'task:id,task_number,title', 'user:id,name', 'approvedBy:id,name']), $request->user()),
-        ]);
+        return $this->respond(
+            $this->mapTimesheet(
+                $timesheet->fresh(['project:id,project_code,name', 'task:id,task_number,title', 'user:id,name', 'approvedBy:id,name']),
+                $request->user(),
+            )
+        );
     }
 
     public function destroy(
@@ -158,7 +170,7 @@ class ProjectTimesheetsController extends Controller
 
         $workflowService->delete($timesheet);
 
-        return response()->json(status: 204);
+        return $this->respondNoContent();
     }
 
     private function mapTimesheet(ProjectTimesheet $timesheet, ?User $user = null): array

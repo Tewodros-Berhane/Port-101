@@ -87,17 +87,22 @@ test('api v1 project endpoints are company scoped and support nested task and ti
 
     Sanctum::actingAs($manager);
 
-    getJson('/api/v1/projects')
+    getJson('/api/v1/projects?status=active&sort=name&direction=asc&per_page=500')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $inCompanyProject->id);
+        ->assertJsonPath('data.0.id', $inCompanyProject->id)
+        ->assertJsonPath('meta.per_page', 100)
+        ->assertJsonPath('meta.sort', 'name')
+        ->assertJsonPath('meta.direction', 'asc')
+        ->assertJsonPath('meta.filters.status', 'active');
 
     getJson('/api/v1/projects/'.$inCompanyProject->id)
         ->assertOk()
         ->assertJsonPath('data.project_code', 'PRJ-API-EXIST');
 
     getJson('/api/v1/projects/'.$outOfCompanyProject->id)
-        ->assertNotFound();
+        ->assertNotFound()
+        ->assertJsonPath('message', 'Resource not found.');
 
     $projectResponse = postJson('/api/v1/projects', [
         'project_code' => 'PRJ-API-001',
@@ -143,10 +148,12 @@ test('api v1 project endpoints are company scoped and support nested task and ti
 
     $taskId = (string) $taskResponse->json('data.id');
 
-    getJson("/api/v1/projects/{$projectId}/tasks")
+    getJson("/api/v1/projects/{$projectId}/tasks?sort=task_number&direction=desc")
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $taskId);
+        ->assertJsonPath('data.0.id', $taskId)
+        ->assertJsonPath('meta.sort', 'task_number')
+        ->assertJsonPath('meta.direction', 'desc');
 
     $timesheetResponse = postJson("/api/v1/projects/{$projectId}/timesheets", [
         'task_id' => $taskId,
@@ -172,8 +179,11 @@ test('api v1 project endpoints are company scoped and support nested task and ti
         ->assertJsonPath('data.approval_status', ProjectTimesheet::APPROVAL_STATUS_APPROVED)
         ->assertJsonPath('data.invoice_status', ProjectTimesheet::INVOICE_STATUS_READY);
 
-    getJson("/api/v1/projects/{$projectId}/timesheets")
+    getJson("/api/v1/projects/{$projectId}/timesheets?approval_status=approved&sort=work_date&direction=desc")
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $timesheetId);
+        ->assertJsonPath('data.0.id', $timesheetId)
+        ->assertJsonPath('meta.sort', 'work_date')
+        ->assertJsonPath('meta.direction', 'desc')
+        ->assertJsonPath('meta.filters.approval_status', ProjectTimesheet::APPROVAL_STATUS_APPROVED);
 });

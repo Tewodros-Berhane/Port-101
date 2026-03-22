@@ -63,7 +63,8 @@ test('api v1 health endpoint returns ok status', function () {
 
 test('api v1 protected endpoints require token auth', function () {
     getJson('/api/v1/partners')
-        ->assertUnauthorized();
+        ->assertUnauthorized()
+        ->assertJsonPath('message', 'Unauthenticated.');
 });
 
 test('api v1 accepts bearer personal access tokens', function () {
@@ -76,7 +77,7 @@ test('api v1 accepts bearer personal access tokens', function () {
         ->assertOk()
         ->assertJsonStructure([
             'data',
-            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+            'meta' => ['current_page', 'last_page', 'per_page', 'total', 'from', 'to', 'sort', 'direction', 'filters'],
         ]);
 });
 
@@ -114,10 +115,14 @@ test('api v1 partners index is company scoped', function () {
 
     Sanctum::actingAs($user);
 
-    getJson('/api/v1/partners')
+    getJson('/api/v1/partners?search=In%20Company&sort=name&direction=desc&per_page=500')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $inCompanyPartner->id);
+        ->assertJsonPath('data.0.id', $inCompanyPartner->id)
+        ->assertJsonPath('meta.per_page', 100)
+        ->assertJsonPath('meta.sort', 'name')
+        ->assertJsonPath('meta.direction', 'desc')
+        ->assertJsonPath('meta.filters.search', 'In Company');
 });
 
 test('api v1 settings endpoint persists company settings', function () {
@@ -174,4 +179,42 @@ test('api v1 settings endpoint persists company settings', function () {
         ->first();
 
     expect($taxPeriod?->value)->toBe('monthly');
+});
+
+test('api v1 validation responses use the shared error envelope', function () {
+    [$user] = createCompanyUserForApi([
+        'core.company.view',
+        'core.settings.manage',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    putJson('/api/v1/settings', [
+        'tax_period' => 'weekly',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonStructure([
+            'message',
+            'errors' => ['tax_period'],
+        ]);
+});
+
+test('api v1 forbidden responses use the shared error envelope', function () {
+    [$user] = createCompanyUserForApi([
+        'core.company.view',
+    ]);
+
+    Sanctum::actingAs($user);
+
+    putJson('/api/v1/settings', [
+        'locale' => 'en_US',
+    ])
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+});
+
+test('api v1 missing routes use the shared not found envelope', function () {
+    getJson('/api/v1/does-not-exist')
+        ->assertNotFound()
+        ->assertJsonPath('message', 'Resource not found.');
 });

@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Projects\ProjectStoreRequest;
 use App\Http\Requests\Projects\ProjectUpdateRequest;
 use App\Models\User;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\ProjectWorkspaceService;
+use App\Support\Api\ApiQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class ProjectsController extends Controller
+class ProjectsController extends ApiController
 {
     public function index(Request $request): JsonResponse
     {
@@ -23,10 +23,16 @@ class ProjectsController extends Controller
             abort(403);
         }
 
-        $perPage = min((int) $request->integer('per_page', 20), 100);
+        $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
         $status = trim((string) $request->input('status', ''));
         $billingType = trim((string) $request->input('billing_type', ''));
+        ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
+            $request,
+            allowed: ['updated_at', 'name', 'project_code', 'status', 'start_date'],
+            defaultSort: 'updated_at',
+            defaultDirection: 'desc',
+        );
 
         $projects = Project::query()
             ->with(['customer:id,name', 'salesOrder:id,order_number', 'currency:id,code', 'projectManager:id,name'])
@@ -40,21 +46,23 @@ class ProjectsController extends Controller
             })
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($billingType !== '', fn ($query) => $query->where('billing_type', $billingType))
-            ->latest('updated_at')
+            ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json([
-            'data' => collect($projects->items())
+        return $this->respondPaginated(
+            paginator: $projects,
+            data: collect($projects->items())
                 ->map(fn (Project $project) => $this->mapProject($project, $user, false))
                 ->all(),
-            'meta' => [
-                'current_page' => $projects->currentPage(),
-                'last_page' => $projects->lastPage(),
-                'per_page' => $projects->perPage(),
-                'total' => $projects->total(),
+            sort: $sort,
+            direction: $direction,
+            filters: [
+                'search' => $search,
+                'status' => $status,
+                'billing_type' => $billingType,
             ],
-        ]);
+        );
     }
 
     public function store(
@@ -79,8 +87,8 @@ class ProjectsController extends Controller
         $workspaceService->syncProjectMembers($project, $user?->id);
         $workspaceService->refreshProjectRollup($project);
 
-        return response()->json([
-            'data' => $this->mapProject(
+        return $this->respond(
+            $this->mapProject(
                 $project->fresh([
                     'customer:id,name',
                     'salesOrder:id,order_number',
@@ -90,7 +98,8 @@ class ProjectsController extends Controller
                 ]),
                 $user,
             ),
-        ], 201);
+            201,
+        );
     }
 
     public function show(Project $project, Request $request): JsonResponse
@@ -105,9 +114,7 @@ class ProjectsController extends Controller
             'members.user:id,name,email',
         ])->loadCount(['members', 'tasks', 'timesheets', 'milestones', 'billables']);
 
-        return response()->json([
-            'data' => $this->mapProject($project, $request->user(), true),
-        ]);
+        return $this->respond($this->mapProject($project, $request->user(), true));
     }
 
     public function update(
@@ -125,8 +132,8 @@ class ProjectsController extends Controller
         $workspaceService->syncProjectMembers($project, $request->user()?->id);
         $workspaceService->refreshProjectRollup($project);
 
-        return response()->json([
-            'data' => $this->mapProject(
+        return $this->respond(
+            $this->mapProject(
                 $project->fresh([
                     'customer:id,name',
                     'salesOrder:id,order_number',
@@ -137,7 +144,7 @@ class ProjectsController extends Controller
                 $request->user(),
                 true,
             ),
-        ]);
+        );
     }
 
     public function destroy(Project $project): JsonResponse
@@ -151,7 +158,7 @@ class ProjectsController extends Controller
         $project->billables()->delete();
         $project->delete();
 
-        return response()->json(status: 204);
+        return $this->respondNoContent();
     }
 
     private function mapProject(

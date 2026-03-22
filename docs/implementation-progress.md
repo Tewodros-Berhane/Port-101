@@ -46,6 +46,7 @@
 - Superadmin operations reporting exports implemented (filtered admin actions + delivery trends in CSV/JSON).
 - Audit log retention rules implemented (config + settings-backed pruning command + scheduler).
 - Core API scaffolding implemented under `/api/v1` (health + partners/products/settings endpoints).
+- API v1 Phase 0 contract hardening implemented: shared API response helpers, shared pagination meta (`from`/`to`/`sort`/`direction`/`filters`), per-endpoint sort conventions, and standardized JSON error envelopes for `401` / `403` / `404` / `422` responses across current `/api/v1` endpoints.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
@@ -173,6 +174,7 @@
 - Scheduled operations report delivery now points to reports-center export links and PDF/XLSX formats.
 - Scheduled operations report delivery now supports targeted recipients and channel fan-out (in-app/email/webhook/Slack) with PDF/XLSX attachments for email dispatch.
 - API v1 scaffolding is live at `/api/v1` for health, partners, products, and settings, protected by Sanctum token auth.
+- API v1 current endpoints now share a hardened contract baseline: bearer-token auth, consistent paginated list envelopes, explicit sort/direction/filter meta, and standardized JSON error envelopes for auth/authorization/not-found/validation failures.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
@@ -183,15 +185,15 @@
 
 ### Present but placeholder-only
 
-- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, approval workflow integration, draft invoice handoff into Accounting, project detail billing visibility, portfolio profitability signals, and recurring billing management with scheduled or manual cycle processing.
+- No currently listed core or delivered module surfaces are placeholder-only; remaining roadmap work is deeper module expansion, broader API coverage, and production hardening.
 
 ### Test run result (2026-03-22)
 
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `195 passed`, `0 failed`.
-- Result summary after latest implementation: `188` passed, `0` failed.
+- Latest full-suite count: `202 passed`, `0 failed`.
+- Result summary after latest implementation: API v1 Phase 0 contract hardening verified with the full PostgreSQL-backed suite.
 
 ## Suggestions
 

@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Core\Settings\SettingsService;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class SettingsController extends Controller
+class SettingsController extends ApiController
 {
     /**
      * @var array<int, string>
@@ -42,9 +41,7 @@ class SettingsController extends Controller
 
         $settings = $settingsService->getMany(self::COMPANY_SETTING_KEYS, $companyId);
 
-        return response()->json([
-            'data' => $this->mapSettingsPayload($settings),
-        ]);
+        return $this->respond($this->mapSettingsPayload($settings));
     }
 
     public function update(Request $request, SettingsService $settingsService): JsonResponse
@@ -240,9 +237,7 @@ class SettingsController extends Controller
 
         $settings = $settingsService->getMany(self::COMPANY_SETTING_KEYS, $companyId);
 
-        return response()->json([
-            'data' => $this->mapSettingsPayload($settings),
-        ]);
+        return $this->respond($this->mapSettingsPayload($settings));
     }
 
     /**

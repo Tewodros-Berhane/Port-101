@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Core\MasterData\Models\Product;
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ProductStoreRequest;
 use App\Http\Requests\Core\ProductUpdateRequest;
+use App\Support\Api\ApiQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class ProductsController extends Controller
+class ProductsController extends ApiController
 {
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Product::class);
 
-        $perPage = min((int) $request->integer('per_page', 20), 100);
+        $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
+        ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
+            $request,
+            allowed: ['name', 'sku', 'created_at', 'updated_at'],
+            defaultSort: 'name',
+            defaultDirection: 'asc',
+        );
 
         $products = Product::query()
             ->with(['uom:id,name', 'defaultTax:id,name'])
@@ -26,19 +32,17 @@ class ProductsController extends Controller
                         ->orWhere('sku', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('name')
+            ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json([
-            'data' => $products->items(),
-            'meta' => [
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'per_page' => $products->perPage(),
-                'total' => $products->total(),
-            ],
-        ]);
+        return $this->respondPaginated(
+            paginator: $products,
+            data: $products->items(),
+            sort: $sort,
+            direction: $direction,
+            filters: ['search' => $search],
+        );
     }
 
     public function store(ProductStoreRequest $request): JsonResponse
@@ -54,18 +58,14 @@ class ProductsController extends Controller
             'updated_by' => $user?->id,
         ]);
 
-        return response()->json([
-            'data' => $product->fresh(['uom:id,name', 'defaultTax:id,name']),
-        ], 201);
+        return $this->respond($product->fresh(['uom:id,name', 'defaultTax:id,name']), 201);
     }
 
     public function show(Product $product): JsonResponse
     {
         $this->authorize('view', $product);
 
-        return response()->json([
-            'data' => $product->load(['uom:id,name', 'defaultTax:id,name']),
-        ]);
+        return $this->respond($product->load(['uom:id,name', 'defaultTax:id,name']));
     }
 
     public function update(ProductUpdateRequest $request, Product $product): JsonResponse
@@ -77,9 +77,7 @@ class ProductsController extends Controller
             'updated_by' => $request->user()?->id,
         ]);
 
-        return response()->json([
-            'data' => $product->fresh(['uom:id,name', 'defaultTax:id,name']),
-        ]);
+        return $this->respond($product->fresh(['uom:id,name', 'defaultTax:id,name']));
     }
 
     public function destroy(Product $product): JsonResponse
@@ -88,7 +86,6 @@ class ProductsController extends Controller
 
         $product->delete();
 
-        return response()->json(status: 204);
+        return $this->respondNoContent();
     }
 }
-

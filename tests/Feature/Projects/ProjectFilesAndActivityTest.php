@@ -115,8 +115,10 @@ test('project files can be uploaded downloaded and removed and appear in the act
             ->has('attachments', 1)
             ->where('attachments.0.original_name', 'scope.pdf')
             ->has('activity')
-            ->where('activity.0.action', 'file_uploaded')
-            ->where('activity.0.subject_label', 'scope.pdf'));
+            ->where('activity', fn ($activity) => collect($activity)->contains(
+                fn (array $entry) => ($entry['action'] ?? null) === 'file_uploaded'
+                    && ($entry['subject_label'] ?? null) === 'scope.pdf'
+            )));
 
     actingAs($manager)
         ->get(route('company.projects.files.download', $attachment))
@@ -133,6 +135,8 @@ test('project files can be uploaded downloaded and removed and appear in the act
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('projects/projects/show')
-            ->where('activity.0.action', 'file_deleted')
-            ->where('activity.0.subject_label', 'scope.pdf'));
+            ->where('activity', fn ($activity) => collect($activity)->contains(
+                fn (array $entry) => ($entry['action'] ?? null) === 'file_deleted'
+                    && ($entry['subject_label'] ?? null) === 'scope.pdf'
+            )));
 });
