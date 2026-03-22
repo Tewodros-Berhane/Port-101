@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ProjectMember = {
     id: string;
@@ -58,6 +59,35 @@ type ProjectMilestone = {
     can_edit: boolean;
 };
 
+type ProjectBillable = {
+    id: string;
+    billable_type: string;
+    description?: string | null;
+    status: string;
+    approval_status: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+    currency_code?: string | null;
+    invoice_id?: string | null;
+    invoice_number?: string | null;
+    invoice_status?: string | null;
+    updated_at?: string | null;
+    can_create_invoice: boolean;
+    can_open_invoice: boolean;
+};
+
+type LinkedInvoice = {
+    id: string;
+    invoice_number: string;
+    status: string;
+    invoice_date?: string | null;
+    due_date?: string | null;
+    grand_total: number;
+    balance_due: number;
+    can_open: boolean;
+};
+
 type Props = {
     project: {
         id: string;
@@ -84,6 +114,8 @@ type Props = {
         tasks: ProjectTask[];
         timesheets: ProjectTimesheet[];
         milestones: ProjectMilestone[];
+        billables: ProjectBillable[];
+        linked_invoices: LinkedInvoice[];
     };
     summary: {
         task_total: number;
@@ -95,6 +127,12 @@ type Props = {
         milestones_total: number;
         milestones_ready_review: number;
         billables_logged: number;
+        billables_ready_to_invoice: number;
+        billables_ready_to_invoice_amount: number;
+        billables_pending_approval: number;
+        billables_pending_approval_amount: number;
+        billables_invoiced: number;
+        billables_invoiced_amount: number;
     };
     abilities: {
         can_edit_project: boolean;
@@ -102,6 +140,8 @@ type Props = {
         can_create_timesheet: boolean;
         can_create_milestone: boolean;
         can_view_billables: boolean;
+        can_create_invoice_drafts: boolean;
+        invoice_grouping_options: string[];
     };
 };
 
@@ -109,6 +149,11 @@ const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function ProjectShow({ project, summary, abilities }: Props) {
+    const [selectedBillableIds, setSelectedBillableIds] = useState<string[]>([]);
+    const [groupBy, setGroupBy] = useState(
+        abilities.invoice_grouping_options[0] ?? 'project',
+    );
+
     const handleRejectTimesheet = (timesheetId: string, rejectionReason?: string | null) => {
         const reason =
             window.prompt('Optional rejection reason', rejectionReason ?? '') ?? '';
@@ -119,6 +164,24 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
             { preserveScroll: true },
         );
     };
+
+    const selectableBillableIds = useMemo(
+        () =>
+            project.billables
+                .filter((billable) => billable.can_create_invoice)
+                .map((billable) => billable.id),
+        [project.billables],
+    );
+
+    useEffect(() => {
+        setSelectedBillableIds((current) =>
+            current.filter((id) => selectableBillableIds.includes(id)),
+        );
+    }, [selectableBillableIds]);
+
+    const allSelectableBillablesChecked =
+        selectableBillableIds.length > 0 &&
+        selectableBillableIds.every((id) => selectedBillableIds.includes(id));
 
     return (
         <AppLayout
@@ -164,6 +227,51 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                     </Link>
                                 </Button>
                             )}
+                            {abilities.can_create_invoice_drafts && (
+                                <>
+                                    <select
+                                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        value={groupBy}
+                                        onChange={(event) =>
+                                            setGroupBy(event.target.value)
+                                        }
+                                    >
+                                        {abilities.invoice_grouping_options.map(
+                                            (option) => (
+                                                <option
+                                                    key={option}
+                                                    value={option}
+                                                >
+                                                    Group by {formatLabel(option)}
+                                                </option>
+                                            ),
+                                        )}
+                                    </select>
+                                    <Button
+                                        type="button"
+                                        disabled={
+                                            selectedBillableIds.length === 0
+                                        }
+                                        onClick={() =>
+                                            router.post(
+                                                '/company/projects/billables/invoice-drafts',
+                                                {
+                                                    billable_ids:
+                                                        selectedBillableIds,
+                                                    group_by: groupBy,
+                                                },
+                                                {
+                                                    preserveScroll: true,
+                                                },
+                                            )
+                                        }
+                                    >
+                                        Create draft invoice
+                                        {selectedBillableIds.length > 0 &&
+                                            ` (${selectedBillableIds.length})`}
+                                    </Button>
+                                </>
+                            )}
                             {abilities.can_create_task && (
                                 <Button asChild>
                                     <Link
@@ -203,6 +311,10 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                     <MetricCard
                         label="Task completion"
                         value={`${summary.task_completed}/${summary.task_total}`}
+                    />
+                    <MetricCard
+                        label="Ready to invoice"
+                        value={`${summary.billables_ready_to_invoice} / ${summary.billables_ready_to_invoice_amount.toFixed(2)}`}
                     />
                     <MetricCard
                         label="Overdue tasks"
@@ -294,9 +406,125 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                 value={summary.billables_logged}
                             />
                             <SummaryRow
+                                label="Ready to invoice"
+                                value={summary.billables_ready_to_invoice}
+                            />
+                            <SummaryRow
+                                label="Pending billables"
+                                value={summary.billables_pending_approval}
+                            />
+                            <SummaryRow
+                                label="Invoiced billables"
+                                value={summary.billables_invoiced}
+                            />
+                            <SummaryRow
                                 label="Open tasks"
                                 value={summary.task_total - summary.task_completed}
                             />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+                    <div className="rounded-xl border p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Billing summary
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Invoice-ready, pending approval, and posted
+                                    billing signals for this project.
+                                </p>
+                            </div>
+                            {abilities.can_view_billables && (
+                                <Button variant="ghost" asChild>
+                                    <Link
+                                        href={`/company/projects/billables?project_id=${project.id}`}
+                                    >
+                                        Open billing queue
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                            <BillingMetricCard
+                                label="Ready to invoice"
+                                count={summary.billables_ready_to_invoice}
+                                amount={summary.billables_ready_to_invoice_amount}
+                                tone="emerald"
+                            />
+                            <BillingMetricCard
+                                label="Pending approval"
+                                count={summary.billables_pending_approval}
+                                amount={summary.billables_pending_approval_amount}
+                                tone="amber"
+                            />
+                            <BillingMetricCard
+                                label="Invoiced"
+                                count={summary.billables_invoiced}
+                                amount={summary.billables_invoiced_amount}
+                                tone="blue"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="rounded-xl border p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">
+                                    Linked invoices
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Draft and posted accounting invoices created
+                                    from this project.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {project.linked_invoices.length === 0 && (
+                                <div className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+                                    No invoices linked to this project yet.
+                                </div>
+                            )}
+                            {project.linked_invoices.map((invoice) => (
+                                <div
+                                    key={invoice.id}
+                                    className="rounded-xl border px-3 py-3"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            {invoice.can_open ? (
+                                                <Link
+                                                    href={`/company/accounting/invoices/${invoice.id}/edit`}
+                                                    className="text-sm font-medium text-primary"
+                                                >
+                                                    {invoice.invoice_number}
+                                                </Link>
+                                            ) : (
+                                                <p className="text-sm font-medium">
+                                                    {invoice.invoice_number}
+                                                </p>
+                                            )}
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {formatLabel(invoice.status)} •
+                                                Invoice {invoice.invoice_date ?? '-'}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-semibold">
+                                            {invoice.grand_total.toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                        <span>Due {invoice.due_date ?? '-'}</span>
+                                        <span>
+                                            Balance {invoice.balance_due.toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>
@@ -699,6 +927,159 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                         </table>
                     </div>
                 </section>
+
+                <section className="rounded-xl border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Project billables
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Review billable rows for this project and create
+                                draft invoices from eligible items.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto rounded-lg border">
+                        <table className="w-full min-w-[1120px] text-sm">
+                            <thead className="bg-muted/60 text-left">
+                                <tr>
+                                    <th className="px-3 py-2 font-medium">
+                                        <input
+                                            type="checkbox"
+                                            className="size-4 rounded border-input"
+                                            checked={allSelectableBillablesChecked}
+                                            onChange={(event) =>
+                                                setSelectedBillableIds(
+                                                    event.target.checked
+                                                        ? selectableBillableIds
+                                                        : [],
+                                                )
+                                            }
+                                            aria-label="Select all invoice eligible project billables"
+                                        />
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">Type</th>
+                                    <th className="px-3 py-2 font-medium">Description</th>
+                                    <th className="px-3 py-2 font-medium">Status</th>
+                                    <th className="px-3 py-2 font-medium">Approval</th>
+                                    <th className="px-3 py-2 font-medium">Amount</th>
+                                    <th className="px-3 py-2 font-medium">Invoice</th>
+                                    <th className="px-3 py-2 font-medium">Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {project.billables.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="px-3 py-6 text-center text-muted-foreground"
+                                        >
+                                            No billables have been generated for this project yet.
+                                        </td>
+                                    </tr>
+                                )}
+                                {project.billables.map((billable) => (
+                                    <tr key={billable.id}>
+                                        <td className="px-3 py-2">
+                                            {billable.can_create_invoice ? (
+                                                <input
+                                                    type="checkbox"
+                                                    className="size-4 rounded border-input"
+                                                    checked={selectedBillableIds.includes(
+                                                        billable.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelectedBillableIds(
+                                                            (current) =>
+                                                                event.target.checked
+                                                                    ? current.includes(
+                                                                          billable.id,
+                                                                      )
+                                                                        ? current
+                                                                        : [
+                                                                              ...current,
+                                                                              billable.id,
+                                                                          ]
+                                                                    : current.filter(
+                                                                          (id) =>
+                                                                              id !==
+                                                                              billable.id,
+                                                                      ),
+                                                        )
+                                                    }
+                                                    aria-label={`Select billable ${billable.id}`}
+                                                />
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    -
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatLabel(billable.billable_type)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <div className="max-w-[320px]">
+                                                <p className="font-medium">
+                                                    {billable.description ??
+                                                        'No description'}
+                                                </p>
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatLabel(billable.status)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatLabel(
+                                                billable.approval_status,
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {billable.amount.toFixed(2)}
+                                            <p className="text-xs text-muted-foreground">
+                                                {billable.quantity.toFixed(2)} ×{' '}
+                                                {billable.unit_price.toFixed(2)}{' '}
+                                                {billable.currency_code ?? ''}
+                                            </p>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {billable.invoice_number ? (
+                                                billable.can_open_invoice ? (
+                                                    <Link
+                                                        href={`/company/accounting/invoices/${billable.invoice_id}/edit`}
+                                                        className="font-medium text-primary"
+                                                    >
+                                                        {billable.invoice_number}
+                                                    </Link>
+                                                ) : (
+                                                    billable.invoice_number
+                                                )
+                                            ) : (
+                                                'Not invoiced'
+                                            )}
+                                            {billable.invoice_status && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {formatLabel(
+                                                        billable.invoice_status,
+                                                    )}
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {billable.updated_at
+                                                ? new Date(
+                                                      billable.updated_at,
+                                                  ).toLocaleString()
+                                                : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
         </AppLayout>
     );
@@ -731,6 +1112,42 @@ function SummaryRow({ label, value }: { label: string; value: number }) {
         <div className="flex items-center justify-between rounded-lg border px-3 py-3">
             <span className="text-muted-foreground">{label}</span>
             <span className="font-medium">{value}</span>
+        </div>
+    );
+}
+
+function BillingMetricCard({
+    label,
+    count,
+    amount,
+    tone,
+}: {
+    label: string;
+    count: number;
+    amount: number;
+    tone: 'emerald' | 'amber' | 'blue';
+}) {
+    const toneClass =
+        tone === 'emerald'
+            ? 'from-emerald-500/10 to-emerald-500/0'
+            : tone === 'amber'
+              ? 'from-amber-500/10 to-amber-500/0'
+              : 'from-blue-500/10 to-blue-500/0';
+
+    return (
+        <div className={`rounded-lg border bg-gradient-to-br ${toneClass} px-4 py-4`}>
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {label}
+            </p>
+            <div className="mt-3 flex items-end justify-between gap-3">
+                <div>
+                    <p className="text-2xl font-semibold">{count}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        records
+                    </p>
+                </div>
+                <p className="text-sm font-medium">{amount.toFixed(2)}</p>
+            </div>
         </div>
     );
 }

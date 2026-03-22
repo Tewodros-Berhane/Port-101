@@ -15,6 +15,7 @@ use App\Modules\Projects\Models\ProjectMember;
 use App\Modules\Projects\Models\ProjectMilestone;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Projects\Models\ProjectTimesheet;
+use App\Modules\Projects\ProjectInvoiceDraftService;
 use App\Modules\Projects\ProjectWorkspaceService;
 use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Http\RedirectResponse;
@@ -197,6 +198,8 @@ class ProjectsController extends Controller
             'timesheets.user:id,name',
             'timesheets.task:id,task_number,title',
             'milestones.approvedBy:id,name',
+            'billables.currency:id,code,symbol',
+            'billables.invoice:id,invoice_number,status,invoice_date,due_date,grand_total,balance_due',
         ]);
 
         $tasks = $project->tasks
@@ -210,6 +213,15 @@ class ProjectsController extends Controller
             ->values();
         $milestones = $project->milestones
             ->sortBy('sequence')
+            ->values();
+        $billables = $project->billables
+            ->sortByDesc('updated_at')
+            ->values();
+        $linkedInvoices = $billables
+            ->map(fn (ProjectBillable $billable) => $billable->invoice)
+            ->filter()
+            ->unique(fn ($invoice) => (string) $invoice->id)
+            ->sortByDesc('invoice_date')
             ->values();
 
         $overdueTaskCount = $tasks
@@ -322,6 +334,49 @@ class ProjectsController extends Controller
                         'can_edit' => $user?->can('update', $milestone) ?? false,
                     ])
                     ->all(),
+                'billables' => $billables
+                    ->map(fn (ProjectBillable $billable) => [
+                        'id' => $billable->id,
+                        'billable_type' => $billable->billable_type,
+                        'description' => $billable->description,
+                        'status' => $billable->status,
+                        'approval_status' => $billable->approval_status,
+                        'quantity' => (float) $billable->quantity,
+                        'unit_price' => (float) $billable->unit_price,
+                        'amount' => (float) $billable->amount,
+                        'currency_code' => $billable->currency?->code,
+                        'invoice_id' => $billable->invoice_id,
+                        'invoice_number' => $billable->invoice?->invoice_number,
+                        'invoice_status' => $billable->invoice?->status,
+                        'updated_at' => $billable->updated_at?->toIso8601String(),
+                        'can_create_invoice' => $user?->can('createInvoice', $billable)
+                            && in_array($billable->status, [
+                                ProjectBillable::STATUS_READY,
+                                ProjectBillable::STATUS_APPROVED,
+                            ], true)
+                            && ! in_array($billable->approval_status, [
+                                ProjectBillable::APPROVAL_STATUS_PENDING,
+                                ProjectBillable::APPROVAL_STATUS_REJECTED,
+                            ], true)
+                            && $billable->status !== ProjectBillable::STATUS_CANCELLED
+                            && ! $billable->invoice_id,
+                        'can_open_invoice' => $billable->invoice !== null
+                            ? ($user?->can('view', $billable->invoice) ?? false)
+                            : false,
+                    ])
+                    ->all(),
+                'linked_invoices' => $linkedInvoices
+                    ->map(fn ($invoice) => [
+                        'id' => $invoice->id,
+                        'invoice_number' => $invoice->invoice_number,
+                        'status' => $invoice->status,
+                        'invoice_date' => $invoice->invoice_date?->toDateString(),
+                        'due_date' => $invoice->due_date?->toDateString(),
+                        'grand_total' => (float) $invoice->grand_total,
+                        'balance_due' => (float) $invoice->balance_due,
+                        'can_open' => $user?->can('view', $invoice) ?? false,
+                    ])
+                    ->all(),
             ],
             'summary' => [
                 'task_total' => $tasks->count(),
@@ -345,6 +400,55 @@ class ProjectsController extends Controller
                     ->where('project_id', $project->id)
                     ->where('status', '!=', ProjectBillable::STATUS_CANCELLED)
                     ->count(),
+                'billables_ready_to_invoice' => $billables
+                    ->filter(fn (ProjectBillable $billable) => in_array($billable->status, [
+                        ProjectBillable::STATUS_READY,
+                        ProjectBillable::STATUS_APPROVED,
+                    ], true)
+                        && ! in_array($billable->approval_status, [
+                            ProjectBillable::APPROVAL_STATUS_PENDING,
+                            ProjectBillable::APPROVAL_STATUS_REJECTED,
+                        ], true)
+                        && $billable->status !== ProjectBillable::STATUS_CANCELLED
+                        && ! $billable->invoice_id)
+                    ->count(),
+                'billables_ready_to_invoice_amount' => round(
+                    (float) $billables
+                        ->filter(fn (ProjectBillable $billable) => in_array($billable->status, [
+                            ProjectBillable::STATUS_READY,
+                            ProjectBillable::STATUS_APPROVED,
+                        ], true)
+                            && ! in_array($billable->approval_status, [
+                                ProjectBillable::APPROVAL_STATUS_PENDING,
+                                ProjectBillable::APPROVAL_STATUS_REJECTED,
+                            ], true)
+                            && $billable->status !== ProjectBillable::STATUS_CANCELLED
+                            && ! $billable->invoice_id)
+                        ->sum('amount'),
+                    2,
+                ),
+                'billables_pending_approval' => $billables
+                    ->where('approval_status', ProjectBillable::APPROVAL_STATUS_PENDING)
+                    ->where('status', '!=', ProjectBillable::STATUS_CANCELLED)
+                    ->count(),
+                'billables_pending_approval_amount' => round(
+                    (float) $billables
+                        ->filter(fn (ProjectBillable $billable) => $billable->approval_status === ProjectBillable::APPROVAL_STATUS_PENDING
+                            && $billable->status !== ProjectBillable::STATUS_CANCELLED)
+                        ->sum('amount'),
+                    2,
+                ),
+                'billables_invoiced' => $billables
+                    ->filter(fn (ProjectBillable $billable) => $billable->invoice_id
+                        || $billable->status === ProjectBillable::STATUS_INVOICED)
+                    ->count(),
+                'billables_invoiced_amount' => round(
+                    (float) $billables
+                        ->filter(fn (ProjectBillable $billable) => $billable->invoice_id
+                            || $billable->status === ProjectBillable::STATUS_INVOICED)
+                        ->sum('amount'),
+                    2,
+                ),
             ],
             'abilities' => [
                 'can_edit_project' => $user?->can('update', $project) ?? false,
@@ -353,6 +457,8 @@ class ProjectsController extends Controller
                 'can_create_milestone' => $user?->can('create', ProjectMilestone::class)
                     && ($user?->can('update', $project) ?? false),
                 'can_view_billables' => $user?->can('viewAny', ProjectBillable::class) ?? false,
+                'can_create_invoice_drafts' => $user?->hasPermission('projects.invoices.create') ?? false,
+                'invoice_grouping_options' => ProjectInvoiceDraftService::GROUP_BY_OPTIONS,
             ],
         ]);
     }

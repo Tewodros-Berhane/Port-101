@@ -1,14 +1,19 @@
 <?php
 
 use App\Core\MasterData\Models\Currency;
+use App\Core\MasterData\Models\Partner;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
+use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Projects\Models\Project;
+use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMember;
 use App\Modules\Projects\Models\ProjectStage;
 use App\Modules\Projects\Models\ProjectTask;
+use App\Modules\Projects\Models\ProjectTimesheet;
 use Database\Seeders\CoreRolesSeeder;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 
@@ -299,4 +304,123 @@ test('assigned project user can view project workspace but cannot create project
     actingAs($projectUser)
         ->get(route('company.projects.tasks.create', $records['project']))
         ->assertForbidden();
+});
+
+test('project detail page exposes billing summary and linked invoices', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$manager, $company] = makeActiveCompanyMember();
+    assignProjectsWorkspaceRole($manager, $company->id, 'project_manager');
+    $currency = createProjectsWorkspaceCurrency($company->id, $manager->id);
+    $records = createProjectsWorkspaceProject($company->id, $manager, $currency);
+    $project = $records['project'];
+    $customer = Partner::create([
+        'company_id' => $company->id,
+        'code' => 'CUST-PRJ-'.Str::upper(Str::random(4)),
+        'name' => 'Project Billing Customer '.Str::upper(Str::random(4)),
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    $timesheet = ProjectTimesheet::create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'task_id' => null,
+        'user_id' => $manager->id,
+        'work_date' => now()->toDateString(),
+        'description' => 'Project rollout workshop',
+        'hours' => 4,
+        'is_billable' => true,
+        'cost_rate' => 50,
+        'bill_rate' => 100,
+        'cost_amount' => 200,
+        'billable_amount' => 400,
+        'approval_status' => ProjectTimesheet::APPROVAL_STATUS_APPROVED,
+        'approved_by' => $manager->id,
+        'approved_at' => now(),
+        'invoice_status' => ProjectTimesheet::INVOICE_STATUS_READY,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    $readyBillable = ProjectBillable::create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'billable_type' => ProjectBillable::TYPE_TIMESHEET,
+        'source_type' => ProjectTimesheet::class,
+        'source_id' => $timesheet->id,
+        'customer_id' => null,
+        'description' => 'Project rollout workshop',
+        'quantity' => 4,
+        'unit_price' => 100,
+        'amount' => 400,
+        'currency_id' => $currency->id,
+        'status' => ProjectBillable::STATUS_READY,
+        'approval_status' => ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    $invoice = AccountingInvoice::create([
+        'company_id' => $company->id,
+        'partner_id' => $customer->id,
+        'sales_order_id' => null,
+        'purchase_order_id' => null,
+        'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+        'invoice_number' => 'INV-PRJ-001',
+        'status' => AccountingInvoice::STATUS_DRAFT,
+        'delivery_status' => AccountingInvoice::DELIVERY_STATUS_NOT_REQUIRED,
+        'invoice_date' => now()->toDateString(),
+        'due_date' => now()->addDays(30)->toDateString(),
+        'currency_code' => $company->currency_code,
+        'subtotal' => 900,
+        'tax_total' => 0,
+        'grand_total' => 900,
+        'paid_total' => 0,
+        'balance_due' => 900,
+        'notes' => 'Projects billing test invoice',
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    $invoicedBillable = ProjectBillable::create([
+        'company_id' => $company->id,
+        'project_id' => $project->id,
+        'billable_type' => ProjectBillable::TYPE_MANUAL,
+        'source_type' => Project::class,
+        'source_id' => $project->id,
+        'customer_id' => null,
+        'description' => 'Go-live charge',
+        'quantity' => 1,
+        'unit_price' => 900,
+        'amount' => 900,
+        'currency_id' => $currency->id,
+        'status' => ProjectBillable::STATUS_INVOICED,
+        'approval_status' => ProjectBillable::APPROVAL_STATUS_APPROVED,
+        'invoice_id' => $invoice->id,
+        'invoice_line_reference' => 'INV-PRJ-001-L01',
+        'approved_by' => $manager->id,
+        'approved_at' => now(),
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    actingAs($manager)
+        ->get(route('company.projects.show', $project))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('projects/projects/show')
+            ->where('summary.billables_logged', 2)
+            ->where('summary.billables_ready_to_invoice', 1)
+            ->where('summary.billables_ready_to_invoice_amount', 400)
+            ->where('summary.billables_invoiced', 1)
+            ->where('summary.billables_invoiced_amount', 900)
+            ->has('project.billables', 2)
+            ->where('project.billables.0.id', $invoicedBillable->id)
+            ->where('project.billables.1.id', $readyBillable->id)
+            ->has('project.linked_invoices', 1)
+            ->where('project.linked_invoices.0.invoice_number', 'INV-PRJ-001')
+            ->where('abilities.can_create_invoice_drafts', true));
 });
