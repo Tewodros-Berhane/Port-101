@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
+use App\Modules\Projects\Models\ProjectBillable;
+use App\Modules\Projects\ProjectBillableWorkflowService;
 use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Purchasing\PurchasingOrderWorkflowService;
 use App\Modules\Sales\Models\SalesOrder;
@@ -22,6 +24,7 @@ class ApprovalQueueService
     public function __construct(
         private readonly ApprovalAuthorityService $approvalAuthorityService,
         private readonly PurchasingOrderWorkflowService $purchasingOrderWorkflowService,
+        private readonly ProjectBillableWorkflowService $projectBillableWorkflowService,
     ) {}
 
     public function syncPendingRequests(Company $company, ?string $actorId = null): void
@@ -30,6 +33,7 @@ class ApprovalQueueService
         $this->syncSalesOrderRequests($company, $actorId);
         $this->syncPurchaseOrderRequests($company, $actorId);
         $this->syncAccountingManualJournalRequests($company, $actorId);
+        $this->syncProjectBillableRequests($company, $actorId);
     }
 
     /**
@@ -186,6 +190,8 @@ class ApprovalQueueService
                     'rejection_reason' => null,
                     'updated_by' => $actor->id,
                 ]);
+            } elseif ($source instanceof ProjectBillable) {
+                $source = $this->projectBillableWorkflowService->approve($source, $actor->id);
             }
 
             $this->markApproved(
@@ -270,6 +276,12 @@ class ApprovalQueueService
                     'rejection_reason' => $reason,
                     'updated_by' => $actor->id,
                 ]);
+            } elseif ($source instanceof ProjectBillable) {
+                $source = $this->projectBillableWorkflowService->reject(
+                    billable: $source,
+                    reason: $reason,
+                    actorId: $actor->id,
+                );
             }
 
             $this->markRejected(
@@ -445,6 +457,43 @@ class ApprovalQueueService
             isApproved: fn (AccountingManualJournal $manualJournal) => $manualJournal->approval_status === AccountingManualJournal::APPROVAL_STATUS_APPROVED
                 || $manualJournal->approved_at !== null,
             isRejected: fn (AccountingManualJournal $manualJournal) => $manualJournal->approval_status === AccountingManualJournal::APPROVAL_STATUS_REJECTED,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
+    private function syncProjectBillableRequests(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = ProjectBillable::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $billables = ProjectBillable::query()
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->where('approval_status', ProjectBillable::APPROVAL_STATUS_PENDING);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $billables,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_PROJECTS,
+            action: ApprovalRequest::ACTION_PROJECT_BILLABLE_APPROVAL,
+            isPending: fn (ProjectBillable $billable) => $billable->status === ProjectBillable::STATUS_READY
+                && $billable->approval_status === ProjectBillable::APPROVAL_STATUS_PENDING
+                && ! $billable->invoice_id,
+            isApproved: fn (ProjectBillable $billable) => $billable->status === ProjectBillable::STATUS_APPROVED
+                && $billable->approval_status === ProjectBillable::APPROVAL_STATUS_APPROVED,
+            isRejected: fn (ProjectBillable $billable) => $billable->approval_status === ProjectBillable::APPROVAL_STATUS_REJECTED,
             allowRejectedReopen: true,
             actorId: $actorId,
         );
@@ -718,6 +767,10 @@ class ApprovalQueueService
             return (string) $source->entry_number;
         }
 
+        if ($source instanceof ProjectBillable) {
+            return (string) ($source->project_id ?: $source->id);
+        }
+
         return null;
     }
 
@@ -737,6 +790,10 @@ class ApprovalQueueService
         if ($amount === null) {
             if ($source instanceof AccountingManualJournal) {
                 return round((float) $source->lines->sum('debit'), 2);
+            }
+
+            if ($source instanceof ProjectBillable) {
+                return round((float) $source->amount, 2);
             }
 
             return null;
@@ -804,6 +861,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             AccountingManualJournal::class => AccountingManualJournal::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            ProjectBillable::class => ProjectBillable::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,

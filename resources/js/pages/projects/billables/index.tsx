@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 
 type FilterOption = {
     id: string;
@@ -23,13 +23,25 @@ type BillableRow = {
     description?: string | null;
     status: string;
     approval_status: string;
+    approved_by_name?: string | null;
+    approved_at?: string | null;
+    rejected_by_name?: string | null;
+    rejected_at?: string | null;
+    rejection_reason?: string | null;
+    cancelled_by_name?: string | null;
+    cancelled_at?: string | null;
+    cancellation_reason?: string | null;
     quantity: number;
     unit_price: number;
     amount: number;
     currency_code?: string | null;
     invoice_number?: string | null;
     updated_at?: string | null;
+    requires_approval: boolean;
     can_open_project: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
+    can_cancel: boolean;
 };
 
 type Props = {
@@ -81,6 +93,23 @@ export default function ProjectBillablesIndex({
         approval_status: filters.approval_status,
         billable_type: filters.billable_type,
     });
+
+    const withReason = (
+        label: string,
+        callback: (reason: string) => void,
+        currentReason?: string | null,
+    ) => {
+        const reason = window.prompt(
+            `${label} reason (optional)`,
+            currentReason ?? '',
+        );
+
+        if (reason === null) {
+            return;
+        }
+
+        callback(reason);
+    };
 
     return (
         <AppLayout
@@ -371,6 +400,35 @@ export default function ProjectBillablesIndex({
                                         {formatLabel(
                                             billable.approval_status,
                                         )}
+                                        <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                            {billable.approved_at && (
+                                                <p>
+                                                    Approved by{' '}
+                                                    {billable.approved_by_name ??
+                                                        'Unknown'}{' '}
+                                                    on{' '}
+                                                    {new Date(
+                                                        billable.approved_at,
+                                                    ).toLocaleString()}
+                                                </p>
+                                            )}
+                                            {billable.rejected_at && (
+                                                <p>
+                                                    Rejected by{' '}
+                                                    {billable.rejected_by_name ??
+                                                        'Unknown'}{' '}
+                                                    on{' '}
+                                                    {new Date(
+                                                        billable.rejected_at,
+                                                    ).toLocaleString()}
+                                                </p>
+                                            )}
+                                            {billable.rejection_reason && (
+                                                <p className="max-w-[220px] truncate">
+                                                    {billable.rejection_reason}
+                                                </p>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3">
                                         {billable.invoice_number ??
@@ -384,20 +442,110 @@ export default function ProjectBillablesIndex({
                                                   billable.updated_at,
                                               ).toLocaleString()
                                             : '-'}
+                                        {billable.cancelled_at && (
+                                            <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                <p>
+                                                    Cancelled by{' '}
+                                                    {billable.cancelled_by_name ??
+                                                        'Unknown'}{' '}
+                                                    on{' '}
+                                                    {new Date(
+                                                        billable.cancelled_at,
+                                                    ).toLocaleString()}
+                                                </p>
+                                                {billable.cancellation_reason && (
+                                                    <p className="max-w-[220px] truncate">
+                                                        {
+                                                            billable.cancellation_reason
+                                                        }
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {billable.can_open_project ? (
-                                            <Link
-                                                href={`/company/projects/${billable.project_id}`}
-                                                className="font-medium text-primary"
-                                            >
-                                                Open project
-                                            </Link>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                View only
-                                            </span>
-                                        )}
+                                        <div className="inline-flex flex-wrap items-center justify-end gap-3">
+                                            {billable.can_approve && (
+                                                <button
+                                                    type="button"
+                                                    className="font-medium text-primary"
+                                                    onClick={() =>
+                                                        router.post(
+                                                            `/company/projects/billables/${billable.id}/approve`,
+                                                            {},
+                                                            {
+                                                                preserveScroll:
+                                                                    true,
+                                                            },
+                                                        )
+                                                    }
+                                                >
+                                                    Approve
+                                                </button>
+                                            )}
+                                            {billable.can_reject && (
+                                                <button
+                                                    type="button"
+                                                    className="font-medium text-primary"
+                                                    onClick={() =>
+                                                        withReason(
+                                                            'Reject billable',
+                                                            (reason) =>
+                                                                router.post(
+                                                                    `/company/projects/billables/${billable.id}/reject`,
+                                                                    {
+                                                                        reason,
+                                                                    },
+                                                                    {
+                                                                        preserveScroll:
+                                                                            true,
+                                                                    },
+                                                                ),
+                                                            billable.rejection_reason,
+                                                        )
+                                                    }
+                                                >
+                                                    Reject
+                                                </button>
+                                            )}
+                                            {billable.can_cancel && (
+                                                <button
+                                                    type="button"
+                                                    className="font-medium text-primary"
+                                                    onClick={() =>
+                                                        withReason(
+                                                            'Cancel billable',
+                                                            (reason) =>
+                                                                router.post(
+                                                                    `/company/projects/billables/${billable.id}/cancel`,
+                                                                    {
+                                                                        reason,
+                                                                    },
+                                                                    {
+                                                                        preserveScroll:
+                                                                            true,
+                                                                    },
+                                                                ),
+                                                            billable.cancellation_reason,
+                                                        )
+                                                    }
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
+                                            {billable.can_open_project ? (
+                                                <Link
+                                                    href={`/company/projects/${billable.project_id}`}
+                                                    className="font-medium text-primary"
+                                                >
+                                                    Open project
+                                                </Link>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    View only
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

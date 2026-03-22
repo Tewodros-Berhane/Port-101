@@ -111,6 +111,7 @@
 - Projects/Services milestone workflow implemented: project milestone create/edit/delete, sequence management, review/approval-ready status tracking, milestone billing-readiness stamping, and workspace visibility/tests.
 - Projects/Services billable-generation foundation implemented: approved timesheets and approved milestones now sync idempotently into `project_billables`, non-qualifying source changes cancel existing billables instead of duplicating them, and project billable totals exclude cancelled items.
 - Projects/Services billing queue implemented: dedicated `/company/projects/billables` review page with project/customer/status/approval/type filters, ready-to-invoice and uninvoiced summary metrics, accessible project/customer filter options, and queue entry links from the Projects dashboard/workspace/detail pages.
+- Projects/Services billable approval workflow implemented: company approval-threshold settings now drive whether generated billables require approval, project/finance reviewers can approve, reject, or cancel billables from the queue with decision reasons, and approval-controlled project billables now sync into the shared Approvals module for approver-role handling.
 
 ## Not Yet Implemented
 
@@ -174,14 +175,14 @@
 
 ### Present but placeholder-only
 
-- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation and billing queue review, but invoice draft handoff into Accounting, recurring billing, and profitability flows are still pending.
+- Projects/Services now covers project/task/timesheet/milestone execution plus automatic billable generation, billables review, and approval workflow integration, but invoice draft handoff into Accounting, recurring billing, and profitability flows are still pending.
 
 ### Test run result (2026-03-22)
 
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Result summary after latest implementation: `180` passed, `0` failed.
+- Result summary after latest implementation: `183` passed, `0` failed.
 
 ## Suggestions
 

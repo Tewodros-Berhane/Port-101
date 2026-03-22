@@ -12,6 +12,7 @@ class ProjectBillingService
 {
     public function __construct(
         private readonly ProjectWorkspaceService $workspaceService,
+        private readonly ProjectBillableApprovalPolicyService $approvalPolicyService,
     ) {}
 
     public function syncFromTimesheet(
@@ -32,8 +33,11 @@ class ProjectBillingService
 
             $project = $timesheet->project;
             $billable = $this->resolveBillableForSource($timesheet);
-
-            $billable->forceFill([
+            $requiresApproval = $this->approvalPolicyService->requiresApproval(
+                (string) $project->company_id,
+                round((float) $timesheet->billable_amount, 2),
+            );
+            $basePayload = [
                 'company_id' => $project->company_id,
                 'project_id' => $project->id,
                 'billable_type' => ProjectBillable::TYPE_TIMESHEET,
@@ -45,10 +49,15 @@ class ProjectBillingService
                 'unit_price' => round((float) $timesheet->bill_rate, 2),
                 'amount' => round((float) $timesheet->billable_amount, 2),
                 'currency_id' => $project->currency_id,
-                'status' => ProjectBillable::STATUS_READY,
-                'approval_status' => ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
-                'approved_by' => null,
-                'approved_at' => null,
+            ];
+
+            $billable->forceFill([
+                ...$basePayload,
+                ...$this->decisionStatePayload(
+                    billable: $billable,
+                    requiresApproval: $requiresApproval,
+                    basePayload: $basePayload,
+                ),
                 'updated_by' => $actorId,
             ]);
 
@@ -82,8 +91,11 @@ class ProjectBillingService
 
             $project = $milestone->project;
             $billable = $this->resolveBillableForSource($milestone);
-
-            $billable->forceFill([
+            $requiresApproval = $this->approvalPolicyService->requiresApproval(
+                (string) $project->company_id,
+                round((float) $milestone->amount, 2),
+            );
+            $basePayload = [
                 'company_id' => $project->company_id,
                 'project_id' => $project->id,
                 'billable_type' => ProjectBillable::TYPE_MILESTONE,
@@ -95,10 +107,15 @@ class ProjectBillingService
                 'unit_price' => round((float) $milestone->amount, 2),
                 'amount' => round((float) $milestone->amount, 2),
                 'currency_id' => $project->currency_id,
-                'status' => ProjectBillable::STATUS_READY,
-                'approval_status' => ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
-                'approved_by' => null,
-                'approved_at' => null,
+            ];
+
+            $billable->forceFill([
+                ...$basePayload,
+                ...$this->decisionStatePayload(
+                    billable: $billable,
+                    requiresApproval: $requiresApproval,
+                    basePayload: $basePayload,
+                ),
                 'updated_by' => $actorId,
             ]);
 
@@ -138,6 +155,12 @@ class ProjectBillingService
                 'approval_status' => ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
                 'approved_by' => null,
                 'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
+                'cancelled_by' => $actorId,
+                'cancelled_at' => now(),
+                'cancellation_reason' => 'Source record no longer qualifies for billing.',
                 'updated_by' => $actorId,
             ]);
 
@@ -177,6 +200,116 @@ class ProjectBillingService
         }
 
         return $billable;
+    }
+
+    /**
+     * @param  array{
+     *     company_id: string,
+     *     project_id: string,
+     *     billable_type: string,
+     *     source_type: string,
+     *     source_id: string,
+     *     customer_id: string|null,
+     *     description: string,
+     *     quantity: int|float,
+     *     unit_price: int|float,
+     *     amount: int|float,
+     *     currency_id: string|null
+     * }  $basePayload
+     * @return array<string, mixed>
+     */
+    private function decisionStatePayload(
+        ProjectBillable $billable,
+        bool $requiresApproval,
+        array $basePayload,
+    ): array {
+        $payloadChanged = $this->payloadChanged($billable, $basePayload);
+
+        if (
+            $billable->exists
+            && ! $payloadChanged
+            && $billable->approval_status === ProjectBillable::APPROVAL_STATUS_APPROVED
+            && $billable->status === ProjectBillable::STATUS_APPROVED
+        ) {
+            return [
+                'status' => ProjectBillable::STATUS_APPROVED,
+                'approval_status' => ProjectBillable::APPROVAL_STATUS_APPROVED,
+                'approved_by' => $billable->approved_by,
+                'approved_at' => $billable->approved_at,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
+                'cancelled_by' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
+            ];
+        }
+
+        if (
+            $billable->exists
+            && ! $payloadChanged
+            && $billable->approval_status === ProjectBillable::APPROVAL_STATUS_REJECTED
+            && $requiresApproval
+        ) {
+            return [
+                'status' => ProjectBillable::STATUS_READY,
+                'approval_status' => ProjectBillable::APPROVAL_STATUS_REJECTED,
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => $billable->rejected_by,
+                'rejected_at' => $billable->rejected_at,
+                'rejection_reason' => $billable->rejection_reason,
+                'cancelled_by' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
+            ];
+        }
+
+        return [
+            'status' => ProjectBillable::STATUS_READY,
+            'approval_status' => $requiresApproval
+                ? ProjectBillable::APPROVAL_STATUS_PENDING
+                : ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED,
+            'approved_by' => null,
+            'approved_at' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'rejection_reason' => null,
+            'cancelled_by' => null,
+            'cancelled_at' => null,
+            'cancellation_reason' => null,
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     company_id: string,
+     *     project_id: string,
+     *     billable_type: string,
+     *     source_type: string,
+     *     source_id: string,
+     *     customer_id: string|null,
+     *     description: string,
+     *     quantity: int|float,
+     *     unit_price: int|float,
+     *     amount: int|float,
+     *     currency_id: string|null
+     * }  $basePayload
+     */
+    private function payloadChanged(ProjectBillable $billable, array $basePayload): bool
+    {
+        if (! $billable->exists) {
+            return true;
+        }
+
+        return (string) $billable->project_id !== (string) $basePayload['project_id']
+            || (string) $billable->billable_type !== (string) $basePayload['billable_type']
+            || (string) $billable->customer_id !== (string) $basePayload['customer_id']
+            || trim((string) $billable->description) !== trim((string) $basePayload['description'])
+            || round((float) $billable->quantity, 4) !== round((float) $basePayload['quantity'], 4)
+            || round((float) $billable->unit_price, 2) !== round((float) $basePayload['unit_price'], 2)
+            || round((float) $billable->amount, 2) !== round((float) $basePayload['amount'], 2)
+            || (string) $billable->currency_id !== (string) $basePayload['currency_id'];
     }
 
     private function timesheetDescription(ProjectTimesheet $timesheet): string

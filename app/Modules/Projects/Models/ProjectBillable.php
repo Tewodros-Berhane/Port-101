@@ -106,6 +106,12 @@ class ProjectBillable extends Model
         'invoice_line_reference',
         'approved_by',
         'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason',
         'created_by',
         'updated_by',
     ];
@@ -117,6 +123,8 @@ class ProjectBillable extends Model
             'unit_price' => 'decimal:2',
             'amount' => 'decimal:2',
             'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -153,6 +161,16 @@ class ProjectBillable extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function createdBy(): BelongsTo

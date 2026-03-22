@@ -163,6 +163,7 @@ export default function ApprovalsIndex({ filters, metrics, approvalRequests }: P
                             <option value="purchasing">Purchasing</option>
                             <option value="inventory">Inventory</option>
                             <option value="accounting">Accounting</option>
+                            <option value="projects">Projects</option>
                         </select>
                     </div>
 

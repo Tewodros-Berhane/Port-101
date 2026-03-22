@@ -30,6 +30,8 @@ class ApprovalRequest extends Model
 
     public const MODULE_ACCOUNTING = 'accounting';
 
+    public const MODULE_PROJECTS = 'projects';
+
     /**
      * @var array<int, string>
      */
@@ -38,6 +40,7 @@ class ApprovalRequest extends Model
         self::MODULE_PURCHASING,
         self::MODULE_INVENTORY,
         self::MODULE_ACCOUNTING,
+        self::MODULE_PROJECTS,
     ];
 
     public const ACTION_SALES_QUOTE_APPROVAL = 'sales_quote_approval';
@@ -47,6 +50,8 @@ class ApprovalRequest extends Model
     public const ACTION_PURCHASE_ORDER_APPROVAL = 'po_final_approval';
 
     public const ACTION_ACCOUNTING_MANUAL_JOURNAL_APPROVAL = 'manual_journal_approval';
+
+    public const ACTION_PROJECT_BILLABLE_APPROVAL = 'project_billable_approval';
 
     public const STATUS_PENDING = 'pending';
 

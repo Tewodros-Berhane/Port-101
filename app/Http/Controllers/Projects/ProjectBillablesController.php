@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Projects;
 
 use App\Core\MasterData\Models\Partner;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Projects\ProjectBillableDecisionRequest;
 use App\Models\User;
+use App\Modules\Approvals\ApprovalQueueService;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
+use App\Modules\Projects\ProjectBillableWorkflowService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,6 +44,9 @@ class ProjectBillablesController extends Controller
 
         $billablesQuery = ProjectBillable::query()
             ->with([
+                'approvedBy:id,name',
+                'rejectedBy:id,name',
+                'cancelledBy:id,name',
                 'customer:id,name',
                 'project:id,project_code,name,customer_id',
                 'project.customer:id,name',
@@ -155,20 +163,118 @@ class ProjectBillablesController extends Controller
                 'description' => $billable->description,
                 'status' => $billable->status,
                 'approval_status' => $billable->approval_status,
+                'approved_by_name' => $billable->approvedBy?->name,
+                'approved_at' => $billable->approved_at?->toIso8601String(),
+                'rejected_by_name' => $billable->rejectedBy?->name,
+                'rejected_at' => $billable->rejected_at?->toIso8601String(),
+                'rejection_reason' => $billable->rejection_reason,
+                'cancelled_by_name' => $billable->cancelledBy?->name,
+                'cancelled_at' => $billable->cancelled_at?->toIso8601String(),
+                'cancellation_reason' => $billable->cancellation_reason,
                 'quantity' => (float) $billable->quantity,
                 'unit_price' => (float) $billable->unit_price,
                 'amount' => (float) $billable->amount,
                 'currency_code' => $billable->currency?->code,
                 'invoice_number' => $billable->invoice?->invoice_number,
                 'updated_at' => $billable->updated_at?->toIso8601String(),
+                'requires_approval' => $billable->approval_status !== ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED
+                    || $billable->status === ProjectBillable::STATUS_APPROVED,
                 'can_open_project' => $billable->project !== null
                     ? $user->can('view', $billable->project)
                     : false,
+                'can_approve' => $user->can('approve', $billable)
+                    && in_array($billable->approval_status, [
+                        ProjectBillable::APPROVAL_STATUS_PENDING,
+                        ProjectBillable::APPROVAL_STATUS_REJECTED,
+                    ], true)
+                    && $billable->status !== ProjectBillable::STATUS_CANCELLED
+                    && ! $billable->invoice_id,
+                'can_reject' => $user->can('reject', $billable)
+                    && $billable->approval_status !== ProjectBillable::APPROVAL_STATUS_NOT_REQUIRED
+                    && $billable->status !== ProjectBillable::STATUS_CANCELLED
+                    && ! $billable->invoice_id,
+                'can_cancel' => $user->can('cancel', $billable)
+                    && $billable->status !== ProjectBillable::STATUS_CANCELLED
+                    && ! $billable->invoice_id,
             ]),
             'abilities' => [
                 'can_view_projects_workspace' => $user->can('viewAny', Project::class),
             ],
         ]);
+    }
+
+    public function approve(
+        Request $request,
+        ProjectBillable $billable,
+        ProjectBillableWorkflowService $workflowService,
+        ApprovalQueueService $approvalQueueService,
+    ): RedirectResponse {
+        $this->authorize('approve', $billable);
+
+        try {
+            $workflowService->approve($billable, $request->user()?->id);
+        } catch (ValidationException $exception) {
+            return back()
+                ->withErrors($exception->errors())
+                ->with('error', collect($exception->errors())->flatten()->first()
+                    ?? 'Billable approval failed.');
+        }
+
+        $this->syncApprovalQueue($request, $approvalQueueService);
+
+        return back()->with('success', 'Project billable approved.');
+    }
+
+    public function reject(
+        ProjectBillableDecisionRequest $request,
+        ProjectBillable $billable,
+        ProjectBillableWorkflowService $workflowService,
+        ApprovalQueueService $approvalQueueService,
+    ): RedirectResponse {
+        $this->authorize('reject', $billable);
+
+        try {
+            $workflowService->reject(
+                billable: $billable,
+                reason: $request->validated('reason'),
+                actorId: $request->user()?->id,
+            );
+        } catch (ValidationException $exception) {
+            return back()
+                ->withErrors($exception->errors())
+                ->with('error', collect($exception->errors())->flatten()->first()
+                    ?? 'Billable rejection failed.');
+        }
+
+        $this->syncApprovalQueue($request, $approvalQueueService);
+
+        return back()->with('success', 'Project billable rejected.');
+    }
+
+    public function cancel(
+        ProjectBillableDecisionRequest $request,
+        ProjectBillable $billable,
+        ProjectBillableWorkflowService $workflowService,
+        ApprovalQueueService $approvalQueueService,
+    ): RedirectResponse {
+        $this->authorize('cancel', $billable);
+
+        try {
+            $workflowService->cancel(
+                billable: $billable,
+                reason: $request->validated('reason'),
+                actorId: $request->user()?->id,
+            );
+        } catch (ValidationException $exception) {
+            return back()
+                ->withErrors($exception->errors())
+                ->with('error', collect($exception->errors())->flatten()->first()
+                    ?? 'Billable cancellation failed.');
+        }
+
+        $this->syncApprovalQueue($request, $approvalQueueService);
+
+        return back()->with('success', 'Project billable cancelled.');
     }
 
     /**
@@ -218,5 +324,14 @@ class ProjectBillablesController extends Controller
                     (string) $filters['billable_type'],
                 ),
             );
+    }
+
+    private function syncApprovalQueue(
+        Request $request,
+        ApprovalQueueService $approvalQueueService,
+    ): void {
+        if ($company = $request->user()?->currentCompany) {
+            $approvalQueueService->syncPendingRequests($company, $request->user()?->id);
+        }
     }
 }

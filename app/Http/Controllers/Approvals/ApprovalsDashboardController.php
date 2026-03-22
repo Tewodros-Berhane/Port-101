@@ -29,7 +29,7 @@ class ApprovalsDashboardController extends Controller
 
         $filters = $request->validate([
             'status' => ['nullable', 'string', 'in:pending,approved,rejected,cancelled'],
-            'module' => ['nullable', 'string', 'in:sales,purchasing,inventory,accounting'],
+            'module' => ['nullable', 'string', 'in:sales,purchasing,inventory,accounting,projects'],
             'start_date' => ['nullable', 'date_format:Y-m-d'],
             'end_date' => ['nullable', 'date_format:Y-m-d'],
         ]);

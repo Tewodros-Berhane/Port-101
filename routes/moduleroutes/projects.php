@@ -16,6 +16,12 @@ Route::prefix('projects')->name('projects.')->group(function () {
         ->name('index');
     Route::get('billables', [ProjectBillablesController::class, 'index'])
         ->name('billables.index');
+    Route::post('billables/{billable}/approve', [ProjectBillablesController::class, 'approve'])
+        ->name('billables.approve');
+    Route::post('billables/{billable}/reject', [ProjectBillablesController::class, 'reject'])
+        ->name('billables.reject');
+    Route::post('billables/{billable}/cancel', [ProjectBillablesController::class, 'cancel'])
+        ->name('billables.cancel');
     Route::get('create', [ProjectsController::class, 'create'])
         ->name('create');
     Route::post('/', [ProjectsController::class, 'store'])

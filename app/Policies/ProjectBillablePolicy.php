@@ -43,6 +43,16 @@ class ProjectBillablePolicy
             && $this->canManageBillableRecord($user, $billable);
     }
 
+    public function reject(User $user, ProjectBillable $billable): bool
+    {
+        return $this->approve($user, $billable);
+    }
+
+    public function cancel(User $user, ProjectBillable $billable): bool
+    {
+        return $this->update($user, $billable);
+    }
+
     public function createInvoice(User $user, ProjectBillable $billable): bool
     {
         return $user->hasPermission('projects.invoices.create')
