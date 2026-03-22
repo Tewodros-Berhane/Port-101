@@ -118,6 +118,7 @@
 - Projects/Services recurring billing engine implemented: recurring schedule/run tables, schedule processing service, schedule state transitions, idempotent due-cycle generation into `project_billables`, auto-invoice draft handoff into Accounting, approval-queue sync hooks, and the scheduled processing command `projects:recurring-billing:run`.
 - Projects/Services recurring billing workspace implemented: `/company/projects/recurring-billing` now supports filtered schedule management, project-linked create/edit flows, activate/pause/cancel/run-now actions, dashboard recurring KPIs, project-detail recurring schedule visibility, and route/test coverage for manager-vs-user access.
 - Projects/Services sales-order provisioning implemented: confirmed sales orders with service products now auto-create or refresh a linked project, seed default project stages/members, and generate initial delivery tasks directly from service order lines.
+- Projects/Services API v1 endpoints implemented: `/api/v1/projects` now supports project CRUD plus nested task and timesheet list/create/update actions, submit/approve/reject timesheet workflow endpoints, Sanctum token auth, company scoping, and feature coverage aligned with the web workflow services.
 
 ## Deferred / Out of Scope
 
@@ -174,6 +175,7 @@
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
 - Confirmed service orders now provision a linked project workspace automatically, so service delivery can move from Sales into Projects without manual project setup.
+- API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
 
 ### Present but placeholder-only
 
