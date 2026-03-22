@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\ProductsController as ApiProductsController;
 use App\Http\Controllers\Api\V1\ProjectsController as ApiProjectsController;
 use App\Http\Controllers\Api\V1\ProjectTasksController as ApiProjectTasksController;
 use App\Http\Controllers\Api\V1\ProjectTimesheetsController as ApiProjectTimesheetsController;
+use App\Http\Controllers\Api\V1\PurchaseOrdersController as ApiPurchaseOrdersController;
+use App\Http\Controllers\Api\V1\PurchaseRfqsController as ApiPurchaseRfqsController;
 use App\Http\Controllers\Api\V1\SalesLeadsController as ApiSalesLeadsController;
 use App\Http\Controllers\Api\V1\SalesOrdersController as ApiSalesOrdersController;
 use App\Http\Controllers\Api\V1\SalesQuotesController as ApiSalesQuotesController;
@@ -34,6 +36,18 @@ Route::prefix('v1')->group(function () {
             Route::post('stock-moves/{move}/receive', [ApiInventoryStockMovesController::class, 'receive']);
             Route::post('stock-moves/{move}/complete', [ApiInventoryStockMovesController::class, 'complete']);
             Route::post('stock-moves/{move}/cancel', [ApiInventoryStockMovesController::class, 'cancel']);
+        });
+        Route::prefix('purchasing')->group(function () {
+            Route::apiResource('rfqs', ApiPurchaseRfqsController::class)
+                ->parameters(['rfqs' => 'rfq']);
+            Route::post('rfqs/{rfq}/send', [ApiPurchaseRfqsController::class, 'send']);
+            Route::post('rfqs/{rfq}/respond', [ApiPurchaseRfqsController::class, 'respondToVendor']);
+            Route::post('rfqs/{rfq}/select', [ApiPurchaseRfqsController::class, 'select']);
+            Route::apiResource('orders', ApiPurchaseOrdersController::class)
+                ->parameters(['orders' => 'order']);
+            Route::post('orders/{order}/approve', [ApiPurchaseOrdersController::class, 'approve']);
+            Route::post('orders/{order}/confirm', [ApiPurchaseOrdersController::class, 'confirm']);
+            Route::post('orders/{order}/receive', [ApiPurchaseOrdersController::class, 'receive']);
         });
         Route::prefix('sales')->group(function () {
             Route::apiResource('leads', ApiSalesLeadsController::class);

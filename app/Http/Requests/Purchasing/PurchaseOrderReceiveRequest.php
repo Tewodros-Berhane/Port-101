@@ -22,4 +22,38 @@ class PurchaseOrderReceiveRequest extends FormRequest
             'lines.*.quantity' => ['required_with:lines', 'numeric', 'gt:0', 'max:999999999.9999'],
         ];
     }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $order = $this->route('order');
+
+            if (! $order || ! $this->filled('lines')) {
+                return;
+            }
+
+            $lineIds = collect($this->input('lines', []))
+                ->pluck('line_id')
+                ->filter()
+                ->values();
+
+            if ($lineIds->isEmpty()) {
+                return;
+            }
+
+            $allowedLineIds = $order->lines()
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
+
+            foreach ($lineIds as $index => $lineId) {
+                if (! in_array((string) $lineId, $allowedLineIds, true)) {
+                    $validator->errors()->add(
+                        "lines.{$index}.line_id",
+                        'Selected line does not belong to this purchase order.',
+                    );
+                }
+            }
+        });
+    }
 }

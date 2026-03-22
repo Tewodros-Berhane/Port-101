@@ -49,6 +49,7 @@
 - API v1 Phase 0 contract hardening implemented: shared API response helpers, shared pagination meta (`from`/`to`/`sort`/`direction`/`filters`), per-endpoint sort conventions, and standardized JSON error envelopes for `401` / `403` / `404` / `422` responses across current `/api/v1` endpoints.
 - API v1 Phase 1 Sales API implemented: `/api/v1/sales/leads`, `/api/v1/sales/quotes`, and `/api/v1/sales/orders` now support CRUD plus sales workflow actions (`quotes.send`, `quotes.approve`, `quotes.reject`, `quotes.confirm`, `orders.approve`, `orders.confirm`) with company scoping, approval-gated flows, and API-confirmed service-order project provisioning coverage.
 - API v1 Phase 2 Inventory API implemented: `/api/v1/inventory/stock-balances` now exposes searchable stock visibility, and `/api/v1/inventory/stock-moves` now supports stock-move CRUD plus explicit workflow actions (`reserve`, `dispatch`, `receive`, `complete`, `cancel`) through the shared inventory workflow service with company scoping and shared JSON error semantics.
+- API v1 Phase 3 Purchasing API implemented: `/api/v1/purchasing/rfqs` and `/api/v1/purchasing/orders` now support CRUD plus explicit RFQ/PO workflow actions (`rfqs.send`, `rfqs.respond`, `rfqs.select`, `orders.approve`, `orders.confirm`, `orders.receive`) through the shared purchasing workflow services, including approval-gated purchase-order confirmation, receipt-line ownership validation, and vendor-bill handoff coverage.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
@@ -179,6 +180,7 @@
 - API v1 current endpoints now share a hardened contract baseline: bearer-token auth, consistent paginated list envelopes, explicit sort/direction/filter meta, and standardized JSON error envelopes for auth/authorization/not-found/validation failures.
 - API v1 now exposes Sales at `/api/v1/sales` with leads, quotes, and orders CRUD plus explicit quote/order workflow actions, using the same underlying sales workflow services as the web module.
 - API v1 now exposes Inventory at `/api/v1/inventory` with stock-balance visibility, stock-move CRUD, and explicit reserve/dispatch/receive/complete/cancel actions using the same inventory workflow service as the web module.
+- API v1 now exposes Purchasing at `/api/v1/purchasing` with RFQ and purchase-order CRUD plus explicit RFQ selection, approval-aware PO confirmation, receipt capture, and vendor-bill handoff using the same purchasing workflow services as the web module.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
@@ -186,6 +188,7 @@
 - API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
 - API v1 now exposes the Sales workspace for integrations under `/api/v1/sales`, including approval-aware quote/order actions and downstream project provisioning on confirmed service orders.
 - API v1 now exposes the Inventory workspace for integrations under `/api/v1/inventory`, including searchable stock balances and stock-move lifecycle actions aligned with the warehouse workflow.
+- API v1 now exposes the Purchasing workspace for integrations under `/api/v1/purchasing`, including RFQ progression, approval-aware purchase-order confirmation, and receipt-driven vendor-bill creation.
 - Project detail pages now include a project-scoped files panel plus recent activity feed covering project, task, billing, recurring, and file events.
 - Project workflows now emit in-app notifications for assignment, approval, provisioning, and recurring-billing failure events with direct links back into the relevant project screens.
 
@@ -198,8 +201,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `206 passed`, `0 failed`.
-- Result summary after latest implementation: API v1 Inventory Phase 2 verified with the full PostgreSQL-backed suite, including stock-balance visibility and stock-move workflow coverage.
+- Latest full-suite count: `208 passed`, `0 failed`.
+- Result summary after latest implementation: API v1 Purchasing Phase 3 verified with the full PostgreSQL-backed suite, including RFQ selection, approval-gated purchase-order confirmation, receipt validation, and vendor-bill handoff coverage.
 
 ## Suggestions
 
