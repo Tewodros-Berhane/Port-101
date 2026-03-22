@@ -174,6 +174,20 @@ class ProjectWorkspaceService
         return $project->fresh() ?? $project;
     }
 
+    public function refreshTaskActualHours(ProjectTask $task): ProjectTask
+    {
+        $task->forceFill([
+            'actual_hours' => round(
+                (float) ProjectTimesheet::query()
+                    ->where('task_id', $task->id)
+                    ->sum('hours'),
+                2,
+            ),
+        ])->saveQuietly();
+
+        return $task->fresh() ?? $task;
+    }
+
     private function upsertProjectMember(
         Project $project,
         string $userId,

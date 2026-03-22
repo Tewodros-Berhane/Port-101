@@ -192,6 +192,8 @@ class ProjectsController extends Controller
             'members.user:id,name,email',
             'tasks.stage:id,name,color',
             'tasks.assignee:id,name',
+            'timesheets.user:id,name',
+            'timesheets.task:id,task_number,title',
         ]);
 
         $tasks = $project->tasks
@@ -199,6 +201,9 @@ class ProjectsController extends Controller
                 ['due_date', 'asc'],
                 ['created_at', 'desc'],
             ])
+            ->values();
+        $timesheets = $project->timesheets
+            ->sortByDesc('work_date')
             ->values();
 
         $overdueTaskCount = $tasks
@@ -276,6 +281,26 @@ class ProjectsController extends Controller
                         'can_edit' => $user?->can('update', $task) ?? false,
                     ])
                     ->all(),
+                'timesheets' => $timesheets
+                    ->map(fn (ProjectTimesheet $timesheet) => [
+                        'id' => $timesheet->id,
+                        'user_name' => $timesheet->user?->name,
+                        'task_number' => $timesheet->task?->task_number,
+                        'task_title' => $timesheet->task?->title,
+                        'work_date' => $timesheet->work_date?->toDateString(),
+                        'hours' => (float) $timesheet->hours,
+                        'is_billable' => (bool) $timesheet->is_billable,
+                        'cost_amount' => (float) $timesheet->cost_amount,
+                        'billable_amount' => (float) $timesheet->billable_amount,
+                        'approval_status' => $timesheet->approval_status,
+                        'invoice_status' => $timesheet->invoice_status,
+                        'rejection_reason' => $timesheet->rejection_reason,
+                        'can_edit' => $user?->can('update', $timesheet) ?? false,
+                        'can_submit' => $user?->can('submit', $timesheet) ?? false,
+                        'can_approve' => $user?->can('approve', $timesheet) ?? false,
+                        'can_reject' => $user?->can('reject', $timesheet) ?? false,
+                    ])
+                    ->all(),
             ],
             'summary' => [
                 'task_total' => $tasks->count(),
@@ -287,6 +312,10 @@ class ProjectsController extends Controller
                 'timesheets_logged' => ProjectTimesheet::query()
                     ->where('project_id', $project->id)
                     ->count(),
+                'timesheets_pending_approval' => ProjectTimesheet::query()
+                    ->where('project_id', $project->id)
+                    ->where('approval_status', ProjectTimesheet::APPROVAL_STATUS_SUBMITTED)
+                    ->count(),
                 'billables_logged' => ProjectBillable::query()
                     ->where('project_id', $project->id)
                     ->count(),
@@ -294,6 +323,7 @@ class ProjectsController extends Controller
             'abilities' => [
                 'can_edit_project' => $user?->can('update', $project) ?? false,
                 'can_create_task' => $user?->can('update', $project) ?? false,
+                'can_create_timesheet' => $user?->can('create', ProjectTimesheet::class) ?? false,
             ],
         ]);
     }

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 
 type ProjectMember = {
     id: string;
@@ -23,6 +23,25 @@ type ProjectTask = {
     estimated_hours?: number | null;
     actual_hours: number;
     can_edit: boolean;
+};
+
+type ProjectTimesheet = {
+    id: string;
+    user_name?: string | null;
+    task_number?: string | null;
+    task_title?: string | null;
+    work_date?: string | null;
+    hours: number;
+    is_billable: boolean;
+    cost_amount: number;
+    billable_amount: number;
+    approval_status: string;
+    invoice_status: string;
+    rejection_reason?: string | null;
+    can_edit: boolean;
+    can_submit: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
 };
 
 type Props = {
@@ -49,6 +68,7 @@ type Props = {
         progress_percent: number;
         members: ProjectMember[];
         tasks: ProjectTask[];
+        timesheets: ProjectTimesheet[];
     };
     summary: {
         task_total: number;
@@ -56,11 +76,13 @@ type Props = {
         task_overdue: number;
         team_members: number;
         timesheets_logged: number;
+        timesheets_pending_approval: number;
         billables_logged: number;
     };
     abilities: {
         can_edit_project: boolean;
         can_create_task: boolean;
+        can_create_timesheet: boolean;
     };
 };
 
@@ -68,6 +90,17 @@ const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function ProjectShow({ project, summary, abilities }: Props) {
+    const handleRejectTimesheet = (timesheetId: string, rejectionReason?: string | null) => {
+        const reason =
+            window.prompt('Optional rejection reason', rejectionReason ?? '') ?? '';
+
+        router.post(
+            `/company/projects/timesheets/${timesheetId}/reject`,
+            { reason },
+            { preserveScroll: true },
+        );
+    };
+
     return (
         <AppLayout
             breadcrumbs={[
@@ -215,6 +248,10 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                             <SummaryRow
                                 label="Timesheets logged"
                                 value={summary.timesheets_logged}
+                            />
+                            <SummaryRow
+                                label="Pending approvals"
+                                value={summary.timesheets_pending_approval}
                             />
                             <SummaryRow
                                 label="Billables logged"
@@ -369,6 +406,157 @@ export default function ProjectShow({ project, summary, abilities }: Props) {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </section>
+
+                <section className="rounded-xl border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Timesheets
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Logged effort and approval status for this project.
+                            </p>
+                        </div>
+                        {abilities.can_create_timesheet && (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={`/company/projects/${project.id}/timesheets/create`}
+                                >
+                                    Log timesheet
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto rounded-lg border">
+                        <table className="w-full min-w-[1100px] text-sm">
+                            <thead className="bg-muted/60 text-left">
+                                <tr>
+                                    <th className="px-3 py-2 font-medium">Owner</th>
+                                    <th className="px-3 py-2 font-medium">Task</th>
+                                    <th className="px-3 py-2 font-medium">Work date</th>
+                                    <th className="px-3 py-2 font-medium">Hours</th>
+                                    <th className="px-3 py-2 font-medium">Approval</th>
+                                    <th className="px-3 py-2 font-medium">Invoice</th>
+                                    <th className="px-3 py-2 font-medium">Cost</th>
+                                    <th className="px-3 py-2 font-medium">Billable</th>
+                                    <th className="px-3 py-2 text-right font-medium">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {project.timesheets.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={9}
+                                            className="px-3 py-6 text-center text-muted-foreground"
+                                        >
+                                            No timesheets logged for this project yet.
+                                        </td>
+                                    </tr>
+                                )}
+                                {project.timesheets.map((timesheet) => (
+                                    <tr key={timesheet.id}>
+                                        <td className="px-3 py-2">
+                                            {timesheet.user_name ?? '-'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <p>{timesheet.task_number ?? '-'}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {timesheet.task_title ?? 'No linked task'}
+                                            </p>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {timesheet.work_date ?? '-'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {timesheet.hours.toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <p>{formatLabel(timesheet.approval_status)}</p>
+                                            {timesheet.rejection_reason && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {timesheet.rejection_reason}
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {formatLabel(timesheet.invoice_status)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {timesheet.cost_amount.toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {timesheet.billable_amount.toFixed(2)}
+                                            <p className="text-xs text-muted-foreground">
+                                                {timesheet.is_billable
+                                                    ? 'Billable'
+                                                    : 'Non-billable'}
+                                            </p>
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                            <div className="inline-flex items-center gap-3">
+                                                <Link
+                                                    href={`/company/projects/timesheets/${timesheet.id}/edit`}
+                                                    className="font-medium text-primary"
+                                                >
+                                                    {timesheet.can_edit ? 'Edit' : 'Open'}
+                                                </Link>
+                                                {timesheet.can_submit && (
+                                                    <button
+                                                        type="button"
+                                                        className="font-medium text-primary"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                `/company/projects/timesheets/${timesheet.id}/submit`,
+                                                                {},
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Submit
+                                                    </button>
+                                                )}
+                                                {timesheet.can_approve && (
+                                                    <button
+                                                        type="button"
+                                                        className="font-medium text-primary"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                `/company/projects/timesheets/${timesheet.id}/approve`,
+                                                                {},
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                )}
+                                                {timesheet.can_reject && (
+                                                    <button
+                                                        type="button"
+                                                        className="font-medium text-primary"
+                                                        onClick={() =>
+                                                            handleRejectTimesheet(
+                                                                timesheet.id,
+                                                                timesheet.rejection_reason,
+                                                            )
+                                                        }
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             </div>

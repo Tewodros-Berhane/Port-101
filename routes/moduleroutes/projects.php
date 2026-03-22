@@ -3,6 +3,7 @@
 use App\Http\Controllers\Projects\ProjectsController;
 use App\Http\Controllers\Projects\ProjectsDashboardController;
 use App\Http\Controllers\Projects\ProjectTasksController;
+use App\Http\Controllers\Projects\ProjectTimesheetsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('projects', [ProjectsDashboardController::class, 'index'])
@@ -26,6 +27,23 @@ Route::prefix('projects')->name('projects.')->group(function () {
         ->name('tasks.update');
     Route::delete('tasks/{task}', [ProjectTasksController::class, 'destroy'])
         ->name('tasks.destroy');
+
+    Route::get('{project}/timesheets/create', [ProjectTimesheetsController::class, 'create'])
+        ->name('timesheets.create');
+    Route::post('{project}/timesheets', [ProjectTimesheetsController::class, 'store'])
+        ->name('timesheets.store');
+    Route::get('timesheets/{timesheet}/edit', [ProjectTimesheetsController::class, 'edit'])
+        ->name('timesheets.edit');
+    Route::put('timesheets/{timesheet}', [ProjectTimesheetsController::class, 'update'])
+        ->name('timesheets.update');
+    Route::post('timesheets/{timesheet}/submit', [ProjectTimesheetsController::class, 'submit'])
+        ->name('timesheets.submit');
+    Route::post('timesheets/{timesheet}/approve', [ProjectTimesheetsController::class, 'approve'])
+        ->name('timesheets.approve');
+    Route::post('timesheets/{timesheet}/reject', [ProjectTimesheetsController::class, 'reject'])
+        ->name('timesheets.reject');
+    Route::delete('timesheets/{timesheet}', [ProjectTimesheetsController::class, 'destroy'])
+        ->name('timesheets.destroy');
 
     Route::get('{project}', [ProjectsController::class, 'show'])
         ->name('show');
