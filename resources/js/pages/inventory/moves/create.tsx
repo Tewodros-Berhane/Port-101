@@ -1,3 +1,6 @@
+import InventoryMoveLinesEditor, {
+    type InventoryMoveLineInput,
+} from '@/components/inventory/inventory-move-lines-editor';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +12,8 @@ type ProductOption = {
     id: string;
     name: string;
     sku?: string | null;
+    type: string;
+    tracking_mode: string;
 };
 
 type LocationOption = {
@@ -22,6 +27,17 @@ type SalesOrderOption = {
     order_number: string;
 };
 
+type LotOption = {
+    id: string;
+    product_id: string;
+    location_id: string;
+    code: string;
+    tracking_mode: string;
+    quantity_on_hand: number;
+    quantity_reserved: number;
+    available_quantity: number;
+};
+
 type Props = {
     move: {
         reference: string;
@@ -31,11 +47,13 @@ type Props = {
         product_id: string;
         quantity: number;
         related_sales_order_id: string;
+        lines: InventoryMoveLineInput[];
         notes: string;
     };
     moveTypes: string[];
     products: ProductOption[];
     locations: LocationOption[];
+    lots: LotOption[];
     salesOrders: SalesOrderOption[];
 };
 
@@ -44,6 +62,7 @@ export default function InventoryMoveCreate({
     moveTypes,
     products,
     locations,
+    lots,
     salesOrders,
 }: Props) {
     const form = useForm({
@@ -54,8 +73,14 @@ export default function InventoryMoveCreate({
         product_id: move.product_id,
         quantity: move.quantity,
         related_sales_order_id: move.related_sales_order_id,
+        lines: move.lines,
         notes: move.notes,
     });
+
+    const selectedProduct = products.find(
+        (product) => product.id === form.data.product_id,
+    );
+    const trackingMode = selectedProduct?.tracking_mode ?? 'none';
 
     return (
         <AppLayout
@@ -126,7 +151,11 @@ export default function InventoryMoveCreate({
                             className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                             value={form.data.product_id}
                             onChange={(event) =>
-                                form.setData('product_id', event.target.value)
+                                form.setData((data) => ({
+                                    ...data,
+                                    product_id: event.target.value,
+                                    lines: [],
+                                }))
                             }
                             required
                         >
@@ -147,7 +176,7 @@ export default function InventoryMoveCreate({
                             id="quantity"
                             type="number"
                             min={0.0001}
-                            step="0.0001"
+                            step={trackingMode === 'serial' ? 1 : 0.0001}
                             value={String(form.data.quantity)}
                             onChange={(event) =>
                                 form.setData(
@@ -166,10 +195,15 @@ export default function InventoryMoveCreate({
                             className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                             value={form.data.source_location_id}
                             onChange={(event) =>
-                                form.setData(
-                                    'source_location_id',
-                                    event.target.value,
-                                )
+                                form.setData((data) => ({
+                                    ...data,
+                                    source_location_id: event.target.value,
+                                    lines:
+                                        data.move_type === 'delivery'
+                                        || data.move_type === 'transfer'
+                                            ? []
+                                            : data.lines,
+                                }))
                             }
                         >
                             <option value="">No source location</option>
@@ -209,7 +243,7 @@ export default function InventoryMoveCreate({
                         />
                     </div>
 
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 md:col-span-2">
                         <Label htmlFor="related_sales_order_id">
                             Linked sales order
                         </Label>
@@ -236,6 +270,18 @@ export default function InventoryMoveCreate({
                         />
                     </div>
                 </div>
+
+                <InventoryMoveLinesEditor
+                    trackingMode={trackingMode}
+                    moveType={form.data.move_type}
+                    quantity={form.data.quantity}
+                    productId={form.data.product_id}
+                    sourceLocationId={form.data.source_location_id}
+                    lines={form.data.lines}
+                    lotOptions={lots}
+                    errors={form.errors}
+                    onChange={(lines) => form.setData('lines', lines)}
+                />
 
                 <div className="grid gap-2">
                     <Label htmlFor="notes">Notes</Label>

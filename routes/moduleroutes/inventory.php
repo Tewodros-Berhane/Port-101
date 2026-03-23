@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Inventory\InventoryDashboardController;
 use App\Http\Controllers\Inventory\InventoryLocationsController;
+use App\Http\Controllers\Inventory\InventoryLotsController;
 use App\Http\Controllers\Inventory\InventoryStockLevelsController;
 use App\Http\Controllers\Inventory\InventoryStockMovesController;
 use App\Http\Controllers\Inventory\InventoryWarehousesController;
@@ -15,6 +16,10 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
         ->except(['show']);
     Route::resource('locations', InventoryLocationsController::class)
         ->except(['show']);
+    Route::get('lots', [InventoryLotsController::class, 'index'])
+        ->name('lots.index');
+    Route::get('lots/{lot}', [InventoryLotsController::class, 'show'])
+        ->name('lots.show');
     Route::get('stock-levels', [InventoryStockLevelsController::class, 'index'])
         ->name('stock-levels.index');
     Route::resource('moves', InventoryStockMovesController::class)

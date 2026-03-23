@@ -349,3 +349,80 @@ test('api v1 inventory permissions and workflow errors use the shared contract',
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Delivery moves must be reserved before completion.');
 });
+
+test('api v1 inventory supports tracked lot and serial move lines', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignInventoryApiRole($manager, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+        'inventory.moves.manage',
+    ]);
+
+    app(InventorySetupService::class)->ensureDefaults($company->id, $manager->id);
+
+    $stockLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'STOCK')
+        ->firstOrFail();
+    $customerLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'CUSTOMERS')
+        ->firstOrFail();
+    $vendorLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'VENDORS')
+        ->firstOrFail();
+
+    $product = Product::create([
+        'company_id' => $company->id,
+        'name' => 'Tracked API Widget '.Str::upper(Str::random(4)),
+        'sku' => 'TRK-'.Str::upper(Str::random(6)),
+        'type' => Product::TYPE_STOCK,
+        'tracking_mode' => Product::TRACKING_LOT,
+        'is_active' => true,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    $receiptMove = postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'TRK-API-RCV-001',
+        'move_type' => InventoryStockMove::TYPE_RECEIPT,
+        'source_location_id' => $vendorLocation->id,
+        'destination_location_id' => $stockLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 5,
+        'lines' => [
+            ['lot_code' => 'API-LOT-001', 'quantity' => 3],
+            ['lot_code' => 'API-LOT-002', 'quantity' => 2],
+        ],
+        'notes' => 'Tracked receipt via API',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.product_tracking_mode', Product::TRACKING_LOT)
+        ->assertJsonCount(2, 'data.lines');
+
+    $receiptMoveId = (string) $receiptMove->json('data.id');
+
+    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive")
+        ->assertOk();
+
+    $deliveryMove = postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'TRK-API-DLV-001',
+        'move_type' => InventoryStockMove::TYPE_DELIVERY,
+        'source_location_id' => $stockLocation->id,
+        'destination_location_id' => $customerLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 5,
+        'notes' => 'Auto-allocated tracked delivery',
+    ])
+        ->assertCreated();
+
+    $deliveryMoveId = (string) $deliveryMove->json('data.id');
+
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve")
+        ->assertOk()
+        ->assertJsonCount(2, 'data.lines');
+});

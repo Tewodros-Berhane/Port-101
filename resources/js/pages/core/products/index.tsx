@@ -8,6 +8,7 @@ type Product = {
     sku?: string | null;
     name: string;
     type: string;
+    tracking_mode?: string | null;
     uom?: string | null;
     tax?: string | null;
     is_active: boolean;
@@ -63,6 +64,9 @@ export default function ProductsIndex({ products }: Props) {
                                         Type
                                     </th>
                                     <th className="px-4 py-3 font-medium">
+                                        Tracking
+                                    </th>
+                                    <th className="px-4 py-3 font-medium">
                                         UoM
                                     </th>
                                     <th className="px-4 py-3 font-medium">
@@ -83,7 +87,7 @@ export default function ProductsIndex({ products }: Props) {
                                     <tr>
                                         <td
                                             className="px-4 py-8 text-center text-muted-foreground"
-                                            colSpan={canManage ? 7 : 6}
+                                            colSpan={canManage ? 8 : 7}
                                         >
                                             No products yet.
                                         </td>
@@ -95,16 +99,19 @@ export default function ProductsIndex({ products }: Props) {
                                             {product.name}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
-                                            {product.sku ?? '—'}
+                                            {product.sku ?? '-'}
                                         </td>
                                         <td className="px-4 py-3 capitalize">
                                             {product.type}
                                         </td>
-                                        <td className="px-4 py-3">
-                                            {product.uom ?? '—'}
+                                        <td className="px-4 py-3 capitalize">
+                                            {product.tracking_mode ?? 'none'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            {product.tax ?? '—'}
+                                            {product.uom ?? '-'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {product.tax ?? '-'}
                                         </td>
                                         <td className="px-4 py-3">
                                             {product.is_active

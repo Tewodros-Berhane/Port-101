@@ -90,14 +90,21 @@ class InventoryStockMovesController extends ApiController
     public function store(InventoryStockMoveStoreRequest $request): JsonResponse
     {
         $this->authorize('create', InventoryStockMove::class);
+        $validated = $request->validated();
+        $lines = $validated['lines'] ?? [];
+        unset($validated['lines']);
 
         $move = InventoryStockMove::create([
-            ...$request->validated(),
+            ...$validated,
             'company_id' => $request->user()?->current_company_id,
             'status' => InventoryStockMove::STATUS_DRAFT,
             'created_by' => $request->user()?->id,
             'updated_by' => $request->user()?->id,
         ]);
+
+        $move = $request->user()
+            ? app(InventoryStockWorkflowService::class)->syncDraftLines($move, $lines, $request->user()?->id)
+            : $move;
 
         return $this->respond(
             $this->mapMove(
@@ -122,11 +129,18 @@ class InventoryStockMovesController extends ApiController
         InventoryStockMove $move,
     ): JsonResponse {
         $this->authorize('update', $move);
+        $validated = $request->validated();
+        $lines = $validated['lines'] ?? [];
+        unset($validated['lines']);
 
         $move->update([
-            ...$request->validated(),
+            ...$validated,
             'updated_by' => $request->user()?->id,
         ]);
+
+        $move = $request->user()
+            ? app(InventoryStockWorkflowService::class)->syncDraftLines($move, $lines, $request->user()?->id)
+            : $move;
 
         return $this->respond(
             $this->mapMove(
@@ -211,13 +225,15 @@ class InventoryStockMovesController extends ApiController
     private function moveRelationships(): array
     {
         return [
-            'product:id,name,sku',
+            'product:id,name,sku,tracking_mode',
             'sourceLocation:id,code,name,type',
             'destinationLocation:id,code,name,type',
             'salesOrder:id,order_number',
             'reservedBy:id,name',
             'completedBy:id,name',
             'cancelledBy:id,name',
+            'lines.sourceLot:id,code',
+            'lines.resultingLot:id,code',
         ];
     }
 
@@ -234,6 +250,7 @@ class InventoryStockMovesController extends ApiController
             'product_id' => $move->product_id,
             'product_name' => $move->product?->name,
             'product_sku' => $move->product?->sku,
+            'product_tracking_mode' => $move->product?->tracking_mode,
             'source_location_id' => $move->source_location_id,
             'source_location_code' => $move->sourceLocation?->code,
             'source_location_name' => $move->sourceLocation?->name,
@@ -263,6 +280,15 @@ class InventoryStockMovesController extends ApiController
                 && $move->move_type === InventoryStockMove::TYPE_DELIVERY,
             'can_receive' => ($user?->can('complete', $move) ?? false)
                 && $move->move_type === InventoryStockMove::TYPE_RECEIPT,
+            'lines' => $move->lines->map(fn ($line) => [
+                'id' => $line->id,
+                'source_lot_id' => $line->source_lot_id,
+                'source_lot_code' => $line->sourceLot?->code,
+                'resulting_lot_id' => $line->resulting_lot_id,
+                'resulting_lot_code' => $line->resultingLot?->code,
+                'lot_code' => $line->lot_code,
+                'quantity' => (float) $line->quantity,
+            ])->values()->all(),
         ];
 
         if (! $includeNotes) {

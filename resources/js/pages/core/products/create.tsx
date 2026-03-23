@@ -15,15 +15,17 @@ type Option = {
 type Props = {
     uoms: Option[];
     taxes: Option[];
+    trackingModes: string[];
 };
 
-export default function ProductCreate({ uoms, taxes }: Props) {
+export default function ProductCreate({ uoms, taxes, trackingModes }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('core.products.manage');
     const form = useForm({
         sku: '',
         name: '',
         type: 'stock',
+        tracking_mode: 'none',
         uom_id: '',
         default_tax_id: '',
         description: '',
@@ -91,13 +93,40 @@ export default function ProductCreate({ uoms, taxes }: Props) {
                         className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                         value={form.data.type}
                         onChange={(event) =>
-                            form.setData('type', event.target.value)
+                            form.setData((data) => ({
+                                ...data,
+                                type: event.target.value,
+                                tracking_mode:
+                                    event.target.value === 'stock'
+                                        ? data.tracking_mode
+                                        : 'none',
+                            }))
                         }
                     >
                         <option value="stock">Stock</option>
                         <option value="service">Service</option>
                     </select>
                     <InputError message={form.errors.type} />
+                </div>
+
+                <div className="grid gap-2">
+                    <Label htmlFor="tracking_mode">Tracking</Label>
+                    <select
+                        id="tracking_mode"
+                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                        value={form.data.tracking_mode}
+                        onChange={(event) =>
+                            form.setData('tracking_mode', event.target.value)
+                        }
+                        disabled={form.data.type !== 'stock'}
+                    >
+                        {trackingModes.map((mode) => (
+                            <option key={mode} value={mode}>
+                                {mode}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError message={form.errors.tracking_mode} />
                 </div>
 
                 <div className="grid gap-2">

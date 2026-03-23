@@ -98,6 +98,7 @@
 - Added module placeholder route permission gating (`sales.*`, `inventory.*`, `purchasing.*`, `accounting.*`, `approvals.*`, `reports.*`) plus feature coverage for allowed/forbidden access.
 - Phase B Sales MVP implemented: company Sales module now supports lead -> quote -> order workflow with lifecycle actions, company-scoped permissions/policies, approval-threshold enforcement, numbering sequences, and order-confirmation event emission for downstream inventory/accounting handoffs.
 - Phase C Inventory MVP implemented: warehouses/locations CRUD, stock levels, receipts/deliveries/transfers workflow actions (reserve/complete/cancel), inventory dashboard KPIs, and automatic stock-move reservation on sales-order confirmation.
+- Advanced inventory traceability implemented: products now support `tracking_mode` (`none`, `lot`, `serial`), tracked receipts/deliveries/transfers now persist lot/serial move lines, lot balances and reservations are maintained in `inventory_lots`, tracked move validation and auto-allocation are enforced in the shared inventory workflow, lot/serial history is visible from `/company/inventory/lots`, and `/api/v1/inventory/stock-moves` now exposes tracked move-line payloads for integrations.
 - Phase D Accounting foundations expanded beyond lite invoicing: chart of accounts, journals, general-ledger entries, double-entry posting/reversal on invoice and payment workflows, manual journal workflow, bank reconciliation batches, financial statements/trial balance/cash-flow reporting, accounting foundation pages (`/company/accounting/accounts`, `/journals`, `/ledger`, `/statements`, `/manual-journals`, `/bank-reconciliation`), demo-data ledger backfill, and end-to-end feature coverage.
 - Accounting reconciliation controls expanded with explicit bank-batch unreconcile workflow (audit-tracked unreconcile actor/reason, payment/ledger stamp rollback, and reversible import lock release).
 - Manual journals now support approval thresholds and supporting-document attachments (company setting for threshold override, approvals queue sync, posting gate until approval, and attachments panel on edit view).
@@ -158,7 +159,7 @@
 - Master-data policies now enforce record-level data scope boundaries for non-owner company users.
 - Approval authority profile model/service foundation and SoD checks are available for upcoming module approval flows.
 - Sales module is now live at `/company/sales` with leads/quotes/orders CRUD, quote+order approvals, and conversion/confirmation workflow actions.
-- Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, and stock-move lifecycle controls.
+- Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, stock-move lifecycle controls, and lot/serial traceability workflows for tracked products.
 - Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, invoice reconciliation, bank reconciliation batches, unreconcile controls, persisted bank-statement CSV/OFX/CAMT imports, manual rematch controls for statement exceptions, reversal safeguards, manual journals, manual-journal approval thresholds, supporting-document attachments, chart of accounts, journals, general-ledger visibility, financial statements, and sales/inventory handoff support.
 - Purchasing module is now live at `/company/purchasing` with RFQ/PO CRUD, approval and placement lifecycle actions, receipt capture, and vendor bill handoff into accounting.
 - Approvals module is now live at `/company/approvals` with unified queue filtering, authority-checked approve/reject actions, and cross-module request tracking.
@@ -197,7 +198,7 @@
 - Confirmed service orders now provision a linked project workspace automatically, so service delivery can move from Sales into Projects without manual project setup.
 - API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
 - API v1 now exposes the Sales workspace for integrations under `/api/v1/sales`, including approval-aware quote/order actions and downstream project provisioning on confirmed service orders.
-- API v1 now exposes the Inventory workspace for integrations under `/api/v1/inventory`, including searchable stock balances and stock-move lifecycle actions aligned with the warehouse workflow.
+- API v1 now exposes the Inventory workspace for integrations under `/api/v1/inventory`, including searchable stock balances, stock-move lifecycle actions aligned with the warehouse workflow, and tracked lot/serial move-line payloads for inbound and outbound stock operations.
 - API v1 now exposes the Purchasing workspace for integrations under `/api/v1/purchasing`, including RFQ progression, approval-aware purchase-order confirmation, and receipt-driven vendor-bill creation.
 - API v1 now exposes the Accounting workspace for integrations under `/api/v1/accounting`, including customer-invoice and vendor-bill lifecycles plus payment posting, application, and reversal workflows.
 - Project detail pages now include a project-scoped files panel plus recent activity feed covering project, task, billing, recurring, and file events.
@@ -212,8 +213,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `226 passed`, `0 failed`.
-- Result summary after latest implementation: company-side integrations workspace and webhook delivery operations UX verified with the full PostgreSQL-backed suite, including endpoint CRUD, signed test deliveries, dead-letter visibility, retry flows, and direct company-route permission coverage.
+- Latest full-suite count: `229 passed`, `0 failed`.
+- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, and API-exposed move-line traceability on the full PostgreSQL-backed suite.
 
 ## Suggestions
 

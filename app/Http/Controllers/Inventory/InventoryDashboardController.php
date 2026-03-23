@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Inventory;
 
+use App\Http\Controllers\Controller;
 use App\Modules\Inventory\InventorySetupService;
 use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryLot;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,12 +36,14 @@ class InventoryDashboardController extends Controller
 
         $warehouseQuery = InventoryWarehouse::query();
         $locationQuery = InventoryLocation::query();
+        $lotQuery = InventoryLot::query();
         $levelQuery = InventoryStockLevel::query();
         $moveQuery = InventoryStockMove::query();
 
         if ($user) {
             $warehouseQuery = $user->applyDataScopeToQuery($warehouseQuery);
             $locationQuery = $user->applyDataScopeToQuery($locationQuery);
+            $lotQuery = $user->applyDataScopeToQuery($lotQuery);
             $levelQuery = $user->applyDataScopeToQuery($levelQuery);
             $moveQuery = $user->applyDataScopeToQuery($moveQuery);
         }
@@ -100,6 +103,7 @@ class InventoryDashboardController extends Controller
             'kpis' => [
                 'warehouses' => (clone $warehouseQuery)->count(),
                 'locations' => (clone $locationQuery)->count(),
+                'tracked_lots' => (clone $lotQuery)->count(),
                 'stock_levels' => (clone $levelQuery)->count(),
                 'draft_moves' => (clone $moveQuery)
                     ->where('status', InventoryStockMove::STATUS_DRAFT)
@@ -117,5 +121,3 @@ class InventoryDashboardController extends Controller
         ]);
     }
 }
-
-

@@ -1,17 +1,18 @@
 <?php
 
-use App\Modules\Inventory\InventorySetupService;
-use App\Modules\Inventory\Models\InventoryLocation;
-use App\Modules\Inventory\Models\InventoryStockLevel;
-use App\Modules\Inventory\Models\InventoryStockMove;
-use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Core\MasterData\Models\Partner;
 use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
+use App\Models\User;
+use App\Modules\Inventory\InventorySetupService;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryLot;
+use App\Modules\Inventory\Models\InventoryStockLevel;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Inventory\Models\InventoryWarehouse;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesOrderLine;
-use App\Models\User;
 use Illuminate\Support\Str;
 
 use function Pest\Laravel\actingAs;
@@ -330,4 +331,251 @@ test('confirmed sales orders auto create reserved delivery moves that can be com
     expect((float) $stockLevel?->fresh()?->reserved_quantity)->toBe(0.0);
 });
 
+test('lot tracked inventory moves maintain traceable lot balances across receipt delivery and transfer', function () {
+    [$user, $company] = makeActiveCompanyMember();
 
+    assignInventoryWorkflowRole($user, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+        'inventory.moves.manage',
+    ]);
+
+    app(InventorySetupService::class)->ensureDefaults($company->id, $user->id);
+
+    $stockLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'STOCK')
+        ->firstOrFail();
+    $customerLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'CUSTOMERS')
+        ->firstOrFail();
+    $vendorLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'VENDORS')
+        ->firstOrFail();
+
+    $transferLocation = InventoryLocation::create([
+        'company_id' => $company->id,
+        'warehouse_id' => $stockLocation->warehouse_id,
+        'code' => 'LOT-BIN-'.Str::upper(Str::random(3)),
+        'name' => 'Lot Bin '.Str::upper(Str::random(3)),
+        'type' => InventoryLocation::TYPE_INTERNAL,
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    $product = Product::create([
+        'company_id' => $company->id,
+        'name' => 'Lot Product '.Str::upper(Str::random(4)),
+        'type' => Product::TYPE_STOCK,
+        'tracking_mode' => Product::TRACKING_LOT,
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.store'), [
+            'reference' => 'LOT-RCV-001',
+            'move_type' => InventoryStockMove::TYPE_RECEIPT,
+            'source_location_id' => $vendorLocation->id,
+            'destination_location_id' => $stockLocation->id,
+            'product_id' => $product->id,
+            'quantity' => 10,
+            'lines' => [
+                ['lot_code' => 'LOT-001', 'quantity' => 6],
+                ['lot_code' => 'LOT-002', 'quantity' => 4],
+            ],
+            'notes' => 'Tracked receipt',
+        ])
+        ->assertRedirect();
+
+    $receiptMove = InventoryStockMove::query()->where('reference', 'LOT-RCV-001')->firstOrFail();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.complete', $receiptMove))
+        ->assertRedirect();
+
+    $lotOne = InventoryLot::query()
+        ->where('company_id', $company->id)
+        ->where('location_id', $stockLocation->id)
+        ->where('product_id', $product->id)
+        ->where('code', 'LOT-001')
+        ->first();
+    $lotTwo = InventoryLot::query()
+        ->where('company_id', $company->id)
+        ->where('location_id', $stockLocation->id)
+        ->where('product_id', $product->id)
+        ->where('code', 'LOT-002')
+        ->first();
+
+    expect((float) $lotOne?->quantity_on_hand)->toBe(6.0);
+    expect((float) $lotTwo?->quantity_on_hand)->toBe(4.0);
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.store'), [
+            'reference' => 'LOT-DLV-001',
+            'move_type' => InventoryStockMove::TYPE_DELIVERY,
+            'source_location_id' => $stockLocation->id,
+            'destination_location_id' => $customerLocation->id,
+            'product_id' => $product->id,
+            'quantity' => 5,
+            'lines' => [
+                ['source_lot_id' => $lotOne?->id, 'quantity' => 5],
+            ],
+            'notes' => 'Tracked delivery',
+        ])
+        ->assertRedirect();
+
+    $deliveryMove = InventoryStockMove::query()->where('reference', 'LOT-DLV-001')->firstOrFail();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.reserve', $deliveryMove))
+        ->assertRedirect();
+
+    expect((float) $lotOne?->fresh()?->quantity_reserved)->toBe(5.0);
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.complete', $deliveryMove))
+        ->assertRedirect();
+
+    expect((float) $lotOne?->fresh()?->quantity_on_hand)->toBe(1.0);
+    expect((float) $lotOne?->fresh()?->quantity_reserved)->toBe(0.0);
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.store'), [
+            'reference' => 'LOT-TRF-001',
+            'move_type' => InventoryStockMove::TYPE_TRANSFER,
+            'source_location_id' => $stockLocation->id,
+            'destination_location_id' => $transferLocation->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'lines' => [
+                ['source_lot_id' => $lotTwo?->id, 'quantity' => 2],
+            ],
+            'notes' => 'Tracked transfer',
+        ])
+        ->assertRedirect();
+
+    $transferMove = InventoryStockMove::query()->where('reference', 'LOT-TRF-001')->firstOrFail();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.reserve', $transferMove))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.complete', $transferMove))
+        ->assertRedirect();
+
+    $destinationLot = InventoryLot::query()
+        ->where('company_id', $company->id)
+        ->where('location_id', $transferLocation->id)
+        ->where('product_id', $product->id)
+        ->where('code', 'LOT-002')
+        ->first();
+
+    expect((float) $lotTwo?->fresh()?->quantity_on_hand)->toBe(2.0);
+    expect((float) $destinationLot?->quantity_on_hand)->toBe(2.0);
+
+    actingAs($user)
+        ->get(route('company.inventory.lots.show', $destinationLot))
+        ->assertOk();
+});
+
+test('serial tracked inventory moves auto allocate serials on reserve', function () {
+    [$user, $company] = makeActiveCompanyMember();
+
+    assignInventoryWorkflowRole($user, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+        'inventory.moves.manage',
+    ]);
+
+    app(InventorySetupService::class)->ensureDefaults($company->id, $user->id);
+
+    $stockLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'STOCK')
+        ->firstOrFail();
+    $customerLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'CUSTOMERS')
+        ->firstOrFail();
+    $vendorLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'VENDORS')
+        ->firstOrFail();
+
+    $product = Product::create([
+        'company_id' => $company->id,
+        'name' => 'Serial Product '.Str::upper(Str::random(4)),
+        'type' => Product::TYPE_STOCK,
+        'tracking_mode' => Product::TRACKING_SERIAL,
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.store'), [
+            'reference' => 'SER-RCV-001',
+            'move_type' => InventoryStockMove::TYPE_RECEIPT,
+            'source_location_id' => $vendorLocation->id,
+            'destination_location_id' => $stockLocation->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'lines' => [
+                ['lot_code' => 'SER-001', 'quantity' => 1],
+                ['lot_code' => 'SER-002', 'quantity' => 1],
+            ],
+            'notes' => 'Tracked serial receipt',
+        ])
+        ->assertRedirect();
+
+    $receiptMove = InventoryStockMove::query()->where('reference', 'SER-RCV-001')->firstOrFail();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.complete', $receiptMove))
+        ->assertRedirect();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.store'), [
+            'reference' => 'SER-DLV-001',
+            'move_type' => InventoryStockMove::TYPE_DELIVERY,
+            'source_location_id' => $stockLocation->id,
+            'destination_location_id' => $customerLocation->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'notes' => 'Auto-allocated serial delivery',
+        ])
+        ->assertRedirect();
+
+    $deliveryMove = InventoryStockMove::query()
+        ->with('lines')
+        ->where('reference', 'SER-DLV-001')
+        ->firstOrFail();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.reserve', $deliveryMove))
+        ->assertRedirect();
+
+    expect($deliveryMove->fresh()->lines)->toHaveCount(2);
+    expect($deliveryMove->fresh()->lines->every(fn ($line) => (float) $line->quantity === 1.0))->toBeTrue();
+
+    actingAs($user)
+        ->post(route('company.inventory.moves.complete', $deliveryMove))
+        ->assertRedirect();
+
+    $serialLots = InventoryLot::query()
+        ->where('company_id', $company->id)
+        ->where('location_id', $stockLocation->id)
+        ->where('product_id', $product->id)
+        ->orderBy('code')
+        ->get();
+
+    expect($serialLots)->toHaveCount(2);
+    expect($serialLots->every(fn (InventoryLot $lot) => (float) $lot->quantity_on_hand === 0.0))->toBeTrue();
+    expect($serialLots->every(fn (InventoryLot $lot) => (float) $lot->quantity_reserved === 0.0))->toBeTrue();
+});

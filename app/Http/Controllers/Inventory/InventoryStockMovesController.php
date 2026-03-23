@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Modules\Inventory\InventoryStockWorkflowService;
-use App\Modules\Inventory\Models\InventoryLocation;
-use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Core\MasterData\Models\Product;
-use App\Modules\Sales\Models\SalesOrder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\InventoryStockMoveStoreRequest;
 use App\Http\Requests\Inventory\InventoryStockMoveUpdateRequest;
+use App\Modules\Inventory\InventoryStockWorkflowService;
+use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryLot;
+use App\Modules\Inventory\Models\InventoryStockMove;
+use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -68,28 +69,37 @@ class InventoryStockMovesController extends Controller
                 'product_id' => '',
                 'quantity' => 1,
                 'related_sales_order_id' => '',
+                'lines' => [],
                 'notes' => '',
             ],
             'moveTypes' => InventoryStockMove::TYPES,
             'products' => $this->productOptions(),
             'locations' => $this->locationOptions(),
+            'lots' => $this->lotOptions(),
             'salesOrders' => $this->salesOrderOptions(),
         ]);
     }
 
-    public function store(InventoryStockMoveStoreRequest $request): RedirectResponse
-    {
+    public function store(
+        InventoryStockMoveStoreRequest $request,
+        InventoryStockWorkflowService $workflowService,
+    ): RedirectResponse {
         $this->authorize('create', InventoryStockMove::class);
 
         $user = $request->user();
+        $validated = $request->validated();
+        $lines = $validated['lines'] ?? [];
+        unset($validated['lines']);
 
         $move = InventoryStockMove::create([
-            ...$request->validated(),
+            ...$validated,
             'company_id' => $user?->current_company_id,
             'status' => InventoryStockMove::STATUS_DRAFT,
             'created_by' => $user?->id,
             'updated_by' => $user?->id,
         ]);
+
+        $workflowService->syncDraftLines($move, $lines, $user?->id);
 
         return redirect()
             ->route('company.inventory.moves.edit', $move)
@@ -99,6 +109,7 @@ class InventoryStockMovesController extends Controller
     public function edit(InventoryStockMove $move): Response
     {
         $this->authorize('view', $move);
+        $move->loadMissing(['product', 'lines.sourceLot', 'lines.resultingLot']);
 
         return Inertia::render('inventory/moves/edit', [
             'move' => [
@@ -109,8 +120,18 @@ class InventoryStockMovesController extends Controller
                 'source_location_id' => $move->source_location_id,
                 'destination_location_id' => $move->destination_location_id,
                 'product_id' => $move->product_id,
+                'product_tracking_mode' => $move->product?->tracking_mode ?? Product::TRACKING_NONE,
                 'quantity' => (float) $move->quantity,
                 'related_sales_order_id' => $move->related_sales_order_id,
+                'lines' => $move->lines->map(fn ($line) => [
+                    'id' => $line->id,
+                    'source_lot_id' => $line->source_lot_id,
+                    'resulting_lot_id' => $line->resulting_lot_id,
+                    'lot_code' => $line->lot_code,
+                    'quantity' => (float) $line->quantity,
+                    'source_lot_code' => $line->sourceLot?->code,
+                    'resulting_lot_code' => $line->resultingLot?->code,
+                ])->values()->all(),
                 'notes' => $move->notes,
                 'reserved_at' => $move->reserved_at?->toIso8601String(),
                 'completed_at' => $move->completed_at?->toIso8601String(),
@@ -119,20 +140,27 @@ class InventoryStockMovesController extends Controller
             'moveTypes' => InventoryStockMove::TYPES,
             'products' => $this->productOptions(),
             'locations' => $this->locationOptions(),
+            'lots' => $this->lotOptions(),
             'salesOrders' => $this->salesOrderOptions(),
         ]);
     }
 
     public function update(
         InventoryStockMoveUpdateRequest $request,
-        InventoryStockMove $move
+        InventoryStockMove $move,
+        InventoryStockWorkflowService $workflowService,
     ): RedirectResponse {
         $this->authorize('update', $move);
+        $validated = $request->validated();
+        $lines = $validated['lines'] ?? [];
+        unset($validated['lines']);
 
         $move->update([
-            ...$request->validated(),
+            ...$validated,
             'updated_by' => $request->user()?->id,
         ]);
+
+        $workflowService->syncDraftLines($move, $lines, $request->user()?->id);
 
         return redirect()
             ->route('company.inventory.moves.edit', $move)
@@ -193,18 +221,21 @@ class InventoryStockMovesController extends Controller
     }
 
     /**
-     * @return array<int, array{id: string, name: string, sku: string|null}>
+     * @return array<int, array{id: string, name: string, sku: string|null, type: string, tracking_mode: string}>
      */
     private function productOptions(): array
     {
         return Product::query()
             ->where('is_active', true)
+            ->where('type', Product::TYPE_STOCK)
             ->orderBy('name')
-            ->get(['id', 'name', 'sku'])
+            ->get(['id', 'name', 'sku', 'type', 'tracking_mode'])
             ->map(fn (Product $product) => [
                 'id' => $product->id,
                 'name' => $product->name,
                 'sku' => $product->sku,
+                'type' => $product->type,
+                'tracking_mode' => $product->tracking_mode,
             ])
             ->values()
             ->all();
@@ -229,6 +260,32 @@ class InventoryStockMovesController extends Controller
     }
 
     /**
+     * @return array<int, array{id: string, product_id: string, location_id: string, code: string, tracking_mode: string, quantity_on_hand: float, quantity_reserved: float, available_quantity: float}>
+     */
+    private function lotOptions(): array
+    {
+        return InventoryLot::query()
+            ->with(['product:id,name', 'location:id,name'])
+            ->orderBy('code')
+            ->get()
+            ->map(fn (InventoryLot $lot) => [
+                'id' => $lot->id,
+                'product_id' => (string) $lot->product_id,
+                'location_id' => (string) $lot->location_id,
+                'code' => $lot->code,
+                'tracking_mode' => $lot->tracking_mode,
+                'quantity_on_hand' => (float) $lot->quantity_on_hand,
+                'quantity_reserved' => (float) $lot->quantity_reserved,
+                'available_quantity' => round(
+                    (float) $lot->quantity_on_hand - (float) $lot->quantity_reserved,
+                    4,
+                ),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<int, array{id: string, order_number: string}>
      */
     private function salesOrderOptions(): array
@@ -245,5 +302,3 @@ class InventoryStockMovesController extends Controller
             ->all();
     }
 }
-
-
