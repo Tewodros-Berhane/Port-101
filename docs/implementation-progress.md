@@ -54,6 +54,7 @@
 - API v1 Phase 5 Approvals API implemented: `/api/v1/approvals/requests` now supports approval-request listing/detail plus explicit decision actions (`approve`, `reject`) through the shared approvals queue service, including company-scoped request discovery, decision-step visibility, authority-aware action gating, and shared JSON error semantics for permission and lifecycle failures.
 - API v1 Phase 6 Reports/Exports API implemented: `/api/v1/reports/exports` now supports queued company-report export job creation plus status polling and file download, with persisted export records, shared PDF/XLSX generation, company-scoped access control, and shared JSON error semantics for validation, permission, and pending-download failures.
 - API v1 Phase 7 Webhooks/outbound integrations implemented: company-scoped webhook endpoint management (`/api/v1/webhooks/endpoints`, delivery history, test delivery, secret rotation, retry actions), signed webhook payload delivery with persisted integration events/delivery attempts, and outbound business-event publishing for `sales.order.confirmed`, `projects.project.provisioned`, `accounting.invoice.posted`, `accounting.payment.received`, and `inventory.delivery.completed`.
+- Company integrations workspace implemented: `/company/integrations` now exposes webhook endpoint management, endpoint detail/history views, dead-letter and retry visibility, delivery-detail inspection, and company-side test/rotate/retry flows without requiring the raw API endpoints.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
 - In-app notifications module implemented (database notifications center, unread counters, mark-read actions, event notifications beyond invite email).
@@ -189,6 +190,7 @@
 - API v1 now exposes Approvals at `/api/v1/approvals` with company-scoped approval request list/detail access plus approve/reject decision actions backed by the shared approvals queue and authority checks.
 - API v1 now exposes Reports at `/api/v1/reports` with queued export-job creation, export-status polling, and download endpoints for company report files without exposing dashboard-specific page payloads.
 - API v1 now exposes Webhooks at `/api/v1/webhooks` with company-scoped endpoint CRUD, signed test deliveries, delivery-history visibility, retry controls, and persisted outbound event fan-out for the first production event set (`sales.order.confirmed`, `projects.project.provisioned`, `accounting.invoice.posted`, `accounting.payment.received`, `inventory.delivery.completed`).
+- Company integrations workspace is now live at `/company/integrations` with a webhook operations dashboard, endpoint CRUD pages, endpoint-level delivery history, global delivery/dead-letter queue visibility, delivery-detail inspection, and retry/test/rotate actions for company admins.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
@@ -210,8 +212,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `221 passed`, `0 failed`.
-- Result summary after latest implementation: API v1 Phase 7 webhook management and outbound integration events verified with the full PostgreSQL-backed suite, including signed test deliveries, delivery retry flows, and business-event publishing for Sales, Projects, Accounting, and Inventory workflows.
+- Latest full-suite count: `226 passed`, `0 failed`.
+- Result summary after latest implementation: company-side integrations workspace and webhook delivery operations UX verified with the full PostgreSQL-backed suite, including endpoint CRUD, signed test deliveries, dead-letter visibility, retry flows, and direct company-route permission coverage.
 
 ## Suggestions
 
@@ -223,4 +225,4 @@
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
 - Formalize API versioning policy (deprecation headers + change log) before exposing `/api/v1` to third parties.
-- Add webhook secret rotation history, replay-window verification guidance, and delivery dead-letter visibility before onboarding external partners.
+- Add webhook secret rotation history and replay-window verification guidance before onboarding external partners.

@@ -10,6 +10,7 @@ $moduleRouteFiles = [
     base_path('routes/moduleroutes/purchasing.php'),
     base_path('routes/moduleroutes/approvals.php'),
     base_path('routes/moduleroutes/reports.php'),
+    base_path('routes/moduleroutes/integrations.php'),
 ];
 
 foreach ($moduleRouteFiles as $moduleRouteFile) {

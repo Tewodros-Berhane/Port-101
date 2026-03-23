@@ -62,6 +62,7 @@ dataset('companyModuleAccessRoutes', [
     ['company.modules.accounting', 'accounting.invoices.view'],
     ['company.modules.approvals', 'approvals.requests.view'],
     ['company.modules.reports', 'reports.view'],
+    ['company.modules.integrations', 'integrations.webhooks.view'],
 ]);
 
 test('company module routes require module permissions', function (

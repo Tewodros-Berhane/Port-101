@@ -21,6 +21,7 @@ import {
     FileSpreadsheet,
     FolderKanban,
     Handshake,
+    PlugZap,
     LayoutGrid,
     ListChecks,
     Mail,
@@ -116,6 +117,12 @@ const companyModuleNavItems: NavItem[] = [
         href: '/company/reports',
         icon: BarChart3,
         permission: 'reports.view',
+    },
+    {
+        title: 'Integrations',
+        href: '/company/integrations',
+        icon: PlugZap,
+        permission: 'integrations.webhooks.view',
     },
 ];
 
