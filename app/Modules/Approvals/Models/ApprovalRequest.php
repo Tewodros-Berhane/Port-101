@@ -53,6 +53,8 @@ class ApprovalRequest extends Model
 
     public const ACTION_PROJECT_BILLABLE_APPROVAL = 'project_billable_approval';
 
+    public const ACTION_INVENTORY_CYCLE_COUNT_APPROVAL = 'inventory_cycle_count_approval';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_APPROVED = 'approved';

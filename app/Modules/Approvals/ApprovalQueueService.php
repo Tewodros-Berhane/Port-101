@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
+use App\Modules\Inventory\InventoryCycleCountService;
+use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\ProjectBillableWorkflowService;
 use App\Modules\Purchasing\Models\PurchaseOrder;
@@ -25,6 +27,7 @@ class ApprovalQueueService
         private readonly ApprovalAuthorityService $approvalAuthorityService,
         private readonly PurchasingOrderWorkflowService $purchasingOrderWorkflowService,
         private readonly ProjectBillableWorkflowService $projectBillableWorkflowService,
+        private readonly InventoryCycleCountService $inventoryCycleCountService,
     ) {}
 
     public function syncPendingRequests(Company $company, ?string $actorId = null): void
@@ -34,6 +37,7 @@ class ApprovalQueueService
         $this->syncPurchaseOrderRequests($company, $actorId);
         $this->syncAccountingManualJournalRequests($company, $actorId);
         $this->syncProjectBillableRequests($company, $actorId);
+        $this->syncInventoryCycleCountRequests($company, $actorId);
     }
 
     /**
@@ -192,6 +196,8 @@ class ApprovalQueueService
                 ]);
             } elseif ($source instanceof ProjectBillable) {
                 $source = $this->projectBillableWorkflowService->approve($source, $actor->id);
+            } elseif ($source instanceof InventoryCycleCount) {
+                $source = $this->inventoryCycleCountService->approve($source, $actor->id);
             }
 
             $this->markApproved(
@@ -282,6 +288,8 @@ class ApprovalQueueService
                     reason: $reason,
                     actorId: $actor->id,
                 );
+            } elseif ($source instanceof InventoryCycleCount) {
+                $source = $this->inventoryCycleCountService->reject($source, $reason, $actor->id);
             }
 
             $this->markRejected(
@@ -494,6 +502,43 @@ class ApprovalQueueService
             isApproved: fn (ProjectBillable $billable) => $billable->status === ProjectBillable::STATUS_APPROVED
                 && $billable->approval_status === ProjectBillable::APPROVAL_STATUS_APPROVED,
             isRejected: fn (ProjectBillable $billable) => $billable->approval_status === ProjectBillable::APPROVAL_STATUS_REJECTED,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
+    private function syncInventoryCycleCountRequests(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = InventoryCycleCount::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $cycleCounts = InventoryCycleCount::query()
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->where('requires_approval', true);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $cycleCounts,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_INVENTORY,
+            action: ApprovalRequest::ACTION_INVENTORY_CYCLE_COUNT_APPROVAL,
+            isPending: fn (InventoryCycleCount $cycleCount) => (bool) $cycleCount->requires_approval
+                && $cycleCount->status === InventoryCycleCount::STATUS_REVIEWED
+                && $cycleCount->approval_status === InventoryCycleCount::APPROVAL_STATUS_PENDING,
+            isApproved: fn (InventoryCycleCount $cycleCount) => $cycleCount->approval_status === InventoryCycleCount::APPROVAL_STATUS_APPROVED
+                || $cycleCount->status === InventoryCycleCount::STATUS_POSTED,
+            isRejected: fn (InventoryCycleCount $cycleCount) => $cycleCount->approval_status === InventoryCycleCount::APPROVAL_STATUS_REJECTED,
             allowRejectedReopen: true,
             actorId: $actorId,
         );
@@ -771,6 +816,10 @@ class ApprovalQueueService
             return (string) ($source->project_id ?: $source->id);
         }
 
+        if ($source instanceof InventoryCycleCount) {
+            return (string) $source->reference;
+        }
+
         return null;
     }
 
@@ -794,6 +843,10 @@ class ApprovalQueueService
 
             if ($source instanceof ProjectBillable) {
                 return round((float) $source->amount, 2);
+            }
+
+            if ($source instanceof InventoryCycleCount) {
+                return round((float) $source->total_absolute_variance_value, 2);
             }
 
             return null;
@@ -864,6 +917,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             ProjectBillable::class => ProjectBillable::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            InventoryCycleCount::class => InventoryCycleCount::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,

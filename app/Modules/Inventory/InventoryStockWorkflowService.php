@@ -102,11 +102,75 @@ class InventoryStockWorkflowService
                 )
                 : collect();
 
-            if (
-                $this->usesInventoryTracking($move)
-                && $move->move_type === InventoryStockMove::TYPE_ADJUSTMENT
-            ) {
-                abort(422, 'Tracked adjustment moves are not supported yet.');
+            if ($move->move_type === InventoryStockMove::TYPE_ADJUSTMENT) {
+                $locationId = $move->destination_location_id ?: $move->source_location_id;
+
+                if (! $locationId) {
+                    abort(422, 'Adjustment moves require a target location.');
+                }
+
+                if ($move->source_location_id && $move->destination_location_id) {
+                    abort(422, 'Adjustment moves must affect exactly one location.');
+                }
+
+                if ($this->usesInventoryTracking($move)) {
+                    if ($move->destination_location_id) {
+                        $trackedLines->each(function (InventoryStockMoveLine $line) use ($move, $locationId, $actorId): void {
+                            $code = trim((string) $line->lot_code);
+
+                            if ($code === '') {
+                                abort(422, 'Positive tracked adjustments require a lot or serial code.');
+                            }
+
+                            $lot = $this->findOrCreateLot(
+                                companyId: (string) $move->company_id,
+                                locationId: (string) $locationId,
+                                product: $move->product,
+                                code: $code,
+                                actorId: $actorId,
+                            );
+
+                            $this->adjustLotOnHandQuantity(
+                                lotId: $lot->id,
+                                delta: (float) $line->quantity,
+                                actorId: $actorId,
+                            );
+
+                            $line->update([
+                                'resulting_lot_id' => $lot->id,
+                                'lot_code' => $lot->code,
+                                'updated_by' => $actorId,
+                            ]);
+                        });
+                    } else {
+                        $trackedLines->each(function (InventoryStockMoveLine $line) use ($actorId): void {
+                            if (! $line->source_lot_id) {
+                                abort(422, 'Negative tracked adjustments require a source lot or serial.');
+                            }
+
+                            $lot = $this->lockLotById((string) $line->source_lot_id);
+
+                            $this->adjustLotOnHandQuantity(
+                                lotId: $lot->id,
+                                delta: -((float) $line->quantity),
+                                actorId: $actorId,
+                            );
+
+                            $line->update([
+                                'lot_code' => $lot->code,
+                                'updated_by' => $actorId,
+                            ]);
+                        });
+                    }
+                }
+
+                $this->adjustOnHandQuantity(
+                    companyId: $companyId,
+                    locationId: (string) $locationId,
+                    productId: $productId,
+                    delta: $move->destination_location_id ? $quantity : -$quantity,
+                    actorId: $actorId,
+                );
             }
 
             if ($move->move_type === InventoryStockMove::TYPE_RECEIPT) {
@@ -658,10 +722,6 @@ class InventoryStockWorkflowService
             return collect();
         }
 
-        if ($move->move_type === InventoryStockMove::TYPE_ADJUSTMENT) {
-            abort(422, 'Tracked adjustment moves are not supported yet.');
-        }
-
         $lines = $move->lines;
 
         if (
@@ -698,6 +758,47 @@ class InventoryStockWorkflowService
 
         if (abs($lineQuantity - (float) $move->quantity) > 0.0001) {
             abort(422, 'Lot or serial lines must match the move quantity.');
+        }
+
+        if ($move->move_type === InventoryStockMove::TYPE_ADJUSTMENT) {
+            if ($move->destination_location_id && ! $move->source_location_id) {
+                $lineCodes = [];
+
+                $lines->each(function (InventoryStockMoveLine $line) use ($move, &$lineCodes): void {
+                    $code = trim((string) $line->lot_code);
+
+                    if ($code === '') {
+                        abort(422, 'Tracked positive adjustments require a lot or serial code on every line.');
+                    }
+
+                    if (
+                        $move->product?->tracking_mode === Product::TRACKING_SERIAL
+                        && in_array($code, $lineCodes, true)
+                    ) {
+                        abort(422, 'Serial-tracked positive adjustments cannot repeat serial codes.');
+                    }
+
+                    $lineCodes[] = $code;
+                });
+            } elseif ($move->source_location_id && ! $move->destination_location_id) {
+                $lines->each(function (InventoryStockMoveLine $line) use ($move): void {
+                    $sourceLot = $line->sourceLot;
+
+                    if (! $sourceLot) {
+                        abort(422, 'Tracked negative adjustments require an assigned lot or serial.');
+                    }
+
+                    if (
+                        (string) $sourceLot->company_id !== (string) $move->company_id
+                        || (string) $sourceLot->product_id !== (string) $move->product_id
+                        || (string) $sourceLot->location_id !== (string) $move->source_location_id
+                    ) {
+                        abort(422, 'Assigned lot or serial does not match the selected adjustment location or product.');
+                    }
+                });
+            } else {
+                abort(422, 'Tracked adjustment moves must affect exactly one location.');
+            }
         }
 
         if ($move->move_type === InventoryStockMove::TYPE_RECEIPT) {

@@ -58,6 +58,8 @@ class CoreRolesSeeder extends Seeder
             ['name' => 'View Inventory Stock', 'slug' => 'inventory.stock.view', 'group' => 'inventory'],
             ['name' => 'View Inventory Moves', 'slug' => 'inventory.moves.view', 'group' => 'inventory'],
             ['name' => 'Manage Inventory Moves', 'slug' => 'inventory.moves.manage', 'group' => 'inventory'],
+            ['name' => 'View Cycle Counts', 'slug' => 'inventory.counts.view', 'group' => 'inventory'],
+            ['name' => 'Manage Cycle Counts', 'slug' => 'inventory.counts.manage', 'group' => 'inventory'],
             ['name' => 'Approve Inventory Adjustments', 'slug' => 'inventory.adjustments.approve', 'group' => 'inventory'],
 
             ['name' => 'View Purchase RFQs', 'slug' => 'purchasing.rfq.view', 'group' => 'purchasing'],
@@ -331,6 +333,8 @@ class CoreRolesSeeder extends Seeder
                     'inventory.stock.view',
                     'inventory.moves.view',
                     'inventory.moves.manage',
+                    'inventory.counts.view',
+                    'inventory.counts.manage',
                     'inventory.adjustments.approve',
                     'approvals.requests.view',
                     'reports.view',
@@ -349,6 +353,8 @@ class CoreRolesSeeder extends Seeder
                     'inventory.stock.view',
                     'inventory.moves.view',
                     'inventory.moves.manage',
+                    'inventory.counts.view',
+                    'inventory.counts.manage',
                 ],
             ],
             'purchasing_manager' => [

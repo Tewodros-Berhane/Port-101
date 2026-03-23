@@ -65,6 +65,7 @@ class InventoryStockMove extends Model
 
     protected $fillable = [
         'company_id',
+        'cycle_count_id',
         'reference',
         'move_type',
         'status',
@@ -97,6 +98,11 @@ class InventoryStockMove extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function cycleCount(): BelongsTo
+    {
+        return $this->belongsTo(InventoryCycleCount::class, 'cycle_count_id');
     }
 
     public function sourceLocation(): BelongsTo

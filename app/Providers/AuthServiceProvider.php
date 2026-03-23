@@ -22,6 +22,7 @@ use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
+use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryLot;
 use App\Modules\Inventory\Models\InventoryStockLevel;
@@ -50,6 +51,7 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
+use App\Policies\InventoryCycleCountPolicy;
 use App\Policies\InventoryLocationPolicy;
 use App\Policies\InventoryLotPolicy;
 use App\Policies\InventoryStockLevelPolicy;
@@ -116,6 +118,7 @@ class AuthServiceProvider extends ServiceProvider
         AccountingInvoice::class => AccountingInvoicePolicy::class,
         AccountingManualJournal::class => AccountingManualJournalPolicy::class,
         AccountingPayment::class => AccountingPaymentPolicy::class,
+        InventoryCycleCount::class => InventoryCycleCountPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
         InventoryLot::class => InventoryLotPolicy::class,
