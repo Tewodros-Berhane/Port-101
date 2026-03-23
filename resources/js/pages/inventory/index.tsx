@@ -29,6 +29,7 @@ type Props = {
         warehouses: number;
         locations: number;
         tracked_lots: number;
+        open_cycle_counts: number;
         stock_levels: number;
         draft_moves: number;
         reserved_moves: number;
@@ -65,15 +66,21 @@ export default function InventoryIndex({ kpis, recentMoves, stockAlerts }: Props
                         </Link>
                     </Button>
                     <Button variant="outline" asChild>
+                        <Link href="/company/inventory/cycle-counts">
+                            Cycle counts
+                        </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
                         <Link href="/company/inventory/lots">Lots & serials</Link>
                     </Button>
                 </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-8">
                 <Metric label="Warehouses" value={kpis.warehouses} />
                 <Metric label="Locations" value={kpis.locations} />
                 <Metric label="Lots / Serials" value={kpis.tracked_lots} />
+                <Metric label="Open counts" value={kpis.open_cycle_counts} />
                 <Metric label="Stock rows" value={kpis.stock_levels} />
                 <Metric label="Draft moves" value={kpis.draft_moves} />
                 <Metric label="Reserved" value={kpis.reserved_moves} />
@@ -199,6 +206,9 @@ export default function InventoryIndex({ kpis, recentMoves, stockAlerts }: Props
                 </Button>
                 <Button variant="outline" asChild>
                     <Link href="/company/inventory/stock-levels">Stock levels</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                    <Link href="/company/inventory/cycle-counts">Cycle counts</Link>
                 </Button>
                 <Button variant="outline" asChild>
                     <Link href="/company/inventory/lots">Lots & serials</Link>

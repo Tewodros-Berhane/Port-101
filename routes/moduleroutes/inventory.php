@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Inventory\InventoryDashboardController;
+use App\Http\Controllers\Inventory\InventoryCycleCountsController;
 use App\Http\Controllers\Inventory\InventoryLocationsController;
 use App\Http\Controllers\Inventory\InventoryLotsController;
 use App\Http\Controllers\Inventory\InventoryStockLevelsController;
@@ -20,6 +21,24 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
         ->name('lots.index');
     Route::get('lots/{lot}', [InventoryLotsController::class, 'show'])
         ->name('lots.show');
+    Route::get('cycle-counts', [InventoryCycleCountsController::class, 'index'])
+        ->name('cycle-counts.index');
+    Route::get('cycle-counts/create', [InventoryCycleCountsController::class, 'create'])
+        ->name('cycle-counts.create');
+    Route::post('cycle-counts', [InventoryCycleCountsController::class, 'store'])
+        ->name('cycle-counts.store');
+    Route::get('cycle-counts/{cycleCount}', [InventoryCycleCountsController::class, 'show'])
+        ->name('cycle-counts.show');
+    Route::put('cycle-counts/{cycleCount}', [InventoryCycleCountsController::class, 'update'])
+        ->name('cycle-counts.update');
+    Route::post('cycle-counts/{cycleCount}/start', [InventoryCycleCountsController::class, 'start'])
+        ->name('cycle-counts.start');
+    Route::post('cycle-counts/{cycleCount}/review', [InventoryCycleCountsController::class, 'review'])
+        ->name('cycle-counts.review');
+    Route::post('cycle-counts/{cycleCount}/post', [InventoryCycleCountsController::class, 'post'])
+        ->name('cycle-counts.post');
+    Route::post('cycle-counts/{cycleCount}/cancel', [InventoryCycleCountsController::class, 'cancel'])
+        ->name('cycle-counts.cancel');
     Route::get('stock-levels', [InventoryStockLevelsController::class, 'index'])
         ->name('stock-levels.index');
     Route::resource('moves', InventoryStockMovesController::class)

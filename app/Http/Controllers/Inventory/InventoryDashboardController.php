@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Inventory\InventorySetupService;
+use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryLot;
 use App\Modules\Inventory\Models\InventoryStockLevel;
@@ -35,6 +36,7 @@ class InventoryDashboardController extends Controller
         }
 
         $warehouseQuery = InventoryWarehouse::query();
+        $cycleCountQuery = InventoryCycleCount::query();
         $locationQuery = InventoryLocation::query();
         $lotQuery = InventoryLot::query();
         $levelQuery = InventoryStockLevel::query();
@@ -42,6 +44,7 @@ class InventoryDashboardController extends Controller
 
         if ($user) {
             $warehouseQuery = $user->applyDataScopeToQuery($warehouseQuery);
+            $cycleCountQuery = $user->applyDataScopeToQuery($cycleCountQuery);
             $locationQuery = $user->applyDataScopeToQuery($locationQuery);
             $lotQuery = $user->applyDataScopeToQuery($lotQuery);
             $levelQuery = $user->applyDataScopeToQuery($levelQuery);
@@ -104,6 +107,13 @@ class InventoryDashboardController extends Controller
                 'warehouses' => (clone $warehouseQuery)->count(),
                 'locations' => (clone $locationQuery)->count(),
                 'tracked_lots' => (clone $lotQuery)->count(),
+                'open_cycle_counts' => (clone $cycleCountQuery)
+                    ->whereIn('status', [
+                        InventoryCycleCount::STATUS_DRAFT,
+                        InventoryCycleCount::STATUS_IN_PROGRESS,
+                        InventoryCycleCount::STATUS_REVIEWED,
+                    ])
+                    ->count(),
                 'stock_levels' => (clone $levelQuery)->count(),
                 'draft_moves' => (clone $moveQuery)
                     ->where('status', InventoryStockMove::STATUS_DRAFT)
