@@ -3,6 +3,8 @@
 namespace App\Modules\Projects;
 
 use App\Core\MasterData\Models\Currency;
+use App\Modules\Integrations\OutboundEventService;
+use App\Modules\Integrations\WebhookEventCatalog;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectTask;
 use App\Modules\Sales\Models\SalesOrder;
@@ -16,6 +18,7 @@ class ProjectSalesProvisioningService
     public function __construct(
         private readonly ProjectWorkspaceService $workspaceService,
         private readonly ProjectNotificationService $notificationService,
+        private readonly OutboundEventService $outboundEventService,
     ) {}
 
     public function createOrRefreshFromSalesOrder(string $companyId, string $orderId): ?Project
@@ -41,7 +44,7 @@ class ProjectSalesProvisioningService
             return null;
         }
 
-        return DB::transaction(function () use ($order, $serviceLines) {
+        $result = DB::transaction(function () use ($order, $serviceLines) {
             $actorId = $this->actorIdForOrder($order);
             $currency = $this->resolveCurrency($order, $actorId);
             $project = Project::query()
@@ -102,16 +105,51 @@ class ProjectSalesProvisioningService
                 'projectManager:id,name,email',
             ]) ?? $project;
 
-            if ($wasNew) {
-                $this->notificationService->notifyProjectProvisioned(
-                    project: $project,
-                    order: $order,
-                    actorId: $actorId,
-                );
-            }
-
-            return $project;
+            return [
+                'project' => $project,
+                'was_new' => $wasNew,
+                'actor_id' => $actorId,
+            ];
         });
+
+        /** @var Project $project */
+        $project = $result['project'];
+        $wasNew = (bool) $result['was_new'];
+        $actorId = $result['actor_id'];
+
+        if ($wasNew) {
+            $this->notificationService->notifyProjectProvisioned(
+                project: $project,
+                order: $order,
+                actorId: $actorId,
+            );
+
+            $this->outboundEventService->record(
+                companyId: (string) $project->company_id,
+                eventType: WebhookEventCatalog::PROJECT_PROVISIONED,
+                aggregateType: Project::class,
+                aggregateId: (string) $project->id,
+                data: [
+                    'object_type' => 'project',
+                    'object_id' => (string) $project->id,
+                    'project_code' => (string) $project->project_code,
+                    'name' => (string) $project->name,
+                    'status' => (string) $project->status,
+                    'billing_type' => (string) $project->billing_type,
+                    'customer_id' => $project->customer_id ? (string) $project->customer_id : null,
+                    'customer_name' => $project->customer?->name,
+                    'sales_order_id' => $order->id,
+                    'sales_order_number' => $order->order_number,
+                    'project_manager_id' => $project->project_manager_id ? (string) $project->project_manager_id : null,
+                    'start_date' => $project->start_date?->toDateString(),
+                    'target_end_date' => $project->target_end_date?->toDateString(),
+                    'budget_amount' => (float) $project->budget_amount,
+                ],
+                actorId: $actorId,
+            );
+        }
+
+        return $project;
     }
 
     private function resolveCurrency(SalesOrder $order, ?string $actorId = null): Currency

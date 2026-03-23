@@ -3,6 +3,8 @@
 namespace App\Modules\Accounting;
 
 use App\Modules\Accounting\Models\AccountingInvoice;
+use App\Modules\Integrations\OutboundEventService;
+use App\Modules\Integrations\WebhookEventCatalog;
 use App\Modules\Purchasing\Models\PurchaseOrder;
 use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,7 @@ class AccountingInvoiceWorkflowService
         private readonly AccountingNumberingService $numberingService,
         private readonly AccountingPeriodGuardService $periodGuardService,
         private readonly AccountingLedgerPostingService $ledgerPostingService,
+        private readonly OutboundEventService $outboundEventService,
     ) {}
 
     /**
@@ -153,7 +156,9 @@ class AccountingInvoiceWorkflowService
 
     public function post(AccountingInvoice $invoice, ?string $actorId = null): AccountingInvoice
     {
-        return DB::transaction(function () use ($invoice, $actorId) {
+        $wasPosted = false;
+
+        $invoice = DB::transaction(function () use ($invoice, $actorId, &$wasPosted) {
             $invoice = AccountingInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
 
             if (in_array($invoice->status, [
@@ -190,12 +195,50 @@ class AccountingInvoiceWorkflowService
                 'posted_by' => $actorId,
                 'updated_by' => $actorId,
             ]);
+            $wasPosted = true;
 
             $this->ledgerPostingService->postInvoice($invoice, $actorId);
             $this->syncSalesOrderStatus($invoice, $actorId);
 
             return $invoice->fresh();
         });
+
+        if ($wasPosted) {
+            $invoice->load([
+                'partner:id,name',
+                'salesOrder:id,order_number',
+                'purchaseOrder:id,order_number',
+            ]);
+
+            $this->outboundEventService->record(
+                companyId: (string) $invoice->company_id,
+                eventType: WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED,
+                aggregateType: AccountingInvoice::class,
+                aggregateId: (string) $invoice->id,
+                data: [
+                    'object_type' => 'accounting_invoice',
+                    'object_id' => (string) $invoice->id,
+                    'invoice_number' => (string) $invoice->invoice_number,
+                    'status' => (string) $invoice->status,
+                    'document_type' => (string) $invoice->document_type,
+                    'partner_id' => $invoice->partner_id ? (string) $invoice->partner_id : null,
+                    'partner_name' => $invoice->partner?->name,
+                    'sales_order_id' => $invoice->sales_order_id ? (string) $invoice->sales_order_id : null,
+                    'sales_order_number' => $invoice->salesOrder?->order_number,
+                    'purchase_order_id' => $invoice->purchase_order_id ? (string) $invoice->purchase_order_id : null,
+                    'purchase_order_number' => $invoice->purchaseOrder?->order_number,
+                    'invoice_date' => $invoice->invoice_date?->toDateString(),
+                    'due_date' => $invoice->due_date?->toDateString(),
+                    'currency_code' => $invoice->currency_code,
+                    'grand_total' => (float) $invoice->grand_total,
+                    'balance_due' => (float) $invoice->balance_due,
+                    'posted_at' => $invoice->posted_at?->toIso8601String(),
+                ],
+                actorId: $actorId,
+            );
+        }
+
+        return $invoice;
     }
 
     public function cancel(AccountingInvoice $invoice, ?string $actorId = null): AccountingInvoice

@@ -5,6 +5,8 @@ namespace App\Modules\Accounting;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Accounting\Models\AccountingReconciliationEntry;
+use App\Modules\Integrations\OutboundEventService;
+use App\Modules\Integrations\WebhookEventCatalog;
 use Illuminate\Support\Facades\DB;
 
 class AccountingPaymentWorkflowService
@@ -14,6 +16,7 @@ class AccountingPaymentWorkflowService
         private readonly AccountingPeriodGuardService $periodGuardService,
         private readonly AccountingInvoiceWorkflowService $invoiceWorkflowService,
         private readonly AccountingLedgerPostingService $ledgerPostingService,
+        private readonly OutboundEventService $outboundEventService,
     ) {}
 
     /**
@@ -149,7 +152,9 @@ class AccountingPaymentWorkflowService
 
     public function reconcile(AccountingPayment $payment, ?string $actorId = null): AccountingPayment
     {
-        return DB::transaction(function () use ($payment, $actorId) {
+        $wasReconciled = false;
+
+        $payment = DB::transaction(function () use ($payment, $actorId, &$wasReconciled) {
             $payment = AccountingPayment::query()->lockForUpdate()->findOrFail($payment->id);
 
             if ($payment->status === AccountingPayment::STATUS_RECONCILED) {
@@ -194,9 +199,44 @@ class AccountingPaymentWorkflowService
                 'reconciled_at' => now(),
                 'updated_by' => $actorId,
             ]);
+            $wasReconciled = true;
 
             return $payment->fresh();
         });
+
+        if ($wasReconciled) {
+            $payment->load([
+                'invoice:id,invoice_number,partner_id,grand_total,balance_due',
+                'invoice.partner:id,name',
+            ]);
+
+            $this->outboundEventService->record(
+                companyId: (string) $payment->company_id,
+                eventType: WebhookEventCatalog::ACCOUNTING_PAYMENT_RECEIVED,
+                aggregateType: AccountingPayment::class,
+                aggregateId: (string) $payment->id,
+                data: [
+                    'object_type' => 'accounting_payment',
+                    'object_id' => (string) $payment->id,
+                    'payment_number' => (string) $payment->payment_number,
+                    'status' => (string) $payment->status,
+                    'invoice_id' => $payment->invoice_id ? (string) $payment->invoice_id : null,
+                    'invoice_number' => $payment->invoice?->invoice_number,
+                    'partner_id' => $payment->invoice?->partner_id ? (string) $payment->invoice?->partner_id : null,
+                    'partner_name' => $payment->invoice?->partner?->name,
+                    'payment_date' => $payment->payment_date?->toDateString(),
+                    'amount' => (float) $payment->amount,
+                    'method' => $payment->method,
+                    'reference' => $payment->reference,
+                    'invoice_grand_total' => $payment->invoice ? (float) $payment->invoice->grand_total : null,
+                    'invoice_balance_due' => $payment->invoice ? (float) $payment->invoice->balance_due : null,
+                    'reconciled_at' => $payment->reconciled_at?->toIso8601String(),
+                ],
+                actorId: $actorId,
+            );
+        }
+
+        return $payment;
     }
 
     public function reverse(
