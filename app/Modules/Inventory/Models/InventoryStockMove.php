@@ -4,23 +4,24 @@ namespace App\Modules\Inventory\Models;
 
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Product;
-use App\Modules\Sales\Models\SalesOrder;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
+use App\Modules\Sales\Models\SalesOrder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InventoryStockMove extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public const TYPE_RECEIPT = 'receipt';
 
@@ -118,6 +119,12 @@ class InventoryStockMove extends Model
         return $this->belongsTo(SalesOrder::class, 'related_sales_order_id');
     }
 
+    public function lines(): HasMany
+    {
+        return $this->hasMany(InventoryStockMoveLine::class, 'stock_move_id')
+            ->orderBy('sequence');
+    }
+
     public function reservedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reserved_by');
@@ -143,5 +150,3 @@ class InventoryStockMove extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
-
-

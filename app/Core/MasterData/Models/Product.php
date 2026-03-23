@@ -14,21 +14,41 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public $incrementing = false;
 
     protected $keyType = 'string';
+
+    public const TYPE_STOCK = 'stock';
+
+    public const TYPE_SERVICE = 'service';
+
+    public const TRACKING_NONE = 'none';
+
+    public const TRACKING_LOT = 'lot';
+
+    public const TRACKING_SERIAL = 'serial';
+
+    /**
+     * @var array<int, string>
+     */
+    public const TRACKING_MODES = [
+        self::TRACKING_NONE,
+        self::TRACKING_LOT,
+        self::TRACKING_SERIAL,
+    ];
 
     protected $fillable = [
         'company_id',
         'sku',
         'name',
         'type',
+        'tracking_mode',
         'uom_id',
         'default_tax_id',
         'description',
@@ -67,5 +87,11 @@ class Product extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function usesInventoryTracking(): bool
+    {
+        return $this->type === self::TYPE_STOCK
+            && in_array($this->tracking_mode, [self::TRACKING_LOT, self::TRACKING_SERIAL], true);
     }
 }

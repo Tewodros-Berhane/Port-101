@@ -38,6 +38,7 @@ class ProductsController extends Controller
                     'sku' => $product->sku,
                     'name' => $product->name,
                     'type' => $product->type,
+                    'tracking_mode' => $product->tracking_mode,
                     'uom' => $product->uom?->name,
                     'tax' => $product->defaultTax?->name,
                     'is_active' => $product->is_active,
@@ -53,6 +54,7 @@ class ProductsController extends Controller
         return Inertia::render('core/products/create', [
             'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
             'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
+            'trackingModes' => Product::TRACKING_MODES,
         ]);
     }
 
@@ -100,6 +102,7 @@ class ProductsController extends Controller
                 'sku' => $product->sku,
                 'name' => $product->name,
                 'type' => $product->type,
+                'tracking_mode' => $product->tracking_mode,
                 'uom_id' => $product->uom_id,
                 'default_tax_id' => $product->default_tax_id,
                 'description' => $product->description,
@@ -108,6 +111,7 @@ class ProductsController extends Controller
             'attachments' => $attachments,
             'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
             'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
+            'trackingModes' => Product::TRACKING_MODES,
         ]);
     }
 

@@ -20,12 +20,13 @@ use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Approvals\Models\ApprovalRequest;
+use App\Modules\Integrations\Models\WebhookDelivery;
+use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Inventory\Models\InventoryLocation;
+use App\Modules\Inventory\Models\InventoryLot;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
-use App\Modules\Integrations\Models\WebhookDelivery;
-use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMilestone;
@@ -50,6 +51,7 @@ use App\Policies\CompanyPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
 use App\Policies\InventoryLocationPolicy;
+use App\Policies\InventoryLotPolicy;
 use App\Policies\InventoryStockLevelPolicy;
 use App\Policies\InventoryStockMovePolicy;
 use App\Policies\InventoryWarehousePolicy;
@@ -116,6 +118,7 @@ class AuthServiceProvider extends ServiceProvider
         AccountingPayment::class => AccountingPaymentPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
+        InventoryLot::class => InventoryLotPolicy::class,
         InventoryStockLevel::class => InventoryStockLevelPolicy::class,
         InventoryStockMove::class => InventoryStockMovePolicy::class,
         WebhookEndpoint::class => WebhookEndpointPolicy::class,
