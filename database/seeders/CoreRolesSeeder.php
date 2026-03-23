@@ -109,6 +109,8 @@ class CoreRolesSeeder extends Seeder
 
             ['name' => 'View Reports', 'slug' => 'reports.view', 'group' => 'reports'],
             ['name' => 'Export Reports', 'slug' => 'reports.export', 'group' => 'reports'],
+            ['name' => 'View Webhooks', 'slug' => 'integrations.webhooks.view', 'group' => 'integrations'],
+            ['name' => 'Manage Webhooks', 'slug' => 'integrations.webhooks.manage', 'group' => 'integrations'],
         ];
 
         foreach ($permissions as $permission) {
@@ -223,6 +225,8 @@ class CoreRolesSeeder extends Seeder
                     'approvals.requests.manage',
                     'reports.view',
                     'reports.export',
+                    'integrations.webhooks.view',
+                    'integrations.webhooks.manage',
                 ],
             ],
             'project_manager' => [
@@ -293,6 +297,7 @@ class CoreRolesSeeder extends Seeder
                     'approvals.requests.view',
                     'reports.view',
                     'reports.export',
+                    'integrations.webhooks.view',
                 ],
             ],
             'sales_user' => [

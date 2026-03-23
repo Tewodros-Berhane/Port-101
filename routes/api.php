@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\V1\SalesLeadsController as ApiSalesLeadsController;
 use App\Http\Controllers\Api\V1\SalesOrdersController as ApiSalesOrdersController;
 use App\Http\Controllers\Api\V1\SalesQuotesController as ApiSalesQuotesController;
 use App\Http\Controllers\Api\V1\SettingsController as ApiSettingsController;
+use App\Http\Controllers\Api\V1\WebhookDeliveriesController as ApiWebhookDeliveriesController;
+use App\Http\Controllers\Api\V1\WebhookEndpointsController as ApiWebhookEndpointsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -53,6 +55,18 @@ Route::prefix('v1')->group(function () {
             Route::post('exports', [ApiReportExportsController::class, 'store']);
             Route::get('exports/{reportExport}', [ApiReportExportsController::class, 'show']);
             Route::get('exports/{reportExport}/download', [ApiReportExportsController::class, 'download']);
+        });
+        Route::prefix('webhooks')->group(function () {
+            Route::get('endpoints', [ApiWebhookEndpointsController::class, 'index']);
+            Route::post('endpoints', [ApiWebhookEndpointsController::class, 'store']);
+            Route::get('endpoints/{endpoint}', [ApiWebhookEndpointsController::class, 'show']);
+            Route::match(['put', 'patch'], 'endpoints/{endpoint}', [ApiWebhookEndpointsController::class, 'update']);
+            Route::delete('endpoints/{endpoint}', [ApiWebhookEndpointsController::class, 'destroy']);
+            Route::post('endpoints/{endpoint}/rotate-secret', [ApiWebhookEndpointsController::class, 'rotateSecret']);
+            Route::post('endpoints/{endpoint}/test', [ApiWebhookEndpointsController::class, 'test']);
+            Route::get('endpoints/{endpoint}/deliveries', [ApiWebhookEndpointsController::class, 'deliveries']);
+            Route::get('deliveries/{delivery}', [ApiWebhookDeliveriesController::class, 'show']);
+            Route::post('deliveries/{delivery}/retry', [ApiWebhookDeliveriesController::class, 'retry']);
         });
         Route::prefix('inventory')->group(function () {
             Route::get('stock-balances', [ApiInventoryStockBalancesController::class, 'index']);

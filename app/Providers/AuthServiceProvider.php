@@ -24,6 +24,8 @@ use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
+use App\Modules\Integrations\Models\WebhookDelivery;
+use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Projects\Models\ProjectBillable;
 use App\Modules\Projects\Models\ProjectMilestone;
@@ -70,6 +72,8 @@ use App\Policies\SalesOrderPolicy;
 use App\Policies\SalesQuotePolicy;
 use App\Policies\TaxPolicy;
 use App\Policies\UomPolicy;
+use App\Policies\WebhookDeliveryPolicy;
+use App\Policies\WebhookEndpointPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
@@ -114,6 +118,8 @@ class AuthServiceProvider extends ServiceProvider
         InventoryLocation::class => InventoryLocationPolicy::class,
         InventoryStockLevel::class => InventoryStockLevelPolicy::class,
         InventoryStockMove::class => InventoryStockMovePolicy::class,
+        WebhookEndpoint::class => WebhookEndpointPolicy::class,
+        WebhookDelivery::class => WebhookDeliveryPolicy::class,
     ];
 
     /**

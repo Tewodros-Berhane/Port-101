@@ -840,109 +840,461 @@ This should come after stable resource APIs, not before.
 
 ## Recommended Next Implementation Target
 
-If Port-101 continues API work next, the correct next implementation target is `Sales API`.
+If Port-101 continues API work next, the correct next implementation target is `Phase 7: Webhooks And Outbound Integration Events`.
 
 Reason:
 
-- master data already exists in the API
-- Projects is already exposed
-- confirmed sales orders already provision projects
-- Sales is the missing external commercial entry point
+- Phases 0 through 6 are now covered, so the remaining integration gap is outbound delivery.
+- External systems can already create, read, and mutate records through `API v1`.
+- What is still missing is real-time propagation from Port-101 to those systems when business state changes.
+- Without outbound events, integrators still have to poll the API for every important workflow change.
 
-Without Sales, the integration story is still incomplete.
+Without Phase 7, the integration story is still incomplete.
 
-## Concrete Sales API Implementation Plan
+## Concrete Phase 7 Implementation Plan
 
 This is the next practical execution plan if implementation starts immediately.
 
-### Step 1: Contract Hardening
+### Scope And Boundaries
 
-Before adding Sales routes:
+This phase is about outbound notifications from Port-101 to external systems.
 
-- define shared API response format
-- define shared error format
-- define pagination defaults
-- define standard query params
-- decide idempotency strategy
+It is not:
 
-Suggested deliverables:
+- internal notification-center UX
+- email delivery
+- dashboard polling payloads
+- inbound webhook processing
+- another copy of existing business logic
 
-- base API resource classes
-- common API exception formatting
-- tests for auth and error shape
+Phase 7 should be company-scoped first.
 
-### Step 2: Leads Endpoints
+Reason:
 
-Add:
+- webhook destinations represent customer integrations
+- event subscriptions differ by company
+- signing secrets and delivery history should belong to the company that owns the integration
 
-- list
-- show
-- create
-- update
-- delete
+Platform-level outbound events can be added later if there is a real operational need.
 
-Required pieces:
+### Delivery Model
 
-- controller
-- requests
-- resource mapping
-- policy checks
-- tests
+Port-101 should use an outbox-style flow, not direct inline webhook calls from controllers.
 
-### Step 3: Quotes Endpoints
+Recommended flow:
 
-Add:
+1. A business workflow completes.
+2. The workflow records an internal integration event.
+3. A queued fan-out job finds subscribed webhook endpoints.
+4. One delivery record is created per endpoint.
+5. A delivery job signs and sends the payload.
+6. Delivery success or failure is persisted for retries and auditability.
 
-- list
-- show
-- create
-- update
-- delete
-- send
-- confirm
+This gives Port-101:
 
-Required pieces:
+- at-least-once delivery semantics
+- retry support
+- delivery history
+- decoupling from request latency
+- less risk of business actions failing because a third-party endpoint is slow
 
-- quote controller
-- quote line input mapping
-- workflow service reuse
-- tests for action endpoints
+### Data Model
 
-### Step 4: Orders Endpoints
+The initial schema should include three tables.
 
-Add:
+#### `webhook_endpoints`
 
-- list
-- show
-- create
-- update
-- delete
-- approve
-- confirm
+Purpose:
+
+- company-owned subscription targets
+
+Suggested fields:
+
+- `id`
+- `company_id`
+- `name`
+- `target_url`
+- `signing_secret`
+- `api_version`
+- `is_active`
+- `subscribed_events` as JSON array
+- `last_tested_at`
+- `created_by`
+- `updated_by`
+- timestamps
+
+#### `integration_events`
+
+Purpose:
+
+- durable outbound event outbox
+
+Suggested fields:
+
+- `id`
+- `company_id`
+- `event_type`
+- `aggregate_type`
+- `aggregate_id`
+- `occurred_at`
+- `payload` as JSON
+- `published_at`
+- `created_by`
+- timestamps
+
+#### `webhook_deliveries`
+
+Purpose:
+
+- actual delivery attempts per endpoint and event
+
+Suggested fields:
+
+- `id`
+- `company_id`
+- `webhook_endpoint_id`
+- `integration_event_id`
+- `event_type`
+- `status`
+- `attempt_count`
+- `last_attempt_at`
+- `next_retry_at`
+- `response_status`
+- `response_body_excerpt`
+- `failure_message`
+- `delivered_at`
+- timestamps
+
+Recommended status values:
+
+- `pending`
+- `processing`
+- `delivered`
+- `failed`
+- `dead`
+
+### Laravel Structure
+
+Recommended implementation pieces:
+
+#### Models
+
+- `App\Modules\Integrations\Models\WebhookEndpoint`
+- `App\Modules\Integrations\Models\IntegrationEvent`
+- `App\Modules\Integrations\Models\WebhookDelivery`
+
+#### Services
+
+- `WebhookEndpointService`
+- `OutboundEventService`
+- `WebhookDeliveryService`
+- `WebhookSignatureService`
+
+#### Jobs
+
+- `FanOutIntegrationEvent`
+- `DeliverWebhook`
+
+#### Policies
+
+- `WebhookEndpointPolicy`
+- `WebhookDeliveryPolicy`
+
+#### Requests
+
+- `WebhookEndpointStoreRequest`
+- `WebhookEndpointUpdateRequest`
+- `WebhookDeliveryRetryRequest`
+
+#### API Controllers
+
+- `Api\\V1\\WebhookEndpointsController`
+- `Api\\V1\\WebhookDeliveriesController`
+
+#### Web Controllers
+
+- company settings/integrations UI controller for webhook administration
+
+### API V1 Management Routes
+
+This phase should add management endpoints to `API v1`.
+
+Recommended route set:
+
+```text
+GET    /api/v1/webhooks/endpoints
+POST   /api/v1/webhooks/endpoints
+GET    /api/v1/webhooks/endpoints/{endpoint}
+PATCH  /api/v1/webhooks/endpoints/{endpoint}
+DELETE /api/v1/webhooks/endpoints/{endpoint}
+
+POST   /api/v1/webhooks/endpoints/{endpoint}/rotate-secret
+POST   /api/v1/webhooks/endpoints/{endpoint}/test
+
+GET    /api/v1/webhooks/endpoints/{endpoint}/deliveries
+GET    /api/v1/webhooks/deliveries/{delivery}
+POST   /api/v1/webhooks/deliveries/{delivery}/retry
+```
+
+These routes are for managing Port-101 outbound integrations.
+
+They are not the routes that external systems receive.
+
+### Event Contract
+
+Every emitted event should have a stable outer envelope.
+
+Recommended payload shape:
+
+```json
+{
+  "event_id": "uuid",
+  "event_type": "sales.order.confirmed",
+  "api_version": "v1",
+  "occurred_at": "2026-03-23T10:15:00Z",
+  "company_id": "uuid",
+  "data": {
+    "object_type": "sales_order",
+    "object_id": "uuid",
+    "reference": "SO-10021",
+    "status": "confirmed"
+  }
+}
+```
+
+Rules:
+
+- `event_id` must be globally unique
+- `event_type` must be stable and namespaced
+- `occurred_at` must reflect the business event time, not the delivery time
+- `data` must be a compact business snapshot, not a full page payload
+- consumers must be told to deduplicate by `event_id`
+
+### Signature And Security Rules
+
+Every webhook request should be signed.
+
+Recommended headers:
+
+- `X-Port101-Event`
+- `X-Port101-Event-Id`
+- `X-Port101-Timestamp`
+- `X-Port101-Signature`
+
+Recommended signature rule:
+
+- HMAC SHA-256 over `timestamp + "." + raw_body`
+- using the endpoint's signing secret
+
+Recommended additional constraints:
+
+- require HTTPS in production
+- allow `http://localhost` only for local development/testing
+- set request timeout aggressively, for example 10 seconds
+- treat only `2xx` as success
+- store only a truncated response body excerpt
+- never include secrets or internal admin metadata in event payloads
+
+### Delivery And Retry Rules
+
+Delivery should be asynchronous and at-least-once.
+
+Recommended retry policy:
+
+- first attempt immediately
+- retry 1 after 1 minute
+- retry 2 after 5 minutes
+- retry 3 after 15 minutes
+- retry 4 after 1 hour
+- move to `dead` after final failure
+
+Recommended delivery behavior:
+
+- one failed endpoint must not block other endpoints
+- deliveries must be idempotent from the consumer perspective
+- retries must reuse the same `event_id`
+- manual retry should create a new attempt on the same delivery record
+
+### Initial Event Set
+
+Phase 7 should start with events that are already backed by stable workflows in the codebase.
+
+Recommended first events:
+
+#### Sales
+
+- `sales.order.confirmed`
+
+Trigger point:
+
+- `SalesOrderWorkflowService::confirm()`
+
+#### Projects
+
+- `projects.project.provisioned`
+
+Trigger point:
+
+- the service-order to project provisioning flow that runs after confirmed sales orders
+
+#### Accounting
+
+- `accounting.invoice.posted`
+- `accounting.payment.received`
+
+Trigger points:
+
+- `AccountingInvoiceWorkflowService::post()`
+- payment event should be emitted when payment has actually been applied to business state
+- in the current workflow model, that likely means the reconcile path, not only payment draft creation
+
+#### Inventory
+
+- `inventory.delivery.completed`
+
+Trigger point:
+
+- delivery completion in the stock move workflow
+
+### UI And Operational Surface
+
+Port-101 should also expose a company-side management UI.
+
+Recommended location:
+
+- `Settings -> Integrations -> Webhooks`
+
+Recommended UI capabilities:
+
+- list endpoints
+- create/edit endpoint
+- enable/disable endpoint
+- choose subscribed events
+- rotate secret
+- send test event
+- inspect recent deliveries
+- inspect failure reason and response code
+- retry a failed delivery
+
+### Testing Plan
+
+Minimum test coverage should include:
+
+#### Endpoint Management
+
+- company-scoped CRUD
+- permission enforcement
+- secret rotation
+- event subscription validation
+
+#### Event Publishing
+
+- business workflow creates an integration event
+- correct event type is published
+- payload contains expected identifiers and references
+
+#### Delivery
+
+- successful `2xx` marks delivery as delivered
+- non-`2xx` marks delivery failed and schedules retry
+- timeout/network failure schedules retry
+- final exhaustion marks delivery dead
+
+#### Security
+
+- signature header is present
+- signature is computed from the correct raw payload
+- disabled endpoints do not receive deliveries
+
+#### Isolation
+
+- one company cannot view or retry another company's deliveries
+- one failing endpoint does not block other endpoints subscribed to the same event
+
+### Step-By-Step Execution Order
+
+#### Step 1: Schema And Policies
+
+Build:
+
+- `webhook_endpoints`
+- `integration_events`
+- `webhook_deliveries`
+- policies for endpoint and delivery access
+
+#### Step 2: Endpoint Management Layer
+
+Build:
+
+- endpoint CRUD
+- event subscription editing
+- secret rotation
+- test-send action
+
+Deliver via:
+
+- company web UI
+- `API v1` management endpoints
+
+#### Step 3: Outbound Event Service
+
+Build:
+
+- shared `OutboundEventService`
+- helper for recording events from domain workflows
 
 Important:
 
-- confirming an order must use the same downstream logic as the web app
-- if project provisioning is triggered from order confirmation, API confirmation must trigger it too
+- business workflows should write events, not send HTTP directly
 
-### Step 5: Cross-Module Verification
+#### Step 4: Delivery Worker
 
-Verify:
+Build:
 
-- confirmed sales orders still provision projects correctly
-- company scoping is intact
-- permissions are enforced
-- audit behavior remains consistent
+- queued fan-out job
+- queued delivery job
+- signature generation
+- retry scheduling
+- delivery persistence
 
-### Step 6: Documentation
+#### Step 5: Wire First Business Events
+
+Wire:
+
+- sales order confirmed
+- project provisioned
+- invoice posted
+- payment received
+- delivery completed
+
+#### Step 6: Observability And Operations
+
+Add:
+
+- delivery history screens
+- last success/failure timestamps
+- retry action
+- dead-letter visibility
+
+#### Step 7: Documentation And Consumer Guidance
 
 Document:
 
-- routes
-- request payloads
-- response payloads
-- action semantics
-- workflow constraints
+- event types
+- payload examples
+- signature verification example
+- retry semantics
+- idempotency guidance
+
+### Recommendation
+
+When implementation starts, build Phase 7 in this order:
+
+1. webhook endpoint schema and management
+2. integration event outbox
+3. delivery jobs and signing
+4. first event sources from Sales, Projects, Accounting, and Inventory
+5. delivery history and retry tooling
 
 ## Non-Goals For API V1
 
