@@ -132,7 +132,7 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
             ->push(['ok' => true], 200),
     ]);
 
-    $testDeliveryResponse = postJson('/api/v1/webhooks/endpoints/'.$endpointId.'/test')
+    $testDeliveryResponse = postJson('/api/v1/webhooks/endpoints/'.$endpointId.'/test', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', WebhookDelivery::STATUS_FAILED)
         ->assertJsonPath('data.response_status', 500);
@@ -151,7 +151,7 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
         ->assertJsonPath('data.status', WebhookDelivery::STATUS_FAILED)
         ->assertJsonPath('data.event_type', WebhookEventCatalog::SYSTEM_WEBHOOK_TEST);
 
-    postJson('/api/v1/webhooks/deliveries/'.$deliveryId.'/retry')
+    postJson('/api/v1/webhooks/deliveries/'.$deliveryId.'/retry', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', WebhookDelivery::STATUS_DELIVERED)
         ->assertJsonPath('data.response_status', 200);
@@ -244,7 +244,56 @@ test('api v1 webhook management enforces permissions and validation contracts', 
         'updated_by' => $viewer->id,
     ]);
 
-    postJson('/api/v1/webhooks/deliveries/'.$delivered->id.'/retry')
+    postJson('/api/v1/webhooks/deliveries/'.$delivered->id.'/retry', [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Only failed or dead deliveries can be retried.');
+});
+
+test('api v1 webhook test deliveries replay duplicate idempotent requests without re-sending', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookApiRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = WebhookEndpoint::create([
+        'company_id' => $company->id,
+        'name' => 'Replay Endpoint',
+        'target_url' => 'https://hooks.example.com/replay',
+        'signing_secret' => Str::random(64),
+        'api_version' => 'v1',
+        'is_active' => true,
+        'subscribed_events' => [WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED],
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    Http::fake([
+        'https://hooks.example.com/replay' => Http::response(['ok' => true], 200),
+    ]);
+
+    $key = 'webhook-test-delivery';
+
+    postJson('/api/v1/webhooks/endpoints/'.$endpoint->id.'/test')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstResponse = postJson('/api/v1/webhooks/endpoints/'.$endpoint->id.'/test', [], apiIdempotencyHeaders($key))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false');
+
+    $deliveryId = (string) $firstResponse->json('data.id');
+
+    postJson('/api/v1/webhooks/endpoints/'.$endpoint->id.'/test', [], apiIdempotencyHeaders($key))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', $deliveryId);
+
+    Http::assertSentCount(1);
+    expect(WebhookDelivery::query()->where('company_id', $company->id)->count())->toBe(1);
 });

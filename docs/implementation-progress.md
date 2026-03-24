@@ -54,6 +54,7 @@
 - API v1 Phase 5 Approvals API implemented: `/api/v1/approvals/requests` now supports approval-request listing/detail plus explicit decision actions (`approve`, `reject`) through the shared approvals queue service, including company-scoped request discovery, decision-step visibility, authority-aware action gating, and shared JSON error semantics for permission and lifecycle failures.
 - API v1 Phase 6 Reports/Exports API implemented: `/api/v1/reports/exports` now supports queued company-report export job creation plus status polling and file download, with persisted export records, shared PDF/XLSX generation, company-scoped access control, and shared JSON error semantics for validation, permission, and pending-download failures.
 - API v1 Phase 7 Webhooks/outbound integrations implemented: company-scoped webhook endpoint management (`/api/v1/webhooks/endpoints`, delivery history, test delivery, secret rotation, retry actions), signed webhook payload delivery with persisted integration events/delivery attempts, and outbound business-event publishing for `sales.order.confirmed`, `projects.project.provisioned`, `accounting.invoice.posted`, `accounting.payment.received`, and `inventory.delivery.completed`.
+- API v1 integration hardening Phase 2 part 1 implemented: selected write-heavy API actions now require `Idempotency-Key`, request fingerprints persist in `api_idempotency_keys`, duplicate requests replay the original successful response, conflicting payload reuse is rejected, and in-flight key reuse is blocked for sales create/confirm, accounting post, report export creation, and webhook test/retry actions.
 - Company integrations workspace implemented: `/company/integrations` now exposes webhook endpoint management, endpoint detail/history views, dead-letter and retry visibility, delivery-detail inspection, and company-side test/rotate/retry flows without requiring the raw API endpoints.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
@@ -194,6 +195,7 @@
 - API v1 now exposes Approvals at `/api/v1/approvals` with company-scoped approval request list/detail access plus approve/reject decision actions backed by the shared approvals queue and authority checks.
 - API v1 now exposes Reports at `/api/v1/reports` with queued export-job creation, export-status polling, and download endpoints for company report files without exposing dashboard-specific page payloads.
 - API v1 now exposes Webhooks at `/api/v1/webhooks` with company-scoped endpoint CRUD, signed test deliveries, delivery-history visibility, retry controls, and persisted outbound event fan-out for the first production event set (`sales.order.confirmed`, `projects.project.provisioned`, `accounting.invoice.posted`, `accounting.payment.received`, `inventory.delivery.completed`).
+- API v1 now enforces idempotency on selected create/post/confirm endpoints: sales lead/quote/order creation, quote/order confirmation, accounting invoice/payment posting, report export creation, and webhook test/retry actions require `Idempotency-Key` and replay the original successful response for safe client retries.
 - Company integrations workspace is now live at `/company/integrations` with a webhook operations dashboard, endpoint CRUD pages, endpoint-level delivery history, global delivery/dead-letter queue visibility, delivery-detail inspection, and retry/test/rotate actions for company admins.
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
@@ -216,8 +218,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `237 passed`, `0 failed`.
-- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, and API-exposed move-line traceability on the full PostgreSQL-backed suite.
+- Latest full-suite count: `242 passed`, `0 failed`.
+- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, and API v1 write-heavy retry paths now provide persisted idempotency replay/conflict protection on the full PostgreSQL-backed suite.
 
 ## Suggestions
 

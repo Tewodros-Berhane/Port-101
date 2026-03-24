@@ -51,6 +51,16 @@ function something()
 }
 
 /**
+ * @return array{Idempotency-Key: string}
+ */
+function apiIdempotencyHeaders(?string $key = null): array
+{
+    return [
+        'Idempotency-Key' => $key ?? 'test-'.(string) Str::uuid(),
+    ];
+}
+
+/**
  * @return array{0: User, 1: Company}
  */
 function makeActiveCompanyMember(?User $user = null): array

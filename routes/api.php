@@ -34,12 +34,14 @@ Route::prefix('v1')->group(function () {
         Route::prefix('accounting')->group(function () {
             Route::apiResource('invoices', ApiAccountingInvoicesController::class)
                 ->parameters(['invoices' => 'invoice']);
-            Route::post('invoices/{invoice}/post', [ApiAccountingInvoicesController::class, 'post']);
+            Route::post('invoices/{invoice}/post', [ApiAccountingInvoicesController::class, 'post'])
+                ->middleware('api.idempotency');
             Route::post('invoices/{invoice}/cancel', [ApiAccountingInvoicesController::class, 'cancel']);
 
             Route::apiResource('payments', ApiAccountingPaymentsController::class)
                 ->parameters(['payments' => 'payment']);
-            Route::post('payments/{payment}/post', [ApiAccountingPaymentsController::class, 'post']);
+            Route::post('payments/{payment}/post', [ApiAccountingPaymentsController::class, 'post'])
+                ->middleware('api.idempotency');
             Route::post('payments/{payment}/reconcile', [ApiAccountingPaymentsController::class, 'reconcile']);
             Route::post('payments/{payment}/reverse', [ApiAccountingPaymentsController::class, 'reverse']);
         });
@@ -52,7 +54,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
         Route::prefix('reports')->group(function () {
-            Route::post('exports', [ApiReportExportsController::class, 'store']);
+            Route::post('exports', [ApiReportExportsController::class, 'store'])
+                ->middleware('api.idempotency');
             Route::get('exports/{reportExport}', [ApiReportExportsController::class, 'show']);
             Route::get('exports/{reportExport}/download', [ApiReportExportsController::class, 'download']);
         });
@@ -63,10 +66,12 @@ Route::prefix('v1')->group(function () {
             Route::match(['put', 'patch'], 'endpoints/{endpoint}', [ApiWebhookEndpointsController::class, 'update']);
             Route::delete('endpoints/{endpoint}', [ApiWebhookEndpointsController::class, 'destroy']);
             Route::post('endpoints/{endpoint}/rotate-secret', [ApiWebhookEndpointsController::class, 'rotateSecret']);
-            Route::post('endpoints/{endpoint}/test', [ApiWebhookEndpointsController::class, 'test']);
+            Route::post('endpoints/{endpoint}/test', [ApiWebhookEndpointsController::class, 'test'])
+                ->middleware('api.idempotency');
             Route::get('endpoints/{endpoint}/deliveries', [ApiWebhookEndpointsController::class, 'deliveries']);
             Route::get('deliveries/{delivery}', [ApiWebhookDeliveriesController::class, 'show']);
-            Route::post('deliveries/{delivery}/retry', [ApiWebhookDeliveriesController::class, 'retry']);
+            Route::post('deliveries/{delivery}/retry', [ApiWebhookDeliveriesController::class, 'retry'])
+                ->middleware('api.idempotency');
         });
         Route::prefix('inventory')->group(function () {
             Route::get('stock-balances', [ApiInventoryStockBalancesController::class, 'index']);
@@ -91,15 +96,26 @@ Route::prefix('v1')->group(function () {
             Route::post('orders/{order}/receive', [ApiPurchaseOrdersController::class, 'receive']);
         });
         Route::prefix('sales')->group(function () {
-            Route::apiResource('leads', ApiSalesLeadsController::class);
-            Route::apiResource('quotes', ApiSalesQuotesController::class);
+            Route::apiResource('leads', ApiSalesLeadsController::class)
+                ->except(['store']);
+            Route::post('leads', [ApiSalesLeadsController::class, 'store'])
+                ->middleware('api.idempotency');
+            Route::apiResource('quotes', ApiSalesQuotesController::class)
+                ->except(['store']);
+            Route::post('quotes', [ApiSalesQuotesController::class, 'store'])
+                ->middleware('api.idempotency');
             Route::post('quotes/{quote}/send', [ApiSalesQuotesController::class, 'send']);
             Route::post('quotes/{quote}/approve', [ApiSalesQuotesController::class, 'approve']);
             Route::post('quotes/{quote}/reject', [ApiSalesQuotesController::class, 'reject']);
-            Route::post('quotes/{quote}/confirm', [ApiSalesQuotesController::class, 'confirm']);
-            Route::apiResource('orders', ApiSalesOrdersController::class);
+            Route::post('quotes/{quote}/confirm', [ApiSalesQuotesController::class, 'confirm'])
+                ->middleware('api.idempotency');
+            Route::apiResource('orders', ApiSalesOrdersController::class)
+                ->except(['store']);
+            Route::post('orders', [ApiSalesOrdersController::class, 'store'])
+                ->middleware('api.idempotency');
             Route::post('orders/{order}/approve', [ApiSalesOrdersController::class, 'approve']);
-            Route::post('orders/{order}/confirm', [ApiSalesOrdersController::class, 'confirm']);
+            Route::post('orders/{order}/confirm', [ApiSalesOrdersController::class, 'confirm'])
+                ->middleware('api.idempotency');
         });
         Route::apiResource('projects', ApiProjectsController::class);
 

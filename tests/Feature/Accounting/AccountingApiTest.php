@@ -173,7 +173,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         ->assertOk()
         ->assertJsonPath('data.notes', 'API lifecycle invoice updated');
 
-    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post')
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
 
@@ -212,7 +212,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         ->assertOk()
         ->assertJsonPath('data.reference', 'API-PAY-002');
 
-    postJson('/api/v1/accounting/payments/'.$paymentId.'/post')
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/post', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingPayment::STATUS_POSTED);
 
@@ -254,7 +254,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
 
     $vendorBillId = (string) $vendorBillResponse->json('data.id');
 
-    postJson('/api/v1/accounting/invoices/'.$vendorBillId.'/post')
+    postJson('/api/v1/accounting/invoices/'.$vendorBillId.'/post', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
 
@@ -358,7 +358,7 @@ test('api v1 accounting permissions validation and lifecycle errors use the shar
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Invoice must be posted before payments can be captured.');
 
-    postJson('/api/v1/accounting/invoices/'.$draftInvoiceId.'/post')
+    postJson('/api/v1/accounting/invoices/'.$draftInvoiceId.'/post', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
 
@@ -392,4 +392,58 @@ test('api v1 accounting permissions validation and lifecycle errors use the shar
             'message',
             'errors' => ['reason'],
         ]);
+});
+
+test('api v1 accounting idempotency replays duplicate invoice posting', function () {
+    [$financeUser, $company] = makeActiveCompanyMember();
+
+    assignAccountingApiRole($financeUser, $company->id, [
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $customer = createAccountingApiPartner($company->id, $financeUser->id, 'Replay Customer', 'customer');
+
+    Sanctum::actingAs($financeUser);
+
+    $invoiceId = (string) postJson('/api/v1/accounting/invoices', [
+        'partner_id' => $customer->id,
+        'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+        'sales_order_id' => null,
+        'invoice_date' => now()->toDateString(),
+        'due_date' => now()->addDays(14)->toDateString(),
+        'notes' => 'Replay-safe posting',
+        'lines' => [
+            [
+                'product_id' => null,
+                'description' => 'Posting line',
+                'quantity' => 1,
+                'unit_price' => 100,
+                'tax_rate' => 0,
+            ],
+        ],
+    ])->json('data.id');
+
+    $key = 'accounting-invoice-post';
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstResponse = postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post', [], apiIdempotencyHeaders($key))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post', [], apiIdempotencyHeaders($key))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstResponse->json('data.id'))
+        ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
 });

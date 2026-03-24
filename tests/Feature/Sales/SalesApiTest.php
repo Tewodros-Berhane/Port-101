@@ -6,6 +6,7 @@ use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Role;
 use App\Core\Settings\SettingsService;
 use App\Models\User;
+use App\Modules\Integrations\Models\ApiIdempotencyKey;
 use App\Modules\Projects\Models\Project;
 use App\Modules\Sales\Models\SalesLead;
 use Database\Seeders\CoreRolesSeeder;
@@ -108,7 +109,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         'estimated_value' => 900,
         'expected_close_date' => now()->addDays(10)->toDateString(),
         'notes' => 'Inbound request from the API.',
-    ])
+    ], apiIdempotencyHeaders())
         ->assertCreated()
         ->assertJsonPath('data.title', 'API Expansion Opportunity')
         ->assertJsonPath('data.stage', 'new');
@@ -155,7 +156,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
                 'tax_rate' => 0,
             ],
         ],
-    ])
+    ], apiIdempotencyHeaders())
         ->assertCreated()
         ->assertJsonPath('data.status', 'draft')
         ->assertJsonPath('data.lines.0.product_id', $product->id);
@@ -186,7 +187,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ->assertOk()
         ->assertJsonPath('data.status', 'sent');
 
-    $confirmQuoteResponse = postJson("/api/v1/sales/quotes/{$quoteId}/confirm")
+    $confirmQuoteResponse = postJson("/api/v1/sales/quotes/{$quoteId}/confirm", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.quote.status', 'confirmed')
         ->assertJsonPath('data.order.status', 'draft');
@@ -219,7 +220,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ->assertJsonPath('data.lines.0.quantity', 4)
         ->assertJsonPath('data.grand_total', 600);
 
-    postJson("/api/v1/sales/orders/{$orderId}/confirm")
+    postJson("/api/v1/sales/orders/{$orderId}/confirm", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', 'confirmed');
 
@@ -238,7 +239,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         'estimated_value' => 50,
         'expected_close_date' => now()->addDays(2)->toDateString(),
         'notes' => 'Disposable lead.',
-    ])->json('data.id');
+    ], apiIdempotencyHeaders())->json('data.id');
 
     deleteJson('/api/v1/sales/leads/'.$deletableLeadId)
         ->assertNoContent();
@@ -258,7 +259,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
                 'tax_rate' => 0,
             ],
         ],
-    ])->json('data.id');
+    ], apiIdempotencyHeaders())->json('data.id');
 
     deleteJson('/api/v1/sales/quotes/'.$deletableQuoteId)
         ->assertNoContent();
@@ -277,7 +278,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
                 'tax_rate' => 0,
             ],
         ],
-    ])->json('data.id');
+    ], apiIdempotencyHeaders())->json('data.id');
 
     deleteJson('/api/v1/sales/orders/'.$deletableOrderId)
         ->assertNoContent();
@@ -322,7 +323,7 @@ test('api v1 sales approval endpoints support quote and order approval gates', f
                 'tax_rate' => 0,
             ],
         ],
-    ])
+    ], apiIdempotencyHeaders())
         ->assertCreated()
         ->assertJsonPath('data.requires_approval', true)
         ->json('data.id');
@@ -331,7 +332,7 @@ test('api v1 sales approval endpoints support quote and order approval gates', f
         ->assertOk()
         ->assertJsonPath('data.status', 'sent');
 
-    postJson("/api/v1/sales/quotes/{$quoteId}/confirm")
+    postJson("/api/v1/sales/quotes/{$quoteId}/confirm", [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonStructure(['message', 'errors' => ['quote']]);
 
@@ -343,12 +344,12 @@ test('api v1 sales approval endpoints support quote and order approval gates', f
 
     Sanctum::actingAs($salesUser);
 
-    $orderId = (string) postJson("/api/v1/sales/quotes/{$quoteId}/confirm")
+    $orderId = (string) postJson("/api/v1/sales/quotes/{$quoteId}/confirm", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.order.requires_approval', true)
         ->json('data.order.id');
 
-    postJson("/api/v1/sales/orders/{$orderId}/confirm")
+    postJson("/api/v1/sales/orders/{$orderId}/confirm", [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonStructure(['message', 'errors' => ['order']]);
 
@@ -360,7 +361,99 @@ test('api v1 sales approval endpoints support quote and order approval gates', f
 
     Sanctum::actingAs($salesUser);
 
-    postJson("/api/v1/sales/orders/{$orderId}/confirm")
+    postJson("/api/v1/sales/orders/{$orderId}/confirm", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', 'confirmed');
+});
+
+test('api v1 sales idempotency replays duplicate create requests and rejects payload conflicts', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$salesUser, $company] = makeActiveCompanyMember();
+
+    assignSalesApiRole($salesUser, $company->id, 'sales_user');
+    createSalesApiCurrency($company->id, $salesUser->id);
+    [$partner] = createSalesApiPartnerProduct($company->id, $salesUser->id, 'service');
+
+    Sanctum::actingAs($salesUser);
+
+    $payload = [
+        'partner_id' => $partner->id,
+        'title' => 'Idempotent API Lead',
+        'stage' => 'new',
+        'estimated_value' => 750,
+        'expected_close_date' => now()->addDays(5)->toDateString(),
+        'notes' => 'Replay-safe create request.',
+    ];
+
+    postJson('/api/v1/sales/leads', $payload)
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $key = 'sales-lead-create';
+
+    $firstResponse = postJson('/api/v1/sales/leads', $payload, apiIdempotencyHeaders($key))
+        ->assertCreated()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false');
+
+    $leadId = (string) $firstResponse->json('data.id');
+
+    postJson('/api/v1/sales/leads', $payload, apiIdempotencyHeaders($key))
+        ->assertCreated()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', $leadId);
+
+    expect(SalesLead::query()->where('company_id', $company->id)->count())->toBe(1);
+
+    postJson('/api/v1/sales/leads', [
+        ...$payload,
+        'title' => 'Conflicting payload',
+    ], apiIdempotencyHeaders($key))
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'Idempotency-Key cannot be reused with a different request payload.');
+});
+
+test('api v1 sales idempotency blocks requests while the same key is in flight', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$salesUser, $company] = makeActiveCompanyMember();
+
+    assignSalesApiRole($salesUser, $company->id, 'sales_user');
+    createSalesApiCurrency($company->id, $salesUser->id);
+    [$partner] = createSalesApiPartnerProduct($company->id, $salesUser->id, 'service');
+
+    Sanctum::actingAs($salesUser);
+
+    ApiIdempotencyKey::create([
+        'company_id' => $company->id,
+        'user_id' => $salesUser->id,
+        'key' => 'sales-in-flight',
+        'request_fingerprint' => hash('sha256', json_encode([
+            'method' => 'POST',
+            'path' => 'api/v1/sales/leads',
+            'route_parameters' => [],
+            'payload' => [
+                'estimated_value' => 400,
+                'expected_close_date' => now()->addDays(3)->toDateString(),
+                'notes' => 'In-flight replay.',
+                'partner_id' => $partner->id,
+                'stage' => 'new',
+                'title' => 'In-flight lead',
+            ],
+        ], JSON_THROW_ON_ERROR)),
+        'expires_at' => now()->addHour(),
+    ]);
+
+    postJson('/api/v1/sales/leads', [
+        'partner_id' => $partner->id,
+        'title' => 'In-flight lead',
+        'stage' => 'new',
+        'estimated_value' => 400,
+        'expected_close_date' => now()->addDays(3)->toDateString(),
+        'notes' => 'In-flight replay.',
+    ], apiIdempotencyHeaders('sales-in-flight'))
+        ->assertConflict()
+        ->assertJsonPath('message', 'A request with this Idempotency-Key is already being processed.');
 });

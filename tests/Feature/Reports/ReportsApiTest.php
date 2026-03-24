@@ -90,7 +90,7 @@ test('api v1 reports exports can be created polled and downloaded', function () 
         'format' => ReportExport::FORMAT_PDF,
         'trend_window' => 30,
         'approval_status' => 'pending',
-    ])
+    ], apiIdempotencyHeaders())
         ->assertAccepted()
         ->assertJsonPath('data.report_key', CompanyReportsService::REPORT_APPROVAL_GOVERNANCE)
         ->assertJsonPath('data.format', ReportExport::FORMAT_PDF)
@@ -138,7 +138,7 @@ test('api v1 reports exports use shared permission validation and pending-downlo
         'report_key' => CompanyReportsService::REPORT_FINANCE_SNAPSHOT,
         'format' => ReportExport::FORMAT_XLSX,
         'trend_window' => 7,
-    ])
+    ], apiIdempotencyHeaders())
         ->assertForbidden()
         ->assertJsonPath('message', 'This action is unauthorized.');
 
@@ -152,7 +152,7 @@ test('api v1 reports exports use shared permission validation and pending-downlo
     postJson('/api/v1/reports/exports', [
         'report_key' => 'not-a-real-report',
         'format' => 'csv',
-    ])
+    ], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonStructure([
             'message',
@@ -178,4 +178,44 @@ test('api v1 reports exports use shared permission validation and pending-downlo
     getJson('/api/v1/reports/exports/'.$pendingExport->id.'/download')
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Report export is not ready for download.');
+});
+
+test('api v1 report export creation replays duplicate idempotent requests', function () {
+    Storage::fake('local');
+
+    [$reportUser, $company] = makeActiveCompanyMember();
+
+    assignReportsApiRole($reportUser, $company->id, [
+        'reports.view',
+        'reports.export',
+    ]);
+
+    Sanctum::actingAs($reportUser);
+
+    $payload = [
+        'report_key' => CompanyReportsService::REPORT_FINANCE_SNAPSHOT,
+        'format' => ReportExport::FORMAT_XLSX,
+        'trend_window' => 30,
+    ];
+
+    $key = 'reports-export-create';
+
+    postJson('/api/v1/reports/exports', $payload)
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstResponse = postJson('/api/v1/reports/exports', $payload, apiIdempotencyHeaders($key))
+        ->assertAccepted()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false');
+
+    $exportId = (string) $firstResponse->json('data.id');
+
+    postJson('/api/v1/reports/exports', $payload, apiIdempotencyHeaders($key))
+        ->assertAccepted()
+        ->assertHeader('Idempotency-Key', $key)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', $exportId);
+
+    expect(ReportExport::query()->where('company_id', $company->id)->count())->toBe(1);
 });
