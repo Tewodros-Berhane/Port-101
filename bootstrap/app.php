@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\PreventAuthenticatedPageCache;
+use App\Http\Middleware\RequireIdempotency;
 use App\Http\Middleware\ResolveCompanyContext;
 use App\Support\Api\ApiErrorResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
+            'api.idempotency' => RequireIdempotency::class,
             'company' => EnsureCompanyMembership::class,
             'company.workspace' => EnsureCompanyWorkspaceUser::class,
             'company.context' => ResolveCompanyContext::class,
