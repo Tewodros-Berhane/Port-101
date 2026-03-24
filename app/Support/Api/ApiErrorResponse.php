@@ -3,6 +3,7 @@
 namespace App\Support\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\App;
 
 class ApiErrorResponse
 {
@@ -26,6 +27,14 @@ class ApiErrorResponse
             $payload['meta'] = $meta;
         }
 
-        return response()->json($payload, $status);
+        $response = response()->json($payload, $status);
+
+        $request = request();
+
+        if ($request) {
+            App::make(ApiVersionPolicy::class)->applyHeadersForRequest($response, $request);
+        }
+
+        return $response;
     }
 }

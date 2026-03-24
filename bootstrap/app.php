@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AttachApiVersionHeaders;
 use App\Http\Middleware\EnsureCompanyMembership;
 use App\Http\Middleware\EnsureCompanyWorkspaceUser;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'api.idempotency' => RequireIdempotency::class,
+            'api.version.headers' => AttachApiVersionHeaders::class,
             'company' => EnsureCompanyMembership::class,
             'company.workspace' => EnsureCompanyWorkspaceUser::class,
             'company.context' => ResolveCompanyContext::class,
