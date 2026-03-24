@@ -86,6 +86,7 @@ class Project extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'customer_id',
         'sales_order_id',
         'currency_id',

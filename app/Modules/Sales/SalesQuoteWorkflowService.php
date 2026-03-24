@@ -31,6 +31,7 @@ class SalesQuoteWorkflowService
         $quote = DB::transaction(function () use ($attributes, $calculated, $totals, $companyId, $actor) {
             $quote = SalesQuote::create([
                 'company_id' => $companyId,
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'lead_id' => $attributes['lead_id'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'quote_number' => $this->numberingService->nextQuoteNumber($companyId, $actor->id),
@@ -92,6 +93,7 @@ class SalesQuoteWorkflowService
             $resetApproval = $quote->status === SalesQuote::STATUS_APPROVED;
 
             $quote->update([
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'lead_id' => $attributes['lead_id'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'quote_date' => $attributes['quote_date'],

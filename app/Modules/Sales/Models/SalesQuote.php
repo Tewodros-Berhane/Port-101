@@ -17,11 +17,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesQuote extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -50,6 +50,7 @@ class SalesQuote extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'lead_id',
         'partner_id',
         'quote_number',
@@ -122,5 +123,3 @@ class SalesQuote extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
-
-

@@ -17,11 +17,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseRfq extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -50,6 +50,7 @@ class PurchaseRfq extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'partner_id',
         'rfq_number',
         'status',

@@ -46,6 +46,7 @@ class AccountingPaymentWorkflowService
 
             return AccountingPayment::create([
                 'company_id' => $companyId,
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'invoice_id' => $invoice->id,
                 'payment_number' => $this->numberingService->nextPaymentNumber(
                     companyId: $companyId,
@@ -95,6 +96,7 @@ class AccountingPaymentWorkflowService
             $this->assertPaymentAmountWithinBalance($invoice, $amount);
 
             $payment->update([
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'invoice_id' => $invoice->id,
                 'payment_date' => $attributes['payment_date'],
                 'amount' => $amount,

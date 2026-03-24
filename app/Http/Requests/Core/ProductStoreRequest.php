@@ -4,6 +4,7 @@ namespace App\Http\Requests\Core;
 
 use App\Core\MasterData\Models\Product;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
+use App\Http\Requests\Core\Concerns\CompanyScopedExternalReferenceRule;
 use App\Modules\Inventory\Models\ProductBundle;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
 class ProductStoreRequest extends FormRequest
 {
     use CompanyScopedExistsRule;
+    use CompanyScopedExternalReferenceRule;
 
     public function authorize(): bool
     {
@@ -22,6 +24,7 @@ class ProductStoreRequest extends FormRequest
         $companyId = $this->user()?->current_company_id;
 
         return [
+            'external_reference' => $this->externalReferenceRules('products'),
             'sku' => [
                 'nullable',
                 'string',

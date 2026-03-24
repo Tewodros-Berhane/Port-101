@@ -42,6 +42,7 @@ class PurchasingOrderWorkflowService
         ) {
             $order = PurchaseOrder::create([
                 'company_id' => $companyId,
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'rfq_id' => $attributes['rfq_id'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'order_number' => $this->numberingService->nextOrderNumber($companyId, $actorId),
@@ -99,6 +100,7 @@ class PurchasingOrderWorkflowService
             $totals = $calculated['totals'];
 
             $order->update([
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'order_date' => $attributes['order_date'] ?? $order->order_date?->toDateString(),
                 'subtotal' => $totals['subtotal'],

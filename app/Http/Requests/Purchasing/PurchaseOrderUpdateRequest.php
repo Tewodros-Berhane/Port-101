@@ -4,12 +4,14 @@ namespace App\Http\Requests\Purchasing;
 
 use App\Core\MasterData\Models\Partner;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
+use App\Http\Requests\Core\Concerns\CompanyScopedExternalReferenceRule;
 use App\Http\Requests\Purchasing\Concerns\ValidatesPurchasingLines;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PurchaseOrderUpdateRequest extends FormRequest
 {
     use CompanyScopedExistsRule;
+    use CompanyScopedExternalReferenceRule;
     use ValidatesPurchasingLines;
 
     public function authorize(): bool
@@ -19,7 +21,10 @@ class PurchaseOrderUpdateRequest extends FormRequest
 
     public function rules(): array
     {
+        $orderId = (string) $this->route('order')?->id;
+
         return [
+            'external_reference' => $this->externalReferenceRules('purchase_orders', $orderId),
             'partner_id' => ['required', 'uuid', $this->companyScopedExists('partners')],
             'order_date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],

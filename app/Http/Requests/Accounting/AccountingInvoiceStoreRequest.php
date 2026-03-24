@@ -4,6 +4,7 @@ namespace App\Http\Requests\Accounting;
 
 use App\Http\Requests\Accounting\Concerns\ValidatesAccountingInvoiceLines;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
+use App\Http\Requests\Core\Concerns\CompanyScopedExternalReferenceRule;
 use App\Modules\Accounting\Models\AccountingInvoice;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
 class AccountingInvoiceStoreRequest extends FormRequest
 {
     use CompanyScopedExistsRule;
+    use CompanyScopedExternalReferenceRule;
     use ValidatesAccountingInvoiceLines;
 
     public function authorize(): bool
@@ -21,6 +23,7 @@ class AccountingInvoiceStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'external_reference' => $this->externalReferenceRules('accounting_invoices'),
             'partner_id' => ['required', 'uuid', $this->companyScopedExists('partners')],
             'document_type' => ['required', 'string', Rule::in(AccountingInvoice::TYPES)],
             'sales_order_id' => ['nullable', 'uuid', $this->companyScopedExists('sales_orders')],

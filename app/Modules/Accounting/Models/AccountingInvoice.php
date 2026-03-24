@@ -78,6 +78,7 @@ class AccountingInvoice extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'partner_id',
         'sales_order_id',
         'purchase_order_id',

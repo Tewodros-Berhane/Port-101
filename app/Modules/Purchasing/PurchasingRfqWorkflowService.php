@@ -38,6 +38,7 @@ class PurchasingRfqWorkflowService
         ) {
             $rfq = PurchaseRfq::create([
                 'company_id' => $companyId,
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'rfq_number' => $this->numberingService->nextRfqNumber($companyId, $actorId),
                 'status' => PurchaseRfq::STATUS_DRAFT,
@@ -91,6 +92,7 @@ class PurchasingRfqWorkflowService
             $totals = $calculated['totals'];
 
             $rfq->update([
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'rfq_date' => $attributes['rfq_date'] ?? $rfq->rfq_date?->toDateString(),
                 'valid_until' => $attributes['valid_until'] ?? null,

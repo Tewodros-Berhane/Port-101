@@ -16,11 +16,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesLead extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public $incrementing = false;
 
@@ -28,6 +28,7 @@ class SalesLead extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'partner_id',
         'title',
         'stage',
@@ -73,5 +74,3 @@ class SalesLead extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
-
-

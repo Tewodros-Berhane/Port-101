@@ -30,6 +30,7 @@ class SalesOrderWorkflowService
         $order = DB::transaction(function () use ($attributes, $calculated, $totals, $companyId, $actor) {
             $order = SalesOrder::create([
                 'company_id' => $companyId,
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'quote_id' => $attributes['quote_id'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'order_number' => $this->numberingService->nextOrderNumber($companyId, $actor->id),
@@ -90,6 +91,7 @@ class SalesOrderWorkflowService
             $resetApproval = $order->approved_at !== null && $requiresApproval;
 
             $order->update([
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'order_date' => $attributes['order_date'],
                 'subtotal' => $totals['subtotal'],

@@ -15,11 +15,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Partner extends Model
 {
+    use Auditable;
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
-    use Auditable;
 
     public $incrementing = false;
 
@@ -27,6 +27,7 @@ class Partner extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'code',
         'name',
         'type',

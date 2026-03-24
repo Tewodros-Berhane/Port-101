@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Core;
 
+use App\Http\Requests\Core\Concerns\CompanyScopedExternalReferenceRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class PartnerUpdateRequest extends FormRequest
 {
+    use CompanyScopedExternalReferenceRule;
+
     public function authorize(): bool
     {
         return true;
@@ -18,6 +21,7 @@ class PartnerUpdateRequest extends FormRequest
         $partnerId = $this->route('partner')?->id;
 
         return [
+            'external_reference' => $this->externalReferenceRules('partners', $partnerId),
             'code' => [
                 'nullable',
                 'string',

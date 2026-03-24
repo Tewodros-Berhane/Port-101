@@ -45,6 +45,7 @@ class AccountingPayment extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'invoice_id',
         'payment_number',
         'status',

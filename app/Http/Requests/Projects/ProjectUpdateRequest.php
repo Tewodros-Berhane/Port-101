@@ -4,6 +4,7 @@ namespace App\Http\Requests\Projects;
 
 use App\Http\Requests\Core\Concerns\CompanyMemberExistsRule;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
+use App\Http\Requests\Core\Concerns\CompanyScopedExternalReferenceRule;
 use App\Modules\Projects\Models\Project;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,7 @@ class ProjectUpdateRequest extends FormRequest
 {
     use CompanyMemberExistsRule;
     use CompanyScopedExistsRule;
+    use CompanyScopedExternalReferenceRule;
 
     public function authorize(): bool
     {
@@ -23,6 +25,7 @@ class ProjectUpdateRequest extends FormRequest
         $projectId = (string) $this->route('project')?->id;
 
         return [
+            'external_reference' => $this->externalReferenceRules('projects', $projectId),
             'customer_id' => ['nullable', 'uuid', $this->companyScopedExists('partners')],
             'sales_order_id' => ['nullable', 'uuid', $this->companyScopedExists('sales_orders')],
             'currency_id' => ['required', 'uuid', $this->companyScopedExists('currencies')],

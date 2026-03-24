@@ -47,6 +47,7 @@ class Product extends Model
 
     protected $fillable = [
         'company_id',
+        'external_reference',
         'sku',
         'name',
         'type',

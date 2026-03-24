@@ -55,6 +55,7 @@ class AccountingInvoiceWorkflowService
 
             $invoice = AccountingInvoice::create([
                 'company_id' => $companyId,
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'sales_order_id' => $attributes['sales_order_id'] ?? null,
                 'document_type' => $documentType,
@@ -120,6 +121,7 @@ class AccountingInvoiceWorkflowService
             $totals = $calculated['totals'];
 
             $invoice->update([
+                'external_reference' => $attributes['external_reference'] ?? null,
                 'partner_id' => $attributes['partner_id'],
                 'document_type' => $documentType,
                 'delivery_status' => $this->resolveDeliveryStatus(

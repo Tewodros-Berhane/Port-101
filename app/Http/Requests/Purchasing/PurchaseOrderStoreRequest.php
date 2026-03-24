@@ -4,6 +4,7 @@ namespace App\Http\Requests\Purchasing;
 
 use App\Core\MasterData\Models\Partner;
 use App\Http\Requests\Core\Concerns\CompanyScopedExistsRule;
+use App\Http\Requests\Core\Concerns\CompanyScopedExternalReferenceRule;
 use App\Http\Requests\Purchasing\Concerns\ValidatesPurchasingLines;
 use App\Modules\Purchasing\Models\PurchaseRfq;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class PurchaseOrderStoreRequest extends FormRequest
 {
     use CompanyScopedExistsRule;
+    use CompanyScopedExternalReferenceRule;
     use ValidatesPurchasingLines;
 
     public function authorize(): bool
@@ -21,6 +23,7 @@ class PurchaseOrderStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'external_reference' => $this->externalReferenceRules('purchase_orders'),
             'rfq_id' => ['nullable', 'uuid', $this->companyScopedExists('purchase_rfqs')],
             'partner_id' => ['required', 'uuid', $this->companyScopedExists('partners')],
             'order_date' => ['required', 'date'],
