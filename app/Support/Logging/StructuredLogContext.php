@@ -57,6 +57,7 @@ class StructuredLogContext
 
         $this->putScope('runtime', [
             'runtime' => 'http',
+            'request_id' => $request->attributes->get('request_id') ?: $request->headers->get('X-Request-Id'),
         ]);
 
         $this->putScope('request', [
@@ -73,10 +74,11 @@ class StructuredLogContext
         ]);
     }
 
-    public function setConsoleContext(?string $commandName = null): void
+    public function setConsoleContext(?string $commandName = null, ?string $requestId = null): void
     {
         $this->putScope('runtime', [
             'runtime' => 'console',
+            'request_id' => $requestId ?: (string) Str::uuid(),
             'console_command' => $commandName,
             'module' => 'console',
             'action' => $commandName,
@@ -91,6 +93,29 @@ class StructuredLogContext
         $this->putScope('queue', [
             'runtime' => 'queue',
             ...$context,
+        ]);
+    }
+
+    public function currentRequestId(): ?string
+    {
+        return $this->scopeValue('queue', 'request_id')
+            ?? $this->scopeValue('request', 'request_id')
+            ?? $this->scopeValue('runtime', 'request_id');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function queuePropagationContext(): array
+    {
+        return $this->filterContext([
+            'request_id' => $this->currentRequestId() ?: (string) Str::uuid(),
+            'company_id' => $this->scopeValue('request', 'company_id')
+                ?? $this->scopeValue('queue', 'company_id'),
+            'user_id' => $this->scopeValue('request', 'user_id')
+                ?? $this->scopeValue('queue', 'user_id'),
+            'parent_job_id' => $this->scopeValue('queue', 'job_id'),
+            'correlation_origin' => $this->scopeValue('runtime', 'runtime'),
         ]);
     }
 
@@ -151,6 +176,11 @@ class StructuredLogContext
     private function filterContext(array $context): array
     {
         return array_filter($context, fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function scopeValue(string $scope, string $key): mixed
+    {
+        return $this->scopes[$scope][$key] ?? null;
     }
 
     private function looksLikeIdentifier(string $value): bool

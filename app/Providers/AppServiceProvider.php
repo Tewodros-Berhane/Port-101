@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
@@ -78,7 +79,10 @@ class AppServiceProvider extends ServiceProvider
     protected function registerStructuredLogging(): void
     {
         Event::listen(CommandStarting::class, function (CommandStarting $event): void {
-            app(StructuredLogContext::class)->setConsoleContext($event->command);
+            app(StructuredLogContext::class)->setConsoleContext(
+                $event->command,
+                (string) Str::uuid(),
+            );
         });
 
         Event::listen(CommandFinished::class, function (): void {
@@ -124,6 +128,12 @@ class AppServiceProvider extends ServiceProvider
             ]);
 
             app(StructuredLogContext::class)->clearScope('queue');
+        });
+
+        Queue::createPayloadUsing(function (): array {
+            return [
+                'port101_context' => app(StructuredLogContext::class)->queuePropagationContext(),
+            ];
         });
     }
 
@@ -257,15 +267,26 @@ class AppServiceProvider extends ServiceProvider
      */
     private function queueContext(Job $job): array
     {
+        $payload = $job->payload();
+        $propagation = is_array($payload['port101_context'] ?? null)
+            ? $payload['port101_context']
+            : [];
         $resolvedName = $job->resolveName();
         $segments = explode('\\', $resolvedName);
         $jobName = end($segments) ?: $resolvedName;
 
         return [
+            'request_id' => $propagation['request_id'] ?? ($payload['uuid'] ?? null),
+            'company_id' => $propagation['company_id'] ?? null,
+            'user_id' => $propagation['user_id'] ?? null,
+            'parent_job_id' => $propagation['parent_job_id'] ?? null,
+            'correlation_origin' => $propagation['correlation_origin'] ?? null,
             'job_name' => $resolvedName,
             'queue_connection' => $job->getConnectionName(),
             'queue_name' => $job->getQueue(),
             'job_id' => method_exists($job, 'getJobId') ? $job->getJobId() : null,
+            'job_uuid' => $payload['uuid'] ?? null,
+            'job_attempt' => $job->attempts(),
             'module' => 'queue',
             'entity' => $jobName,
             'action' => 'handle',

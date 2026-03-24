@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AttachApiVersionHeaders;
+use App\Http\Middleware\AttachRequestCorrelationId;
 use App\Http\Middleware\EnsureCompanyMembership;
 use App\Http\Middleware\EnsureCompanyWorkspaceUser;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -46,12 +47,14 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             ResolveCompanyContext::class,
             HandleInertiaRequests::class,
+            AttachRequestCorrelationId::class,
             ShareRequestLogContext::class,
             PreventAuthenticatedPageCache::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         $middleware->api(append: [
+            AttachRequestCorrelationId::class,
             ShareRequestLogContext::class,
         ]);
     })
