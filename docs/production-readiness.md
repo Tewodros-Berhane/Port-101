@@ -43,7 +43,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `244 passed`, `0 failed`
+- latest full suite result: `248 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -91,8 +91,8 @@ Exit condition:
 
 ### 3. Observability and Operational Control
 
-- `[~]` application behavior is testable but not yet fully observable in production
-- `[ ]` structured logs exist across web, API, queue, and scheduler flows
+- `[~]` application behavior is testable and partially observable in production
+- `[x]` structured logs exist across web, API, queue, and scheduler flows
 - `[ ]` request correlation IDs exist
 - `[ ]` queue job correlation propagation exists
 - `[x]` webhook delivery analytics dashboard exists
@@ -165,21 +165,18 @@ This is the minimum remaining implementation order.
 
 ### Phase 1: Observability and Operations
 
-1. Structured logging
-   - standardized log context for `request_id`, `company_id`, `user_id`, `module`, `entity`, `action`
-
-2. Correlation IDs
+1. Correlation IDs
    - HTTP middleware
    - queue propagation
    - scheduler job context
 
-3. Queue operations dashboard
+2. Queue operations dashboard
    - failed jobs
    - retry queue
    - backlog visibility
    - dead-letter review
 
-4. Alerting
+3. Alerting
    - webhook dead-letter growth
    - queue failures
    - report export failures
@@ -236,7 +233,7 @@ Do not call the system production-ready until all of the following are true:
 - idempotency exists for write-heavy API actions
 - external reference mapping exists for integrations
 - webhook governance hardening is complete
-- structured logging and correlation IDs are live
+- structured logging is live and request/queue correlation IDs are live
 - queue failure and dead-letter operations are visible in the UI or operator tooling
 - alerting is configured
 - backup and restore have been tested successfully
@@ -280,7 +277,7 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. structured logs + correlation IDs
+1. request correlation IDs + queue propagation
 2. queue failure dashboard + dead-letter tooling
 3. backup/restore runbooks and drills
 4. performance/index review and load testing
