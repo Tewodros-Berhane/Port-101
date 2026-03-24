@@ -1,0 +1,109 @@
+name: long-running-integration
+
+on:
+  schedule:
+    - cron: '30 3 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: long-running-integration
+  cancel-in-progress: false
+
+jobs:
+  seeded-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: port_101_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d port_101_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      APP_ENV: testing
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: port_101_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+          extensions: pgsql, pdo_pgsql
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Build Assets
+        run: npm run build
+
+      - name: Copy Environment File
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Clear Cached Config
+        run: php artisan optimize:clear
+
+      - name: Create Artifact Directory
+        run: mkdir -p storage/test-results
+
+      - name: Seed Demo Integration Dataset
+        run: |
+          php artisan migrate:fresh --seed --force
+          php artisan db:seed --class=DemoCompanyWorkflowSeeder --force
+          php artisan platform:operations:heartbeat
+
+      - name: Run Seeded Integration Smoke Checks
+        run: |
+          php artisan ops:deploy:smoke-check --json --require-heartbeat > storage/test-results/deploy-smoke.json
+          php artisan ops:recovery:smoke-check --json > storage/test-results/recovery-smoke.json
+          php artisan ops:performance:audit --json > storage/test-results/performance-audit.json
+          php artisan ops:integration:smoke-check --company=demo-company-workflow --json > storage/test-results/integration-smoke.json
+
+      - name: Run Module-Spanning Regression Slice
+        run: >
+          php -d memory_limit=512M ./vendor/bin/pest
+          tests/Feature/Sales/SalesWorkflowTest.php
+          tests/Feature/Purchasing/PurchasingWorkflowTest.php
+          tests/Feature/Inventory/InventoryWorkflowTest.php
+          tests/Feature/Accounting/AccountingWorkflowTest.php
+          tests/Feature/Projects/ProjectInvoiceDraftHandoffTest.php
+          tests/Feature/Projects/ProjectRecurringBillingProcessingTest.php
+          tests/Feature/Integrations/WebhookEventDeliveryTest.php
+          tests/Feature/Reports/CompanyReportsTest.php
+          --log-junit storage/test-results/long-running-integration-junit.xml
+
+      - name: Upload Long-Running Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: long-running-integration-artifacts
+          path: storage/test-results
+          if-no-files-found: error

@@ -46,6 +46,7 @@ Current strengths:
 - deployment/rollback runbook and post-deploy smoke-check tooling
 - performance audit tooling, hot-path index baseline migration, and API smoke load-test harness
 - nightly regression CI with retained test and performance-audit artifacts
+- long-running integration CI with seeded operational smoke artifacts
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
@@ -157,7 +158,7 @@ Exit condition:
 
 - `[x]` CI runs the test suite against PostgreSQL
 - `[x]` nightly regression job exists
-- `[ ]` long-running integration job exists
+- `[x]` long-running integration job exists
 - `[x]` deployment checklist exists
 - `[x]` rollback procedure exists
 - `[x]` production smoke-test checklist exists
