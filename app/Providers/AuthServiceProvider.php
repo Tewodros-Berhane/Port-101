@@ -25,6 +25,8 @@ use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryLot;
+use App\Modules\Inventory\Models\InventoryReorderRule;
+use App\Modules\Inventory\Models\InventoryReplenishmentSuggestion;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
@@ -54,6 +56,8 @@ use App\Policies\CurrencyPolicy;
 use App\Policies\InventoryCycleCountPolicy;
 use App\Policies\InventoryLocationPolicy;
 use App\Policies\InventoryLotPolicy;
+use App\Policies\InventoryReorderRulePolicy;
+use App\Policies\InventoryReplenishmentSuggestionPolicy;
 use App\Policies\InventoryStockLevelPolicy;
 use App\Policies\InventoryStockMovePolicy;
 use App\Policies\InventoryWarehousePolicy;
@@ -122,6 +126,8 @@ class AuthServiceProvider extends ServiceProvider
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
         InventoryLot::class => InventoryLotPolicy::class,
+        InventoryReorderRule::class => InventoryReorderRulePolicy::class,
+        InventoryReplenishmentSuggestion::class => InventoryReplenishmentSuggestionPolicy::class,
         InventoryStockLevel::class => InventoryStockLevelPolicy::class,
         InventoryStockMove::class => InventoryStockMovePolicy::class,
         WebhookEndpoint::class => WebhookEndpointPolicy::class,

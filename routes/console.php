@@ -12,6 +12,7 @@ use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
 use App\Modules\Accounting\AccountingLedgerBackfillService;
 use App\Modules\Approvals\ApprovalQueueService;
+use App\Modules\Inventory\InventoryReorderService;
 use App\Modules\Projects\Models\ProjectRecurringBilling;
 use App\Modules\Projects\Models\ProjectRecurringBillingRun;
 use App\Modules\Projects\ProjectRecurringBillingService;
@@ -678,8 +679,34 @@ Artisan::command('projects:recurring-billing:run {companyId?} {--schedule=}', fu
     return self::SUCCESS;
 })->purpose('Process due project recurring billing schedules and create billables or invoices');
 
+Artisan::command('inventory:reorder-scan {companyId?}', function (?string $companyId = null) {
+    $service = app(InventoryReorderService::class);
+
+    if ($companyId) {
+        $processed = $service->scanCompany($companyId);
+        $this->info("Processed {$processed->count()} replenishment suggestion(s) for company {$companyId}.");
+
+        return self::SUCCESS;
+    }
+
+    $companies = Company::query()
+        ->where('is_active', true)
+        ->pluck('id');
+
+    $suggestions = 0;
+
+    foreach ($companies as $activeCompanyId) {
+        $suggestions += $service->scanCompany((string) $activeCompanyId)->count();
+    }
+
+    $this->info("Processed {$suggestions} replenishment suggestion(s) across {$companies->count()} compan(ies).");
+
+    return self::SUCCESS;
+})->purpose('Scan inventory reorder rules and refresh replenishment suggestions');
+
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:notifications:send-digest')->everyMinute();
 Schedule::command('platform:operations-reports:deliver-scheduled')->everyMinute();
 Schedule::command('company:reports:deliver-scheduled')->everyMinute();
 Schedule::command('projects:recurring-billing:run')->everyMinute();
+Schedule::command('inventory:reorder-scan')->hourly();
