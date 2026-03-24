@@ -11,6 +11,7 @@ This runbook covers:
 - PostgreSQL database backups
 - local storage backups for `storage/app/private` and `storage/app/public`
 - restore validation with `php artisan ops:recovery:smoke-check`
+- automated disposable restore-drill execution
 
 This runbook does not replace infrastructure-level snapshots, managed database point-in-time recovery, or secret-management procedures. Those should still exist in production.
 
@@ -224,6 +225,62 @@ php artisan ops:recovery:smoke-check
 
 9. Resume queue workers and scheduler.
 10. Run the manual verification checklist below.
+
+## Automated Restore Drill
+
+Use the restore-drill wrappers to simulate a restore into:
+
+- a disposable PostgreSQL database
+- a temporary extracted storage root
+
+The drill will:
+
+1. create a fresh database dump
+2. create a fresh storage archive
+3. restore into a disposable database
+4. extract storage into a temporary drill workspace
+5. run `php artisan migrate --force` against the disposable database
+6. record a scheduler heartbeat in the disposable database
+7. run:
+   - `php artisan ops:recovery:smoke-check --json`
+   - `php artisan ops:deploy:smoke-check --json --require-heartbeat`
+8. keep the drill workspace artifacts by default for inspection
+9. drop the disposable database by default after success/failure
+
+### Windows PowerShell
+
+```powershell
+.\scripts\ops\run-restore-drill.ps1
+```
+
+Optional flags:
+
+```powershell
+.\scripts\ops\run-restore-drill.ps1 -KeepDatabase
+.\scripts\ops\run-restore-drill.ps1 -CleanupArtifacts
+```
+
+### Linux/macOS
+
+```bash
+./scripts/ops/run-restore-drill.sh
+```
+
+Optional flags:
+
+```bash
+./scripts/ops/run-restore-drill.sh --keep-database
+./scripts/ops/run-restore-drill.sh --cleanup-artifacts
+```
+
+Artifacts are written under:
+
+- `storage/app/restore-drills/<timestamp>-<suffix>/`
+
+Look for:
+
+- `logs/recovery-smoke-check.json`
+- `logs/deploy-smoke-check.json`
 
 ## Recovery Smoke Check
 

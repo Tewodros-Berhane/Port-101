@@ -42,6 +42,7 @@ Current strengths:
 - structured logging and request correlation IDs across HTTP, queue, and scheduler flows
 - queue health, dead-letter visibility, and operational alerting for failures/backlog drift
 - backup/recovery runbook, cross-platform backup/restore scripts, and post-restore smoke-check tooling
+- disposable restore-drill automation for temporary database/storage validation
 - deployment/rollback runbook and post-deploy smoke-check tooling
 - PostgreSQL-backed test suite
 
@@ -112,7 +113,7 @@ Exit condition:
 
 - `[x]` core workflows are covered by automated tests
 - `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
-- `[~]` restore procedure is documented and smoke-checked, but a clean-environment drill is still pending
+- `[~]` restore procedure is documented, smoke-checked, and has disposable drill automation, but a clean-environment sign-off drill is still pending
 - `[x]` disaster recovery runbook exists
 - `[~]` queue retry tooling exists, but a formal poison-message policy/runbook is still incomplete
 - `[~]` storage cleanup and retention operations are partially documented through the backup/recovery runbook
@@ -176,7 +177,8 @@ This is the minimum remaining implementation order.
    - confirm encryption/storage location choices
 
 2. Restore drills
-   - restore to clean environment
+   - run the disposable restore drill against current backup artifacts
+   - restore to a clean environment
    - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
 
@@ -261,7 +263,7 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. clean-environment restore drills
+1. clean-environment restore drill sign-off
 2. performance/index review and load testing
 3. nightly regression CI
 4. queue retry and poison-message handling policy
