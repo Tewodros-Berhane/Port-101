@@ -9,6 +9,8 @@ use App\Core\MasterData\Models\Uom;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ProductStoreRequest;
 use App\Http\Requests\Core\ProductUpdateRequest;
+use App\Modules\Inventory\InventoryBundleService;
+use App\Modules\Inventory\Models\ProductBundle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,7 +25,7 @@ class ProductsController extends Controller
         $user = $request->user();
 
         $productsQuery = Product::query()
-            ->with(['uom', 'defaultTax'])
+            ->with(['uom', 'defaultTax', 'bundle'])
             ->orderBy('name')
             ->when($user, fn ($query) => $user->applyDataScopeToQuery($query));
 
@@ -39,6 +41,7 @@ class ProductsController extends Controller
                     'name' => $product->name,
                     'type' => $product->type,
                     'tracking_mode' => $product->tracking_mode,
+                    'bundle_mode' => $product->bundle?->mode,
                     'uom' => $product->uom?->name,
                     'tax' => $product->defaultTax?->name,
                     'is_active' => $product->is_active,
@@ -55,11 +58,15 @@ class ProductsController extends Controller
             'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
             'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
             'trackingModes' => Product::TRACKING_MODES,
+            'bundleModes' => ProductBundle::MODES,
+            'bundleProducts' => $this->bundleProductOptions(),
         ]);
     }
 
-    public function store(ProductStoreRequest $request): RedirectResponse
-    {
+    public function store(
+        ProductStoreRequest $request,
+        InventoryBundleService $bundleService,
+    ): RedirectResponse {
         $this->authorize('create', Product::class);
 
         $user = $request->user();
@@ -71,6 +78,12 @@ class ProductsController extends Controller
             'updated_by' => $user?->id,
         ]);
 
+        $bundleService->syncProductBundle(
+            product: $product,
+            payload: $request->validated('bundle'),
+            actorId: $user?->id,
+        );
+
         return redirect()
             ->route('core.products.edit', $product)
             ->with('success', 'Product created.');
@@ -79,6 +92,7 @@ class ProductsController extends Controller
     public function edit(Product $product): Response
     {
         $this->authorize('update', $product);
+        $product->loadMissing('bundle.components.componentProduct');
 
         $attachments = Attachment::query()
             ->where('attachable_type', $product::class)
@@ -107,16 +121,34 @@ class ProductsController extends Controller
                 'default_tax_id' => $product->default_tax_id,
                 'description' => $product->description,
                 'is_active' => $product->is_active,
+                'bundle' => [
+                    'enabled' => $product->bundle !== null && ! $product->bundle->trashed() && $product->bundle->is_active,
+                    'mode' => $product->bundle?->mode ?? ProductBundle::MODE_SALES_ONLY,
+                    'components' => $product->bundle?->components
+                        ->map(fn ($component) => [
+                            'product_id' => $component->component_product_id,
+                            'quantity' => (float) $component->quantity,
+                            'product_name' => $component->componentProduct?->name,
+                            'product_sku' => $component->componentProduct?->sku,
+                        ])
+                        ->values()
+                        ->all() ?? [],
+                ],
             ],
             'attachments' => $attachments,
             'uoms' => Uom::query()->orderBy('name')->get(['id', 'name']),
             'taxes' => Tax::query()->orderBy('name')->get(['id', 'name']),
             'trackingModes' => Product::TRACKING_MODES,
+            'bundleModes' => ProductBundle::MODES,
+            'bundleProducts' => $this->bundleProductOptions($product->id),
         ]);
     }
 
-    public function update(ProductUpdateRequest $request, Product $product): RedirectResponse
-    {
+    public function update(
+        ProductUpdateRequest $request,
+        Product $product,
+        InventoryBundleService $bundleService,
+    ): RedirectResponse {
         $this->authorize('update', $product);
 
         $user = $request->user();
@@ -125,6 +157,12 @@ class ProductsController extends Controller
             ...$request->validated(),
             'updated_by' => $user?->id,
         ]);
+
+        $bundleService->syncProductBundle(
+            product: $product->fresh(),
+            payload: $request->validated('bundle'),
+            actorId: $user?->id,
+        );
 
         return redirect()
             ->route('core.products.edit', $product)
@@ -140,5 +178,25 @@ class ProductsController extends Controller
         return redirect()
             ->route('core.products.index')
             ->with('success', 'Product removed.');
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string, sku: string|null}>
+     */
+    private function bundleProductOptions(?string $exceptProductId = null): array
+    {
+        return Product::query()
+            ->where('type', Product::TYPE_STOCK)
+            ->where('is_active', true)
+            ->when($exceptProductId, fn ($query) => $query->where('id', '!=', $exceptProductId))
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku'])
+            ->map(fn (Product $product) => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+            ])
+            ->values()
+            ->all();
     }
 }
