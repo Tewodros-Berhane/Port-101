@@ -40,11 +40,12 @@ Current strengths:
 - advanced inventory depth (lots/serials, cycle counts, reordering, kits/bundles)
 - idempotent retry protection on selected API v1 write actions
 - structured logging and request correlation IDs across HTTP, queue, and scheduler flows
+- backup/recovery runbook, cross-platform backup/restore scripts, and post-restore smoke-check tooling
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
 
-- latest full suite result: `257 passed`, `0 failed`
+- latest full suite result: `259 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -108,15 +109,15 @@ Exit condition:
 ### 4. Reliability and Recovery
 
 - `[x]` core workflows are covered by automated tests
-- `[ ]` backup strategy is documented and automated
-- `[ ]` restore procedure is documented and validated
-- `[ ]` disaster recovery runbook exists
+- `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
+- `[~]` restore procedure is documented and smoke-checked, but a clean-environment drill is still pending
+- `[x]` disaster recovery runbook exists
 - `[ ]` queue retry and poison-message handling policy exists
-- `[ ]` storage cleanup and retention operations are fully documented
+- `[~]` storage cleanup and retention operations are partially documented through the backup/recovery runbook
 
 Exit condition:
 
-- backups are automated, restoration has been tested, and critical failures have a written recovery path
+- backups are scheduled in target environments, restoration has been tested in a clean drill, and critical failures have a written recovery path
 
 ### 5. Performance and Capacity
 
@@ -166,14 +167,15 @@ This is the minimum remaining implementation order.
 
 ### Phase 3: Recovery and Deployment Discipline
 
-1. Backup policy
-   - database backup cadence
-   - storage backup cadence
-   - retention
-   - encryption/storage location
+1. Backup operations completion
+   - schedule database backup cadence in target environments
+   - schedule storage backup cadence in target environments
+   - verify retention behavior
+   - confirm encryption/storage location choices
 
 2. Restore drills
    - restore to clean environment
+   - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
 
 3. Deployment and rollback runbooks
@@ -217,7 +219,7 @@ Do not call the system production-ready until all of the following are true:
 - structured logging is live and request/queue correlation IDs are live
 - queue failure and dead-letter operations are visible in the UI or operator tooling
 - alerting is configured
-- backup and restore have been tested successfully
+- backup and restore have been tested successfully in a clean environment
 - deployment and rollback runbooks exist
 - query/index review has been completed
 - at least one representative load test has been run
@@ -258,7 +260,7 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. backup/restore runbooks and drills
+1. clean-environment restore drills
 2. performance/index review and load testing
 3. nightly regression CI
 4. deployment and rollback runbooks

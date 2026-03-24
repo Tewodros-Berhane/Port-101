@@ -4,6 +4,25 @@ return [
     'audit_logs' => [
         'retention_days' => (int) env('AUDIT_LOG_RETENTION_DAYS', 365),
     ],
+    'backup' => [
+        'database_dump_dir' => env(
+            'BACKUP_DATABASE_DUMP_DIR',
+            storage_path('app/backups/database')
+        ),
+        'storage_archive_dir' => env(
+            'BACKUP_STORAGE_ARCHIVE_DIR',
+            storage_path('app/backups/storage')
+        ),
+        'retention_days' => (int) env('BACKUP_RETENTION_DAYS', 14),
+        'attachments_disk' => env(
+            'BACKUP_ATTACHMENTS_DISK',
+            env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local'))
+        ),
+        'local_storage_paths' => [
+            'storage/app/private',
+            'storage/app/public',
+        ],
+    ],
     'attachments' => [
         'disk' => env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
         'max_size_kb' => (int) env('ATTACHMENTS_MAX_SIZE_KB', 10240),
