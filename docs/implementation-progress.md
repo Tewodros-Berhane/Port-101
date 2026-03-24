@@ -61,6 +61,7 @@
 - Production hardening Phase 1 step 1 implemented: structured JSON logging now runs across web, API, queue, and scheduler flows with shared scoped context (`company_id`, `user_id`, `module`, `entity`, `action`, request/route metadata), queue lifecycle log events, and webhook-delivery logging aligned to the same structured context contract.
 - Production hardening Phase 1 step 2 implemented: UUID-backed request correlation IDs now flow through web and API responses via `X-Request-Id`, console/scheduler commands now establish their own correlation context, and queued jobs now inherit the originating request correlation metadata (`request_id`, company/user scope, parent job) through payload propagation and queue runtime context.
 - Production hardening Phase 1 step 3 implemented: backup/recovery foundations now include configurable backup paths in `config/core.php`, cross-platform PostgreSQL and storage backup/restore scripts under `scripts/ops`, the `ops:recovery:smoke-check` command for database/storage/post-restore verification, and a dedicated backup/recovery runbook for operator use.
+- Production hardening Phase 1 step 4 implemented: deployment/rollback discipline now includes the `ops:deploy:smoke-check` command, cross-platform deploy smoke-check wrapper scripts, and a dedicated deployment/rollback runbook with a production smoke-test checklist for release validation.
 - Company integrations workspace implemented: `/company/integrations` now exposes webhook endpoint management, endpoint detail/history views, dead-letter and retry visibility, delivery-detail inspection, and company-side test/rotate/retry flows without requiring the raw API endpoints.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
@@ -220,13 +221,13 @@
 
 - No currently listed core or delivered module surfaces are placeholder-only; remaining roadmap work is integration hardening follow-through and production hardening.
 
-### Test run result (2026-03-24)
+### Test run result (2026-03-25)
 
-- Command executed: `php artisan test`.
+- Command executed: `php -d memory_limit=512M vendor/bin/pest`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `259 passed`, `0 failed`.
-- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, governed webhook operations with secret rotation history, delivery analytics, explicit replay/signing policy, and production hardening now includes structured logging plus end-to-end request correlation IDs across HTTP, queue, and scheduler paths, a platform queue-health dashboard with failed-job retry/forget tooling, backlog visibility, dead-letter webhook recovery, failed report-export retry operations, operational alerting with configurable thresholds and persisted incidents, plus backup/recovery foundations with documented restore procedures, operator scripts, and an environment smoke-check command on the full PostgreSQL-backed suite.
+- Latest full-suite count: `262 passed`, `0 failed`.
+- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, governed webhook operations with secret rotation history, delivery analytics, explicit replay/signing policy, and production hardening now includes structured logging plus end-to-end request correlation IDs across HTTP, queue, and scheduler paths, a platform queue-health dashboard with failed-job retry/forget tooling, backlog visibility, dead-letter webhook recovery, failed report-export retry operations, operational alerting with configurable thresholds and persisted incidents, backup/recovery foundations with documented restore procedures and smoke checks, plus deployment/rollback runbooks and a deploy-critical smoke-check command on the full PostgreSQL-backed suite.
 
 ## Suggestions
 
@@ -237,4 +238,4 @@
 - Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
-- Continue production hardening: clean-environment restore drills, performance review, deployment/rollback discipline, and nightly regression automation are now the next hardening gates after alerting, queue-health operations, structured logging, correlation IDs, and backup/recovery scripting are in place.
+- Continue production hardening: clean-environment restore drills, performance review/load testing, nightly regression automation, and formal poison-message handling policy are now the next hardening gates after alerting, queue-health operations, structured logging, correlation IDs, backup/recovery scripting, and deployment/rollback runbooks are in place.

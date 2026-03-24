@@ -23,6 +23,21 @@ return [
             'storage/app/public',
         ],
     ],
+    'deployment' => [
+        'smoke_check_routes' => [
+            'login',
+            'company.dashboard',
+            'company.settings.show',
+            'company.modules.sales',
+            'company.modules.inventory',
+            'company.modules.projects',
+            'company.modules.accounting',
+            'company.modules.integrations',
+            'platform.dashboard',
+            'platform.governance',
+            'platform.queue-health',
+        ],
+    ],
     'attachments' => [
         'disk' => env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
         'max_size_kb' => (int) env('ATTACHMENTS_MAX_SIZE_KB', 10240),

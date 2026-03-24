@@ -15,18 +15,18 @@ Production-ready here means:
 
 ## Current Verdict
 
-As of `2026-03-24`, Port-101 is:
+As of `2026-03-25`, Port-101 is:
 
 - `demo-ready`: yes
-- `pilot-ready`: mostly yes, for a controlled environment
+- `pilot-ready`: yes, with caution, for a controlled environment
 - `production-ready`: no
 
 Why:
 
 - Core platform and major modules are implemented
 - The automated suite is broad and currently green
-- API v1 and outbound webhooks exist
-- But integration hardening and production operations hardening are still incomplete
+- API v1, outbound webhooks, and the planned integration-hardening baseline are implemented
+- But production operations hardening, restore validation, performance gates, and release discipline are still incomplete
 
 ## Current Baseline
 
@@ -40,12 +40,14 @@ Current strengths:
 - advanced inventory depth (lots/serials, cycle counts, reordering, kits/bundles)
 - idempotent retry protection on selected API v1 write actions
 - structured logging and request correlation IDs across HTTP, queue, and scheduler flows
+- queue health, dead-letter visibility, and operational alerting for failures/backlog drift
 - backup/recovery runbook, cross-platform backup/restore scripts, and post-restore smoke-check tooling
+- deployment/rollback runbook and post-deploy smoke-check tooling
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
 
-- latest full suite result: `259 passed`, `0 failed`
+- latest full suite result: `262 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -112,7 +114,7 @@ Exit condition:
 - `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
 - `[~]` restore procedure is documented and smoke-checked, but a clean-environment drill is still pending
 - `[x]` disaster recovery runbook exists
-- `[ ]` queue retry and poison-message handling policy exists
+- `[~]` queue retry tooling exists, but a formal poison-message policy/runbook is still incomplete
 - `[~]` storage cleanup and retention operations are partially documented through the backup/recovery runbook
 
 Exit condition:
@@ -140,7 +142,7 @@ Exit condition:
 - `[~]` attachment support exists but hardening is incomplete
 - `[ ]` attachment virus scanning exists
 - `[ ]` strict MIME allowlists by module exist
-- `[ ]` secret rotation/runbook coverage exists for integration credentials
+- `[~]` webhook secret rotation exists, but broader credential runbook coverage is still incomplete
 - `[ ]` security review of public API and webhook surfaces is complete
 - `[ ]` production environment secret-handling checklist is documented
 
@@ -153,9 +155,9 @@ Exit condition:
 - `[x]` CI runs the test suite against PostgreSQL
 - `[ ]` nightly regression job exists
 - `[ ]` long-running integration job exists
-- `[ ]` deployment checklist exists
-- `[ ]` rollback procedure exists
-- `[ ]` production smoke-test checklist exists
+- `[x]` deployment checklist exists
+- `[x]` rollback procedure exists
+- `[x]` production smoke-test checklist exists
 
 Exit condition:
 
@@ -178,16 +180,15 @@ This is the minimum remaining implementation order.
    - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
 
-3. Deployment and rollback runbooks
-   - migrate
-   - queue restart
-   - cache strategy
-   - rollback decision points
-
-4. Nightly regression CI
+3. Nightly regression CI
    - full suite
    - build
    - key scheduled jobs or smoke workflow checks
+
+4. Queue retry and poison-message policy
+   - retry rules
+   - dead-letter escalation path
+   - operator decision points for discard vs replay
 
 ### Phase 4: Performance Gate
 
@@ -263,8 +264,8 @@ Port-101 status: `not yet`
 1. clean-environment restore drills
 2. performance/index review and load testing
 3. nightly regression CI
-4. deployment and rollback runbooks
-5. queue retry and poison-message handling policy
+4. queue retry and poison-message handling policy
+5. long-running integration job
 
 ## Ownership Rule
 
