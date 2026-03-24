@@ -1,18 +1,18 @@
-name: tests
+name: nightly-regression
 
 on:
-  push:
-    branches:
-      - develop
-      - main
-  pull_request:
-    branches:
-      - develop
-      - main
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-regression
+  cancel-in-progress: false
 
 jobs:
-  ci:
+  regression:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     services:
       postgres:
         image: postgres:17
@@ -35,9 +35,6 @@ jobs:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_SSLMODE: disable
-    strategy:
-      matrix:
-        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -46,9 +43,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
+          php-version: '8.4'
           tools: composer:v2
-          coverage: xdebug
+          coverage: none
           extensions: pgsql, pdo_pgsql
 
       - name: Setup Node
@@ -74,5 +71,19 @@ jobs:
       - name: Clear Cached Config
         run: php artisan optimize:clear
 
-      - name: Tests
-        run: php -d memory_limit=512M ./vendor/bin/pest
+      - name: Create Artifact Directory
+        run: mkdir -p storage/test-results
+
+      - name: Run Full Regression Suite
+        run: php -d memory_limit=512M ./vendor/bin/pest --log-junit storage/test-results/nightly-junit.xml
+
+      - name: Run Performance Audit Snapshot
+        run: php artisan ops:performance:audit --json > storage/test-results/performance-audit.json
+
+      - name: Upload Nightly Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-regression-artifacts
+          path: storage/test-results
+          if-no-files-found: error

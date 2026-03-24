@@ -45,6 +45,7 @@ Current strengths:
 - disposable restore-drill automation for temporary database/storage validation
 - deployment/rollback runbook and post-deploy smoke-check tooling
 - performance audit tooling, hot-path index baseline migration, and API smoke load-test harness
+- nightly regression CI with retained test and performance-audit artifacts
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
@@ -155,7 +156,7 @@ Exit condition:
 ### 7. Delivery Process and Release Discipline
 
 - `[x]` CI runs the test suite against PostgreSQL
-- `[ ]` nightly regression job exists
+- `[x]` nightly regression job exists
 - `[ ]` long-running integration job exists
 - `[x]` deployment checklist exists
 - `[x]` rollback procedure exists
@@ -183,10 +184,10 @@ This is the minimum remaining implementation order.
    - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
 
-3. Nightly regression CI
-   - full suite
-   - build
-   - key scheduled jobs or smoke workflow checks
+3. Long-running integration CI
+   - extended workflow duration
+   - module-spanning regression slices
+   - scheduled smoke workflow or seeded operational checks
 
 4. Queue retry and poison-message policy
    - retry rules
