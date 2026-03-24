@@ -16,6 +16,7 @@ use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Inventory\Events\StockDelivered;
+use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesOrderLine;
@@ -133,8 +134,22 @@ test('sales invoice handoff creates draft invoice and delivery event marks it re
     expect((float) $invoice?->grand_total)->toBe(220.0);
     expect((float) $invoice?->balance_due)->toBe(220.0);
 
+    $deliveryMove = InventoryStockMove::create([
+        'company_id' => $company->id,
+        'reference' => $order->order_number,
+        'move_type' => InventoryStockMove::TYPE_DELIVERY,
+        'status' => InventoryStockMove::STATUS_DONE,
+        'product_id' => $product->id,
+        'quantity' => 2,
+        'related_sales_order_id' => $order->id,
+        'completed_at' => now(),
+        'completed_by' => $user->id,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
     event(new StockDelivered(
-        moveId: (string) Str::uuid(),
+        moveId: $deliveryMove->id,
         companyId: $company->id,
         orderId: $order->id,
         productId: $product->id,
@@ -1079,7 +1094,7 @@ test('bank statement camt import matches payments', function () {
         actorId: $user->id,
     );
 
-    $camt = <<<XML
+    $camt = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
   <BkToCstmrStmt>

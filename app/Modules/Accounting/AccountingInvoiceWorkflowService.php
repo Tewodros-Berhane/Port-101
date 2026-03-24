@@ -514,6 +514,22 @@ class AccountingInvoiceWorkflowService
         ?string $actorId = null
     ): void {
         DB::transaction(function () use ($companyId, $orderId, $actorId): void {
+            $allDeliveryMovesCompleted = \App\Modules\Inventory\Models\InventoryStockMove::query()
+                ->where('company_id', $companyId)
+                ->where('related_sales_order_id', $orderId)
+                ->where('move_type', \App\Modules\Inventory\Models\InventoryStockMove::TYPE_DELIVERY)
+                ->exists()
+                && ! \App\Modules\Inventory\Models\InventoryStockMove::query()
+                    ->where('company_id', $companyId)
+                    ->where('related_sales_order_id', $orderId)
+                    ->where('move_type', \App\Modules\Inventory\Models\InventoryStockMove::TYPE_DELIVERY)
+                    ->where('status', '!=', \App\Modules\Inventory\Models\InventoryStockMove::STATUS_DONE)
+                    ->exists();
+
+            if (! $allDeliveryMovesCompleted) {
+                return;
+            }
+
             AccountingInvoice::query()
                 ->where('company_id', $companyId)
                 ->where('sales_order_id', $orderId)

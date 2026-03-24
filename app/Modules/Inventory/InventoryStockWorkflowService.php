@@ -18,6 +18,7 @@ class InventoryStockWorkflowService
 {
     public function __construct(
         private readonly InventorySetupService $setupService,
+        private readonly InventoryBundleService $bundleService,
     ) {}
 
     public function reserve(InventoryStockMove $move, ?string $actorId = null): InventoryStockMove
@@ -209,6 +210,8 @@ class InventoryStockWorkflowService
                 );
             }
 
+            $deliveryEventPayload = null;
+
             if ($move->move_type === InventoryStockMove::TYPE_DELIVERY) {
                 if ($move->status !== InventoryStockMove::STATUS_RESERVED) {
                     abort(422, 'Delivery moves must be reserved before completion.');
@@ -262,13 +265,13 @@ class InventoryStockWorkflowService
                 );
 
                 if ($move->related_sales_order_id) {
-                    event(new StockDelivered(
-                        moveId: $move->id,
-                        companyId: $companyId,
-                        orderId: (string) $move->related_sales_order_id,
-                        productId: $productId,
-                        quantity: $quantity,
-                    ));
+                    $deliveryEventPayload = [
+                        'move_id' => $move->id,
+                        'company_id' => $companyId,
+                        'order_id' => (string) $move->related_sales_order_id,
+                        'product_id' => $productId,
+                        'quantity' => $quantity,
+                    ];
                 }
             }
 
@@ -355,6 +358,16 @@ class InventoryStockWorkflowService
                 'completed_by' => $actorId,
                 'updated_by' => $actorId,
             ]);
+
+            if ($deliveryEventPayload) {
+                event(new StockDelivered(
+                    moveId: $deliveryEventPayload['move_id'],
+                    companyId: $deliveryEventPayload['company_id'],
+                    orderId: $deliveryEventPayload['order_id'],
+                    productId: $deliveryEventPayload['product_id'],
+                    quantity: $deliveryEventPayload['quantity'],
+                ));
+            }
 
             return $this->loadMoveForWorkflow($move->id);
         });
@@ -465,7 +478,7 @@ class InventoryStockWorkflowService
     public function reserveSalesOrder(string $companyId, string $orderId): void
     {
         $order = SalesOrder::query()
-            ->with('lines')
+            ->with('lines.product.bundle.components.componentProduct')
             ->where('company_id', $companyId)
             ->find($orderId);
 
@@ -493,15 +506,13 @@ class InventoryStockWorkflowService
             return;
         }
 
-        foreach ($order->lines as $line) {
-            if (! $line->product_id || (float) $line->quantity <= 0) {
-                continue;
-            }
+        $demandLines = $this->bundleService->explodeSalesOrder($order);
 
+        foreach ($demandLines as $demandLine) {
             $existingMove = InventoryStockMove::query()
                 ->where('company_id', $companyId)
                 ->where('related_sales_order_id', $order->id)
-                ->where('product_id', $line->product_id)
+                ->where('product_id', $demandLine['product_id'])
                 ->where('move_type', InventoryStockMove::TYPE_DELIVERY)
                 ->whereIn('status', [
                     InventoryStockMove::STATUS_DRAFT,
@@ -521,16 +532,16 @@ class InventoryStockWorkflowService
                 'status' => InventoryStockMove::STATUS_DRAFT,
                 'source_location_id' => $sourceLocation->id,
                 'destination_location_id' => $destinationLocation->id,
-                'product_id' => $line->product_id,
-                'quantity' => $line->quantity,
+                'product_id' => $demandLine['product_id'],
+                'quantity' => $demandLine['quantity'],
                 'related_sales_order_id' => $order->id,
-                'notes' => 'Auto-reserved from confirmed sales order '.$order->order_number,
-                'created_by' => $order->created_by,
-                'updated_by' => $order->created_by,
+                'notes' => trim($demandLine['note'].' '.$order->order_number),
+                'created_by' => $order->confirmed_by ?? $order->updated_by ?? $order->created_by,
+                'updated_by' => $order->confirmed_by ?? $order->updated_by ?? $order->created_by,
             ]);
 
             try {
-                $this->reserve($move, $order->created_by);
+                $this->reserve($move, $order->confirmed_by ?? $order->updated_by ?? $order->created_by);
             } catch (Throwable $exception) {
                 $move->update([
                     'notes' => trim(
