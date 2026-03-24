@@ -49,6 +49,9 @@ return [
         ),
         'k6_script' => base_path('scripts/ops/k6-api-smoke.js'),
     ],
+    'integration' => [
+        'smoke_check_company_slug' => env('INTEGRATION_SMOKE_CHECK_COMPANY_SLUG', 'demo-company-workflow'),
+    ],
     'attachments' => [
         'disk' => env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
         'max_size_kb' => (int) env('ATTACHMENTS_MAX_SIZE_KB', 10240),

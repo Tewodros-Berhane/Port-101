@@ -10,6 +10,7 @@ use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
 use App\Core\Platform\RecoverySmokeCheckService;
+use App\Core\Platform\SeededIntegrationSmokeCheckService;
 use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
 use App\Mail\PlatformOperationsReportDeliveryMail;
@@ -833,6 +834,39 @@ Artisan::command('ops:performance:audit {--json}', function () {
 
     return $result['ok'] ? self::SUCCESS : self::FAILURE;
 })->purpose('Audit high-volume tables, expected indexes, and PostgreSQL scan patterns');
+
+Artisan::command('ops:integration:smoke-check {--json} {--company=}', function () {
+    $result = app(SeededIntegrationSmokeCheckService::class)->run(
+        companySlug: $this->option('company') ? (string) $this->option('company') : null,
+    );
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $result['ok'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    $this->info('Seeded integration smoke check');
+    $this->newLine();
+    $this->table(
+        ['Check', 'Status', 'Detail'],
+        collect($result['checks'])
+            ->map(fn (array $check) => [
+                $check['label'],
+                $check['ok'] ? 'OK' : 'FAIL',
+                $check['detail'],
+            ])
+            ->all()
+    );
+
+    $this->newLine();
+    $this->line('Config summary:');
+    foreach ($result['config'] as $key => $value) {
+        $this->line("- {$key}: ".(is_array($value) ? implode(', ', $value) : (string) $value));
+    }
+
+    return $result['ok'] ? self::SUCCESS : self::FAILURE;
+})->purpose('Validate seeded cross-module workflow data for long-running integration regression runs');
 
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:operations:heartbeat')->everyMinute();
