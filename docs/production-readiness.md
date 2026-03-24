@@ -39,11 +39,12 @@ Current strengths:
 - webhook endpoint management and outbound event delivery
 - advanced inventory depth (lots/serials, cycle counts, reordering, kits/bundles)
 - idempotent retry protection on selected API v1 write actions
+- structured logging and request correlation IDs across HTTP, queue, and scheduler flows
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
 
-- latest full suite result: `248 passed`, `0 failed`
+- latest full suite result: `251 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -93,8 +94,8 @@ Exit condition:
 
 - `[~]` application behavior is testable and partially observable in production
 - `[x]` structured logs exist across web, API, queue, and scheduler flows
-- `[ ]` request correlation IDs exist
-- `[ ]` queue job correlation propagation exists
+- `[x]` request correlation IDs exist
+- `[x]` queue job correlation propagation exists
 - `[x]` webhook delivery analytics dashboard exists
 - `[ ]` queue failure dashboard exists
 - `[ ]` dead-letter tooling is complete beyond current webhook-level visibility
@@ -165,18 +166,13 @@ This is the minimum remaining implementation order.
 
 ### Phase 1: Observability and Operations
 
-1. Correlation IDs
-   - HTTP middleware
-   - queue propagation
-   - scheduler job context
-
-2. Queue operations dashboard
+1. Queue operations dashboard
    - failed jobs
    - retry queue
    - backlog visibility
    - dead-letter review
 
-3. Alerting
+2. Alerting
    - webhook dead-letter growth
    - queue failures
    - report export failures
@@ -277,11 +273,11 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. request correlation IDs + queue propagation
-2. queue failure dashboard + dead-letter tooling
-3. backup/restore runbooks and drills
-4. performance/index review and load testing
-5. nightly regression CI
+1. queue failure dashboard + dead-letter tooling
+2. backup/restore runbooks and drills
+3. performance/index review and load testing
+4. nightly regression CI
+5. alerting closure for queue, delivery, and scheduler failures
 
 ## Ownership Rule
 

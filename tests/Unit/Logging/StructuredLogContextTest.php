@@ -3,6 +3,7 @@
 use App\Support\Logging\StructuredLogContext;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Str;
 
 test('structured log context derives request fields from named web routes', function () {
     $context = new StructuredLogContext;
@@ -74,4 +75,20 @@ test('structured log context stores and clears queue scope independently', funct
 
     expect($context->all())->not->toHaveKey('job_name');
     expect($context->all())->not->toHaveKey('queue_name');
+});
+
+test('structured log context generates correlation ids for console and queue propagation contexts', function () {
+    $context = new StructuredLogContext;
+
+    $context->setConsoleContext('queue:work');
+
+    $requestId = $context->currentRequestId();
+    $queueContext = $context->queuePropagationContext();
+
+    expect($requestId)->not->toBeNull();
+    expect(Str::isUuid($requestId))->toBeTrue();
+    expect($queueContext)->toMatchArray([
+        'request_id' => $requestId,
+        'correlation_origin' => 'console',
+    ]);
 });

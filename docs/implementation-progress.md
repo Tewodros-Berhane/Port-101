@@ -59,6 +59,7 @@
 - API v1 integration hardening Phase 2 part 3 implemented: webhook governance now persists secret rotation history, exposes signature/replay-window policy and verification headers, stamps richer delivery lifecycle metadata (`first_attempt_at`, `dead_lettered_at`, `last_delivery_at`, consecutive endpoint failures), and surfaces endpoint-level health analytics in both API responses and the company integrations workspace.
 - API v1 integration hardening Phase 2 part 4 implemented: `/api/v1` now emits centralized lifecycle headers (`X-API-Version` plus optional `Deprecation` and `Sunset`) across normal responses, validation/authorization/not-found error envelopes, and file downloads through a shared version-policy service and middleware-backed boundary contract.
 - Production hardening Phase 1 step 1 implemented: structured JSON logging now runs across web, API, queue, and scheduler flows with shared scoped context (`company_id`, `user_id`, `module`, `entity`, `action`, request/route metadata), queue lifecycle log events, and webhook-delivery logging aligned to the same structured context contract.
+- Production hardening Phase 1 step 2 implemented: UUID-backed request correlation IDs now flow through web and API responses via `X-Request-Id`, console/scheduler commands now establish their own correlation context, and queued jobs now inherit the originating request correlation metadata (`request_id`, company/user scope, parent job) through payload propagation and queue runtime context.
 - Company integrations workspace implemented: `/company/integrations` now exposes webhook endpoint management, endpoint detail/history views, dead-letter and retry visibility, delivery-detail inspection, and company-side test/rotate/retry flows without requiring the raw API endpoints.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
@@ -223,8 +224,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `248 passed`, `0 failed`.
-- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, governed webhook operations with secret rotation history, delivery analytics, explicit replay/signing policy, and production hardening now includes structured JSON logging across request, queue, scheduler, and webhook-delivery paths on the full PostgreSQL-backed suite.
+- Latest full-suite count: `251 passed`, `0 failed`.
+- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, governed webhook operations with secret rotation history, delivery analytics, explicit replay/signing policy, and production hardening now includes structured logging plus end-to-end request correlation IDs across HTTP, queue, and scheduler paths on the full PostgreSQL-backed suite.
 
 ## Suggestions
 
@@ -235,4 +236,4 @@
 - Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
-- Continue production observability hardening: request correlation IDs, queue correlation propagation, and queue failure visibility are now the next hardening gates after structured logging is in place.
+- Continue production observability hardening: queue failure visibility, dead-letter operations, and alerting are now the next hardening gates after structured logging and correlation IDs are in place.
