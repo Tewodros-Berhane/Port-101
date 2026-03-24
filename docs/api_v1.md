@@ -491,11 +491,31 @@ Important workflow actions should also remain traceable through:
 
 Keep the `/api/v1` prefix.
 
-Planned rules:
+Implemented rules:
 
 - breaking changes require a new version
 - non-breaking additions are allowed in `v1`
-- deprecation policy should be documented before external adoption increases
+- every `/api/v1` response emits `X-API-Version: v1`
+- when deprecation is scheduled, responses also emit:
+  - `Deprecation`
+  - `Sunset`
+
+Current lifecycle contract:
+
+- `v1` is the current stable public contract
+- deprecation dates are controlled centrally through the API versioning config
+- error responses and file downloads follow the same version-header policy as normal JSON resources
+
+Changelog policy:
+
+- every API-affecting change should be classified internally as one of:
+  - `breaking`
+  - `additive`
+  - `behavioral`
+  - `bugfix`
+  - `operational`
+- only `breaking` changes require a new version line
+- `additive`, `behavioral`, `bugfix`, and `operational` changes may ship inside `v1` as long as they do not invalidate existing consumers
 
 ### Pagination And Performance
 

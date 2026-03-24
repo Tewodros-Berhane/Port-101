@@ -120,6 +120,7 @@ test('api v1 reports exports can be created polled and downloaded', function () 
 
     get('/api/v1/reports/exports/'.$exportId.'/download')
         ->assertOk()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertHeader('content-type', 'application/pdf');
 });
 

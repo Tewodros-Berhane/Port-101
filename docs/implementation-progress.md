@@ -57,6 +57,7 @@
 - API v1 integration hardening Phase 2 part 1 implemented: selected write-heavy API actions now require `Idempotency-Key`, request fingerprints persist in `api_idempotency_keys`, duplicate requests replay the original successful response, conflicting payload reuse is rejected, and in-flight key reuse is blocked for sales create/confirm, accounting post, report export creation, and webhook test/retry actions.
 - API v1 integration hardening Phase 2 part 2 implemented: integration-facing business resources now support optional company-scoped `external_reference` fields (partners, products, leads, quotes, orders, RFQs, purchase orders, invoices, payments, and projects), with uniqueness validation, workflow persistence, API payload exposure, and list/search/filter support for third-party record mapping.
 - API v1 integration hardening Phase 2 part 3 implemented: webhook governance now persists secret rotation history, exposes signature/replay-window policy and verification headers, stamps richer delivery lifecycle metadata (`first_attempt_at`, `dead_lettered_at`, `last_delivery_at`, consecutive endpoint failures), and surfaces endpoint-level health analytics in both API responses and the company integrations workspace.
+- API v1 integration hardening Phase 2 part 4 implemented: `/api/v1` now emits centralized lifecycle headers (`X-API-Version` plus optional `Deprecation` and `Sunset`) across normal responses, validation/authorization/not-found error envelopes, and file downloads through a shared version-policy service and middleware-backed boundary contract.
 - Company integrations workspace implemented: `/company/integrations` now exposes webhook endpoint management, endpoint detail/history views, dead-letter and retry visibility, delivery-detail inspection, and company-side test/rotate/retry flows without requiring the raw API endpoints.
 - Core settings persistence layer implemented (`settings` table/model/service + company settings integration).
 - Attachments/media module implemented (schema/model/policy/controller + partner/product UI integration).
@@ -221,7 +222,7 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `243 passed`, `0 failed`.
+- Latest full-suite count: `244 passed`, `0 failed`.
 - Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, and API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, and governed webhook operations with secret rotation history, delivery analytics, and explicit replay/signing policy across the main integration surfaces on the full PostgreSQL-backed suite.
 
 ## Suggestions
@@ -233,5 +234,4 @@
 - Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
-- Formalize API versioning policy (deprecation headers + change log) before exposing `/api/v1` to third parties.
-- Add API versioning/deprecation headers and lifecycle policy before broadening third-party adoption.
+- Move on to production observability: request correlation IDs, structured logs, and queue failure visibility are now the next hardening gates after the API lifecycle contract is in place.

@@ -7,6 +7,8 @@ use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Core\Settings\Models\Setting;
 use App\Models\User;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
@@ -59,6 +61,7 @@ function createCompanyUserForApi(array $permissions): array
 test('api v1 health endpoint returns ok status', function () {
     getJson('/api/v1/health')
         ->assertOk()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertJsonPath('status', 'ok')
         ->assertJsonPath('version', 'v1');
 });
@@ -66,6 +69,7 @@ test('api v1 health endpoint returns ok status', function () {
 test('api v1 protected endpoints require token auth', function () {
     getJson('/api/v1/partners')
         ->assertUnauthorized()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertJsonPath('message', 'Unauthenticated.');
 });
 
@@ -77,6 +81,7 @@ test('api v1 accepts bearer personal access tokens', function () {
     $this->withHeader('Authorization', "Bearer {$token}")
         ->getJson('/api/v1/partners')
         ->assertOk()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertJsonStructure([
             'data',
             'meta' => ['current_page', 'last_page', 'per_page', 'total', 'from', 'to', 'sort', 'direction', 'filters'],
@@ -289,6 +294,7 @@ test('api v1 validation responses use the shared error envelope', function () {
         'tax_period' => 'weekly',
     ])
         ->assertUnprocessable()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertJsonStructure([
             'message',
             'errors' => ['tax_period'],
@@ -306,11 +312,27 @@ test('api v1 forbidden responses use the shared error envelope', function () {
         'locale' => 'en_US',
     ])
         ->assertForbidden()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertJsonPath('message', 'This action is unauthorized.');
 });
 
 test('api v1 missing routes use the shared not found envelope', function () {
     getJson('/api/v1/does-not-exist')
         ->assertNotFound()
+        ->assertHeader('X-API-Version', 'v1')
         ->assertJsonPath('message', 'Resource not found.');
+});
+
+test('api v1 emits deprecation and sunset headers when configured', function () {
+    $deprecationAt = CarbonImmutable::parse('2026-06-01T00:00:00Z');
+    $sunsetAt = CarbonImmutable::parse('2026-12-31T23:59:59Z');
+
+    Config::set('api_versioning.versions.v1.deprecation_at', $deprecationAt->toIso8601String());
+    Config::set('api_versioning.versions.v1.sunset_at', $sunsetAt->toIso8601String());
+
+    getJson('/api/v1/health')
+        ->assertOk()
+        ->assertHeader('X-API-Version', 'v1')
+        ->assertHeader('Deprecation', '@'.$deprecationAt->timestamp)
+        ->assertHeader('Sunset', $sunsetAt->toRfc7231String());
 });

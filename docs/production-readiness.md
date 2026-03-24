@@ -43,7 +43,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `243 passed`, `0 failed`
+- latest full suite result: `244 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -83,7 +83,7 @@ Exit condition:
 - `[x]` external reference fields exist on integration-heavy entities
 - `[x]` webhook secret rotation history exists
 - `[x]` replay-window verification policy is documented and enforced where required
-- `[ ]` API v1 deprecation/versioning policy is documented and emitted consistently
+- `[x]` API v1 deprecation/versioning policy is documented and emitted consistently
 
 Exit condition:
 
@@ -163,14 +163,7 @@ Exit condition:
 
 This is the minimum remaining implementation order.
 
-### Phase 1: Integration Hardening
-
-1. API versioning policy
-   - deprecation headers
-   - change-log expectations
-   - compatibility rules for `v1`
-
-### Phase 2: Observability and Operations
+### Phase 1: Observability and Operations
 
 1. Structured logging
    - standardized log context for `request_id`, `company_id`, `user_id`, `module`, `entity`, `action`
@@ -287,12 +280,11 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. API versioning policy
-2. structured logs + correlation IDs
-3. queue failure dashboard + dead-letter tooling
-4. backup/restore runbooks and drills
-5. performance/index review and load testing
-6. nightly regression CI
+1. structured logs + correlation IDs
+2. queue failure dashboard + dead-letter tooling
+3. backup/restore runbooks and drills
+4. performance/index review and load testing
+5. nightly regression CI
 
 ## Ownership Rule
 
