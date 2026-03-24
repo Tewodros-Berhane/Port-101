@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Integrations\Models\IntegrationEvent;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
+use App\Modules\Integrations\Models\WebhookSecretRotation;
 use App\Modules\Integrations\WebhookEventCatalog;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -132,6 +133,9 @@ test('company integrations workspace pages render for webhook-enabled users', fu
         ->assertInertia(fn (Assert $page) => $page
             ->component('integrations/webhooks/show')
             ->where('endpoint.id', $endpoint->id)
+            ->has('endpoint.analytics')
+            ->has('endpoint.delivery_security_policy')
+            ->has('endpoint.recent_secret_rotations')
             ->has('deliveries.data', 1));
 
     actingAs($manager)
@@ -146,7 +150,8 @@ test('company integrations workspace pages render for webhook-enabled users', fu
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('integrations/deliveries/show')
-            ->where('delivery.id', $delivery->id));
+            ->where('delivery.id', $delivery->id)
+            ->has('securityPolicy'));
 });
 
 test('company webhook workspace supports create test rotate and retry flows', function () {
@@ -168,6 +173,9 @@ test('company webhook workspace supports create test rotate and retry flows', fu
 
     $endpoint = WebhookEndpoint::query()->firstOrFail();
     $originalSecret = $endpoint->signing_secret;
+
+    expect(WebhookSecretRotation::query()->where('webhook_endpoint_id', $endpoint->id)->count())
+        ->toBe(1);
 
     Http::fake([
         'https://hooks.example.com/finance' => Http::sequence()
@@ -195,6 +203,8 @@ test('company webhook workspace supports create test rotate and retry flows', fu
         ->assertSessionHas('webhook_signing_secret');
 
     expect($endpoint->fresh()->signing_secret)->not->toBe($originalSecret);
+    expect(WebhookSecretRotation::query()->where('webhook_endpoint_id', $endpoint->id)->count())
+        ->toBe(2);
 });
 
 test('company webhook viewers can inspect workspace but cannot manage endpoints or retries', function () {

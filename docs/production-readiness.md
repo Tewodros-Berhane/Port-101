@@ -78,11 +78,11 @@ Exit condition:
 - `[x]` shared pagination, filtering, and JSON error contract exists
 - `[x]` sales, inventory, purchasing, accounting, approvals, reports, projects, and webhooks are exposed in API v1
 - `[x]` outbound webhook event publishing exists
-- `[~]` webhook delivery and retry visibility exists
+- `[x]` webhook delivery and retry visibility exists
 - `[x]` idempotency keys exist for write-heavy API actions
 - `[x]` external reference fields exist on integration-heavy entities
-- `[ ]` webhook secret rotation history exists
-- `[ ]` replay-window verification policy is documented and enforced where required
+- `[x]` webhook secret rotation history exists
+- `[x]` replay-window verification policy is documented and enforced where required
 - `[ ]` API v1 deprecation/versioning policy is documented and emitted consistently
 
 Exit condition:
@@ -95,7 +95,7 @@ Exit condition:
 - `[ ]` structured logs exist across web, API, queue, and scheduler flows
 - `[ ]` request correlation IDs exist
 - `[ ]` queue job correlation propagation exists
-- `[ ]` webhook delivery analytics dashboard exists
+- `[x]` webhook delivery analytics dashboard exists
 - `[ ]` queue failure dashboard exists
 - `[ ]` dead-letter tooling is complete beyond current webhook-level visibility
 - `[ ]` alerting exists for queue failures, job backlogs, delivery failures, and scheduler drift
@@ -165,13 +165,7 @@ This is the minimum remaining implementation order.
 
 ### Phase 1: Integration Hardening
 
-1. Webhook governance hardening
-   - secret rotation history
-   - delivery replay guidance
-   - event contract documentation
-   - better endpoint analytics
-
-2. API versioning policy
+1. API versioning policy
    - deprecation headers
    - change-log expectations
    - compatibility rules for `v1`
@@ -293,7 +287,7 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. webhook governance hardening
+1. API versioning policy
 2. structured logs + correlation IDs
 3. queue failure dashboard + dead-letter tooling
 4. backup/restore runbooks and drills

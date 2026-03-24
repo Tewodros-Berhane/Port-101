@@ -89,7 +89,10 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
         ->assertJsonPath('data.name', 'Finance Hub')
         ->assertJsonPath('data.target_url', 'https://hooks.example.com/finance')
         ->assertJsonPath('data.is_active', true)
-        ->assertJsonPath('data.subscribed_events.0', WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED);
+        ->assertJsonPath('data.subscribed_events.0', WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED)
+        ->assertJsonPath('data.signing_secret_version', 1)
+        ->assertJsonPath('data.recent_secret_rotations.0.reason', 'created')
+        ->assertJsonPath('data.delivery_security_policy.replay_window_seconds', 300);
 
     $endpointId = (string) $createResponse->json('data.id');
     $originalSecret = (string) $createResponse->json('data.revealed_signing_secret');
@@ -100,8 +103,10 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $endpointId)
+        ->assertJsonPath('data.0.health_status', 'healthy')
         ->assertJsonPath('meta.filters.search', 'Finance')
-        ->assertJsonPath('meta.sort', 'name');
+        ->assertJsonPath('meta.sort', 'name')
+        ->assertJsonPath('meta.delivery_security_policy.signature_version', 'v1');
 
     getJson('/api/v1/webhooks/endpoints/'.$otherEndpoint->id)
         ->assertNotFound()
@@ -119,7 +124,9 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
 
     $rotateResponse = postJson('/api/v1/webhooks/endpoints/'.$endpointId.'/rotate-secret')
         ->assertOk()
-        ->assertJsonPath('data.id', $endpointId);
+        ->assertJsonPath('data.id', $endpointId)
+        ->assertJsonPath('data.signing_secret_version', 2)
+        ->assertJsonPath('data.recent_secret_rotations.0.reason', 'manual');
 
     $rotatedSecret = (string) $rotateResponse->json('data.revealed_signing_secret');
 
@@ -139,17 +146,21 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
 
     $deliveryId = (string) $testDeliveryResponse->json('data.id');
 
+    expect($testDeliveryResponse->json('data.first_attempt_at'))->not->toBeNull();
+
     getJson('/api/v1/webhooks/endpoints/'.$endpointId.'/deliveries?status=failed')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $deliveryId)
-        ->assertJsonPath('meta.filters.status', WebhookDelivery::STATUS_FAILED);
+        ->assertJsonPath('meta.filters.status', WebhookDelivery::STATUS_FAILED)
+        ->assertJsonPath('meta.delivery_security_policy.replay_window_seconds', 300);
 
     getJson('/api/v1/webhooks/deliveries/'.$deliveryId)
         ->assertOk()
         ->assertJsonPath('data.id', $deliveryId)
         ->assertJsonPath('data.status', WebhookDelivery::STATUS_FAILED)
-        ->assertJsonPath('data.event_type', WebhookEventCatalog::SYSTEM_WEBHOOK_TEST);
+        ->assertJsonPath('data.event_type', WebhookEventCatalog::SYSTEM_WEBHOOK_TEST)
+        ->assertJsonPath('meta.delivery_security_policy.signature_algorithm', 'hmac-sha256');
 
     postJson('/api/v1/webhooks/deliveries/'.$deliveryId.'/retry', [], apiIdempotencyHeaders())
         ->assertOk()
@@ -157,10 +168,17 @@ test('api v1 webhook endpoints support management test delivery and retry flows'
         ->assertJsonPath('data.response_status', 200);
 
     Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+        $signatureVersion = $request->header('X-Port101-Signature-Version');
+        $replayWindow = $request->header('X-Port101-Replay-Window-Seconds');
+        $deliveryAttempt = $request->header('X-Port101-Delivery-Attempt');
+
         return $request->hasHeader('X-Port101-Event')
             && $request->hasHeader('X-Port101-Event-Id')
             && $request->hasHeader('X-Port101-Timestamp')
             && $request->hasHeader('X-Port101-Signature')
+            && ($signatureVersion[0] ?? null) === 'v1'
+            && ($replayWindow[0] ?? null) === '300'
+            && in_array($deliveryAttempt[0] ?? null, ['1', '2'], true)
             && $request->url() === 'https://hooks.example.com/finance';
     });
 
