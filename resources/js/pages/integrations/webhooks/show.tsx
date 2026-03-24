@@ -11,6 +11,40 @@ type EventOption = {
 
 type DeliveryStatusOption = EventOption;
 
+type SecurityPolicy = {
+    signature_version: string;
+    signature_algorithm: string;
+    signed_content: string;
+    timestamp_header: string;
+    signature_header: string;
+    signature_version_header: string;
+    event_header: string;
+    event_id_header: string;
+    replay_window_seconds: number;
+    consumer_guidance: string[];
+};
+
+type EndpointAnalytics = {
+    total_deliveries: number;
+    delivered_last_7_days: number;
+    failed_last_7_days: number;
+    dead_letters: number;
+    pending_retries: number;
+    success_rate_last_7_days?: number | null;
+    average_duration_ms_last_7_days?: number | null;
+    last_dead_letter_at?: string | null;
+};
+
+type SecretRotation = {
+    id: string;
+    secret_version: number;
+    reason: string;
+    previous_secret_preview?: string | null;
+    current_secret_preview: string;
+    current_secret_fingerprint: string;
+    rotated_at?: string | null;
+};
+
 type Endpoint = {
     id: string;
     name: string;
@@ -18,7 +52,11 @@ type Endpoint = {
     api_version: string;
     is_active: boolean;
     subscribed_event_labels: string[];
+    signing_secret_version: number;
     secret_preview: string;
+    secret_rotated_at?: string | null;
+    consecutive_failure_count: number;
+    health_status: string;
     revealed_signing_secret?: string | null;
     deliveries_count: number;
     delivered_deliveries_count: number;
@@ -27,6 +65,10 @@ type Endpoint = {
     last_tested_at?: string | null;
     last_success_at?: string | null;
     last_failure_at?: string | null;
+    last_delivery_at?: string | null;
+    delivery_security_policy: SecurityPolicy;
+    analytics: EndpointAnalytics;
+    recent_secret_rotations: SecretRotation[];
     created_at?: string | null;
     updated_at?: string | null;
     can_edit: boolean;
@@ -42,9 +84,11 @@ type DeliveryRow = {
     status_label: string;
     status: string;
     attempt_count: number;
+    first_attempt_at?: string | null;
     response_status?: number | null;
     failure_message?: string | null;
     delivered_at?: string | null;
+    dead_lettered_at?: string | null;
     next_retry_at?: string | null;
     created_at?: string | null;
     can_retry: boolean;
@@ -217,6 +261,39 @@ export default function ShowWebhookEndpoint({
                     />
                 </section>
 
+                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <MetricCard
+                        label="Health"
+                        value={healthLabel(endpoint.health_status)}
+                    />
+                    <MetricCard
+                        label="Success rate"
+                        value={
+                            endpoint.analytics.success_rate_last_7_days !==
+                                null &&
+                            endpoint.analytics.success_rate_last_7_days !==
+                                undefined
+                                ? `${endpoint.analytics.success_rate_last_7_days}%`
+                                : '-'
+                        }
+                    />
+                    <MetricCard
+                        label="Avg latency"
+                        value={
+                            endpoint.analytics
+                                .average_duration_ms_last_7_days !== null &&
+                            endpoint.analytics
+                                .average_duration_ms_last_7_days !== undefined
+                                ? `${endpoint.analytics.average_duration_ms_last_7_days} ms`
+                                : '-'
+                        }
+                    />
+                    <MetricCard
+                        label="Consecutive failures"
+                        value={String(endpoint.consecutive_failure_count)}
+                    />
+                </section>
+
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                     <section className="rounded-xl border p-5">
                         <h2 className="text-sm font-semibold">
@@ -235,6 +312,12 @@ export default function ShowWebhookEndpoint({
                                     {endpoint.secret_preview}
                                 </span>
                             </DetailItem>
+                            <DetailItem label="Secret version">
+                                {String(endpoint.signing_secret_version)}
+                            </DetailItem>
+                            <DetailItem label="Secret rotated">
+                                {formatDateTime(endpoint.secret_rotated_at)}
+                            </DetailItem>
                             <DetailItem label="Created">
                                 {formatDateTime(endpoint.created_at)}
                             </DetailItem>
@@ -246,6 +329,9 @@ export default function ShowWebhookEndpoint({
                             </DetailItem>
                             <DetailItem label="Last failure">
                                 {formatDateTime(endpoint.last_failure_at)}
+                            </DetailItem>
+                            <DetailItem label="Last delivery">
+                                {formatDateTime(endpoint.last_delivery_at)}
                             </DetailItem>
                             <DetailItem label="Updated">
                                 {formatDateTime(endpoint.updated_at)}
@@ -269,6 +355,214 @@ export default function ShowWebhookEndpoint({
                         </div>
                     </section>
                 </div>
+
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <section className="rounded-xl border p-5">
+                        <h2 className="text-sm font-semibold">
+                            Delivery analytics
+                        </h2>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Operational health for this endpoint over the recent
+                            delivery window.
+                        </p>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <MetricCard
+                                label="Total deliveries"
+                                value={String(
+                                    endpoint.analytics.total_deliveries,
+                                )}
+                            />
+                            <MetricCard
+                                label="Delivered 7d"
+                                value={String(
+                                    endpoint.analytics.delivered_last_7_days,
+                                )}
+                            />
+                            <MetricCard
+                                label="Failed 7d"
+                                value={String(
+                                    endpoint.analytics.failed_last_7_days,
+                                )}
+                            />
+                            <MetricCard
+                                label="Dead letters"
+                                value={String(endpoint.analytics.dead_letters)}
+                            />
+                            <MetricCard
+                                label="Pending retries"
+                                value={String(
+                                    endpoint.analytics.pending_retries,
+                                )}
+                            />
+                            <MetricCard
+                                label="Last dead letter"
+                                value={formatDateTime(
+                                    endpoint.analytics.last_dead_letter_at,
+                                )}
+                            />
+                        </div>
+                    </section>
+
+                    <section className="rounded-xl border p-5">
+                        <h2 className="text-sm font-semibold">
+                            Signing and replay policy
+                        </h2>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Share these rules with downstream consumers when
+                            they verify Port-101 webhook deliveries.
+                        </p>
+
+                        <dl className="mt-4 space-y-3">
+                            <DetailItem label="Signature version">
+                                {endpoint.delivery_security_policy
+                                    .signature_version}
+                            </DetailItem>
+                            <DetailItem label="Algorithm">
+                                {endpoint.delivery_security_policy
+                                    .signature_algorithm}
+                            </DetailItem>
+                            <DetailItem label="Signed content">
+                                <span className="font-mono text-xs">
+                                    {
+                                        endpoint.delivery_security_policy
+                                            .signed_content
+                                    }
+                                </span>
+                            </DetailItem>
+                            <DetailItem label="Replay window">
+                                {
+                                    endpoint.delivery_security_policy
+                                        .replay_window_seconds
+                                }{' '}
+                                seconds
+                            </DetailItem>
+                        </dl>
+
+                        <div className="mt-4 rounded-xl bg-muted/20 p-4">
+                            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                Verification headers
+                            </p>
+                            <ul className="mt-3 space-y-2 text-sm">
+                                <li>
+                                    <code>
+                                        {
+                                            endpoint.delivery_security_policy
+                                                .event_header
+                                        }
+                                    </code>
+                                </li>
+                                <li>
+                                    <code>
+                                        {
+                                            endpoint.delivery_security_policy
+                                                .event_id_header
+                                        }
+                                    </code>
+                                </li>
+                                <li>
+                                    <code>
+                                        {
+                                            endpoint.delivery_security_policy
+                                                .timestamp_header
+                                        }
+                                    </code>
+                                </li>
+                                <li>
+                                    <code>
+                                        {
+                                            endpoint.delivery_security_policy
+                                                .signature_header
+                                        }
+                                    </code>
+                                </li>
+                                <li>
+                                    <code>
+                                        {
+                                            endpoint.delivery_security_policy
+                                                .signature_version_header
+                                        }
+                                    </code>
+                                </li>
+                            </ul>
+
+                            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                                {endpoint.delivery_security_policy.consumer_guidance.map(
+                                    (guidance) => (
+                                        <li key={guidance}>{guidance}</li>
+                                    ),
+                                )}
+                            </ul>
+                        </div>
+                    </section>
+                </div>
+
+                <section className="rounded-xl border p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Secret rotation history
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Recent rotation events are kept so operators can
+                                audit credential changes without exposing the
+                                raw secret again.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                        {endpoint.recent_secret_rotations.length === 0 && (
+                            <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                                No secret rotations have been recorded yet.
+                            </div>
+                        )}
+
+                        {endpoint.recent_secret_rotations.map((rotation) => (
+                            <div
+                                key={rotation.id}
+                                className="rounded-xl border p-4"
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="font-medium">
+                                            Version {rotation.secret_version}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {rotation.reason === 'created'
+                                                ? 'Initial secret issued'
+                                                : 'Manual secret rotation'}
+                                        </p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {formatDateTime(rotation.rotated_at)}
+                                    </p>
+                                </div>
+
+                                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                    <DetailItem label="Previous preview">
+                                        <span className="font-mono text-xs">
+                                            {rotation.previous_secret_preview ??
+                                                '-'}
+                                        </span>
+                                    </DetailItem>
+                                    <DetailItem label="Current preview">
+                                        <span className="font-mono text-xs">
+                                            {rotation.current_secret_preview}
+                                        </span>
+                                    </DetailItem>
+                                    <DetailItem label="Fingerprint">
+                                        <span className="font-mono text-xs break-all">
+                                            {
+                                                rotation.current_secret_fingerprint
+                                            }
+                                        </span>
+                                    </DetailItem>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
 
                 <section className="rounded-xl border p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -450,6 +744,12 @@ export default function ShowWebhookEndpoint({
                                         <td className="px-4 py-3 text-xs text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p>
+                                                    First attempt{' '}
+                                                    {formatDateTime(
+                                                        delivery.first_attempt_at,
+                                                    )}
+                                                </p>
+                                                <p>
                                                     Created{' '}
                                                     {formatDateTime(
                                                         delivery.created_at,
@@ -465,6 +765,12 @@ export default function ShowWebhookEndpoint({
                                                     Next retry{' '}
                                                     {formatDateTime(
                                                         delivery.next_retry_at,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    Dead letter{' '}
+                                                    {formatDateTime(
+                                                        delivery.dead_lettered_at,
                                                     )}
                                                 </p>
                                             </div>
@@ -575,4 +881,13 @@ function StatusCell({
             {label}
         </span>
     );
+}
+
+function healthLabel(status: string): string {
+    return {
+        healthy: 'Healthy',
+        warning: 'Warning',
+        degraded: 'Degraded',
+        inactive: 'Inactive',
+    }[status] ?? status;
 }

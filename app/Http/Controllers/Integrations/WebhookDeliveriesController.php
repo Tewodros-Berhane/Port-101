@@ -110,6 +110,7 @@ class WebhookDeliveriesController extends Controller
             'statusOptions' => $this->workspaceService->deliveryStatusOptions(),
             'eventOptions' => $this->workspaceService->eventOptions(false, true),
             'endpointOptions' => $endpointOptions,
+            'securityPolicy' => $this->workspaceService->deliverySecurityPolicy(),
             'deliveries' => $deliveries,
         ]);
     }
@@ -125,6 +126,7 @@ class WebhookDeliveriesController extends Controller
 
         return Inertia::render('integrations/deliveries/show', [
             'delivery' => $this->workspaceService->mapDelivery($delivery, $request->user()),
+            'securityPolicy' => $this->workspaceService->deliverySecurityPolicy(),
         ]);
     }
 

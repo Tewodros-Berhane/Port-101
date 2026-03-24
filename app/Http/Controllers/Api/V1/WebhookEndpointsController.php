@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Integrations\WebhookEndpointStoreRequest;
 use App\Http\Requests\Integrations\WebhookEndpointUpdateRequest;
 use App\Models\User;
+use App\Modules\Integrations\IntegrationWorkspaceService;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Integrations\WebhookDeliveryService;
 use App\Modules\Integrations\WebhookEndpointService;
-use App\Modules\Integrations\WebhookEventCatalog;
 use App\Support\Api\ApiQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,9 +19,8 @@ class WebhookEndpointsController extends ApiController
     public function __construct(
         private readonly WebhookEndpointService $endpointService,
         private readonly WebhookDeliveryService $deliveryService,
-        private readonly WebhookEventCatalog $eventCatalog,
-    ) {
-    }
+        private readonly IntegrationWorkspaceService $workspaceService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -67,7 +66,7 @@ class WebhookEndpointsController extends ApiController
 
         return $this->respond(
             data: collect($endpoints->items())
-                ->map(fn (WebhookEndpoint $endpoint) => $this->mapEndpoint($endpoint, $user))
+                ->map(fn (WebhookEndpoint $endpoint) => $this->workspaceService->mapEndpoint($endpoint, $user))
                 ->all(),
             meta: [
                 ...ApiQuery::paginationMeta($endpoints, $sort, $direction, [
@@ -75,7 +74,8 @@ class WebhookEndpointsController extends ApiController
                     'event' => $event,
                     'is_active' => $isActive,
                 ]),
-                'available_events' => $this->eventCatalog->options(),
+                'available_events' => $this->workspaceService->eventOptions(),
+                'delivery_security_policy' => $this->workspaceService->deliverySecurityPolicy(),
             ],
         );
     }
@@ -101,7 +101,13 @@ class WebhookEndpointsController extends ApiController
         $endpoint = $created['endpoint']->load('latestDelivery')->loadCount('deliveries');
 
         return $this->respond(
-            data: $this->mapEndpoint($endpoint, $user, (string) $created['signing_secret']),
+            data: $this->workspaceService->mapEndpoint(
+                endpoint: $endpoint,
+                user: $user,
+                revealedSigningSecret: (string) $created['signing_secret'],
+                analytics: $this->workspaceService->endpointAnalytics($endpoint),
+                rotations: $this->workspaceService->recentRotations($endpoint),
+            ),
             status: 201,
         );
     }
@@ -115,7 +121,12 @@ class WebhookEndpointsController extends ApiController
         $endpoint->load('latestDelivery')
             ->loadCount('deliveries');
 
-        return $this->respond($this->mapEndpoint($endpoint, $user));
+        return $this->respond($this->workspaceService->mapEndpoint(
+            endpoint: $endpoint,
+            user: $user,
+            analytics: $this->workspaceService->endpointAnalytics($endpoint),
+            rotations: $this->workspaceService->recentRotations($endpoint),
+        ));
     }
 
     public function update(
@@ -134,7 +145,12 @@ class WebhookEndpointsController extends ApiController
 
         $endpoint->load('latestDelivery')->loadCount('deliveries');
 
-        return $this->respond($this->mapEndpoint($endpoint, $user));
+        return $this->respond($this->workspaceService->mapEndpoint(
+            endpoint: $endpoint,
+            user: $user,
+            analytics: $this->workspaceService->endpointAnalytics($endpoint),
+            rotations: $this->workspaceService->recentRotations($endpoint),
+        ));
     }
 
     public function destroy(WebhookEndpoint $endpoint): JsonResponse
@@ -156,10 +172,12 @@ class WebhookEndpointsController extends ApiController
         $freshEndpoint = $rotated['endpoint']->load('latestDelivery')->loadCount('deliveries');
 
         return $this->respond(
-            $this->mapEndpoint(
+            $this->workspaceService->mapEndpoint(
                 endpoint: $freshEndpoint,
                 user: $request->user(),
                 revealedSigningSecret: (string) $rotated['signing_secret'],
+                analytics: $this->workspaceService->endpointAnalytics($freshEndpoint),
+                rotations: $this->workspaceService->recentRotations($freshEndpoint),
             ),
         );
     }
@@ -170,7 +188,7 @@ class WebhookEndpointsController extends ApiController
 
         $delivery = $this->deliveryService->sendTest($endpoint, $request->user()?->id);
 
-        return $this->respond($this->mapDelivery($delivery, $request->user()));
+        return $this->respond($this->workspaceService->mapDelivery($delivery, $request->user()));
     }
 
     public function deliveries(WebhookEndpoint $endpoint, Request $request): JsonResponse
@@ -205,7 +223,7 @@ class WebhookEndpointsController extends ApiController
 
         return $this->respond(
             data: collect($deliveries->items())
-                ->map(fn (WebhookDelivery $delivery) => $this->mapDelivery($delivery, $user))
+                ->map(fn (WebhookDelivery $delivery) => $this->workspaceService->mapDelivery($delivery, $user))
                 ->all(),
             meta: [
                 ...ApiQuery::paginationMeta($deliveries, $sort, $direction, [
@@ -213,78 +231,9 @@ class WebhookEndpointsController extends ApiController
                     'event_type' => $eventType,
                 ]),
                 'endpoint_id' => $endpoint->id,
+                'delivery_security_policy' => $this->workspaceService->deliverySecurityPolicy(),
             ],
         );
-    }
-
-    private function mapEndpoint(
-        WebhookEndpoint $endpoint,
-        ?User $user = null,
-        ?string $revealedSigningSecret = null,
-    ): array {
-        $latestDelivery = $endpoint->relationLoaded('latestDelivery')
-            ? $endpoint->latestDelivery
-            : null;
-
-        return [
-            'id' => $endpoint->id,
-            'name' => $endpoint->name,
-            'target_url' => $endpoint->target_url,
-            'api_version' => $endpoint->api_version,
-            'is_active' => (bool) $endpoint->is_active,
-            'subscribed_events' => $endpoint->subscribed_events ?? [],
-            'subscribed_event_labels' => collect($endpoint->subscribed_events ?? [])
-                ->map(fn (string $event) => $event === '*'
-                    ? 'All supported events'
-                    : $this->eventCatalog->label($event))
-                ->values()
-                ->all(),
-            'secret_preview' => $this->endpointService->secretPreview($endpoint),
-            'revealed_signing_secret' => $revealedSigningSecret,
-            'deliveries_count' => (int) ($endpoint->deliveries_count ?? $endpoint->deliveries()->count()),
-            'latest_delivery' => $latestDelivery
-                ? [
-                    'id' => $latestDelivery->id,
-                    'event_type' => $latestDelivery->event_type,
-                    'status' => $latestDelivery->status,
-                    'response_status' => $latestDelivery->response_status,
-                    'delivered_at' => $latestDelivery->delivered_at?->toIso8601String(),
-                ]
-                : null,
-            'last_tested_at' => $endpoint->last_tested_at?->toIso8601String(),
-            'last_success_at' => $endpoint->last_success_at?->toIso8601String(),
-            'last_failure_at' => $endpoint->last_failure_at?->toIso8601String(),
-            'created_at' => $endpoint->created_at?->toIso8601String(),
-            'updated_at' => $endpoint->updated_at?->toIso8601String(),
-            'can_view' => $user?->can('view', $endpoint) ?? false,
-            'can_edit' => $user?->can('update', $endpoint) ?? false,
-            'can_delete' => $user?->can('delete', $endpoint) ?? false,
-            'can_rotate_secret' => $user?->can('rotateSecret', $endpoint) ?? false,
-            'can_test' => $user?->can('test', $endpoint) ?? false,
-        ];
-    }
-
-    private function mapDelivery(WebhookDelivery $delivery, ?User $user = null): array
-    {
-        return [
-            'id' => $delivery->id,
-            'webhook_endpoint_id' => $delivery->webhook_endpoint_id,
-            'integration_event_id' => $delivery->integration_event_id,
-            'event_type' => $delivery->event_type,
-            'status' => $delivery->status,
-            'attempt_count' => (int) $delivery->attempt_count,
-            'last_attempt_at' => $delivery->last_attempt_at?->toIso8601String(),
-            'next_retry_at' => $delivery->next_retry_at?->toIso8601String(),
-            'response_status' => $delivery->response_status,
-            'duration_ms' => $delivery->duration_ms,
-            'response_body_excerpt' => $delivery->response_body_excerpt,
-            'failure_message' => $delivery->failure_message,
-            'delivered_at' => $delivery->delivered_at?->toIso8601String(),
-            'event_payload' => $delivery->integrationEvent?->payload ?? [],
-            'created_at' => $delivery->created_at?->toIso8601String(),
-            'updated_at' => $delivery->updated_at?->toIso8601String(),
-            'can_retry' => $user?->can('retry', $delivery) ?? false,
-        ];
     }
 
     private function booleanFilter(Request $request, string $key): ?bool

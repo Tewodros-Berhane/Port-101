@@ -16,6 +16,7 @@ type Delivery = {
     status: string;
     status_label: string;
     attempt_count: number;
+    first_attempt_at?: string | null;
     last_attempt_at?: string | null;
     next_retry_at?: string | null;
     response_status?: number | null;
@@ -23,19 +24,36 @@ type Delivery = {
     response_body_excerpt?: string | null;
     failure_message?: string | null;
     delivered_at?: string | null;
+    dead_lettered_at?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
     can_retry: boolean;
 };
 
+type SecurityPolicy = {
+    signature_version: string;
+    signature_algorithm: string;
+    signed_content: string;
+    timestamp_header: string;
+    signature_header: string;
+    signature_version_header: string;
+    event_header: string;
+    event_id_header: string;
+    replay_window_seconds: number;
+};
+
 type Props = {
     delivery: Delivery;
+    securityPolicy: SecurityPolicy;
 };
 
 const formatDateTime = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
-export default function ShowWebhookDelivery({ delivery }: Props) {
+export default function ShowWebhookDelivery({
+    delivery,
+    securityPolicy,
+}: Props) {
     return (
         <AppLayout
             breadcrumbs={[
@@ -152,6 +170,53 @@ export default function ShowWebhookDelivery({ delivery }: Props) {
                                 </div>
                             </div>
                         </div>
+
+                        <div className="rounded-xl border p-5">
+                            <h2 className="text-sm font-semibold">
+                                Signature and replay guidance
+                            </h2>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                These headers are part of the outbound contract
+                                for every webhook delivery.
+                            </p>
+
+                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <MetricCard
+                                    label="Signature version"
+                                    value={securityPolicy.signature_version}
+                                />
+                                <MetricCard
+                                    label="Replay window"
+                                    value={`${securityPolicy.replay_window_seconds} sec`}
+                                />
+                            </div>
+
+                            <div className="mt-4 rounded-xl bg-muted/20 p-4 text-sm">
+                                <p>
+                                    Algorithm:{' '}
+                                    <code>{securityPolicy.signature_algorithm}</code>
+                                </p>
+                                <p className="mt-2">
+                                    Signed content:{' '}
+                                    <code>{securityPolicy.signed_content}</code>
+                                </p>
+                                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                    <code>{securityPolicy.event_header}</code>
+                                    <code>{securityPolicy.event_id_header}</code>
+                                    <code>
+                                        {securityPolicy.timestamp_header}
+                                    </code>
+                                    <code>
+                                        {securityPolicy.signature_header}
+                                    </code>
+                                    <code>
+                                        {
+                                            securityPolicy.signature_version_header
+                                        }
+                                    </code>
+                                </div>
+                            </div>
+                        </div>
                     </section>
 
                     <aside className="space-y-6">
@@ -186,6 +251,9 @@ export default function ShowWebhookDelivery({ delivery }: Props) {
                                 <DetailItem label="Attempt count">
                                     {String(delivery.attempt_count)}
                                 </DetailItem>
+                                <DetailItem label="First attempt">
+                                    {formatDateTime(delivery.first_attempt_at)}
+                                </DetailItem>
                                 <DetailItem label="Occurred at">
                                     {formatDateTime(delivery.occurred_at)}
                                 </DetailItem>
@@ -197,6 +265,9 @@ export default function ShowWebhookDelivery({ delivery }: Props) {
                                 </DetailItem>
                                 <DetailItem label="Delivered at">
                                     {formatDateTime(delivery.delivered_at)}
+                                </DetailItem>
+                                <DetailItem label="Dead lettered at">
+                                    {formatDateTime(delivery.dead_lettered_at)}
                                 </DetailItem>
                                 <DetailItem label="Created at">
                                     {formatDateTime(delivery.created_at)}

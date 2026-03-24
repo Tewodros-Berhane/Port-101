@@ -7,6 +7,8 @@ type EndpointRow = {
     name: string;
     target_url: string;
     is_active: boolean;
+    health_status: string;
+    secret_rotated_at?: string | null;
     deliveries_count: number;
     delivered_deliveries_count: number;
     failed_deliveries_count: number;
@@ -50,6 +52,8 @@ type Props = {
         delivered_last_7_days: number;
         dead_letters: number;
         pending_retries: number;
+        success_rate_last_7_days?: number | null;
+        average_duration_ms_last_7_days?: number | null;
     };
     recentEndpoints: EndpointRow[];
     deadLetters: DeliveryRow[];
@@ -149,6 +153,27 @@ export default function IntegrationsDashboard({
                         value={`${summary.active_endpoints}/${summary.total_endpoints}`}
                         description="Endpoints currently enabled"
                     />
+                    <MetricCard
+                        label="Success rate"
+                        value={
+                            summary.success_rate_last_7_days !== null &&
+                            summary.success_rate_last_7_days !== undefined
+                                ? `${summary.success_rate_last_7_days}%`
+                                : '-'
+                        }
+                        description="Successful deliveries over the last 7 days"
+                    />
+                    <MetricCard
+                        label="Average latency"
+                        value={
+                            summary.average_duration_ms_last_7_days !== null &&
+                            summary.average_duration_ms_last_7_days !==
+                                undefined
+                                ? `${summary.average_duration_ms_last_7_days} ms`
+                                : '-'
+                        }
+                        description="Average delivery duration over the last 7 days"
+                    />
                 </section>
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
@@ -197,9 +222,23 @@ export default function IntegrationsDashboard({
                                                             : 'muted'
                                                     }
                                                 />
+                                                <StatusPill
+                                                    label={healthLabel(
+                                                        endpoint.health_status,
+                                                    )}
+                                                    tone={healthTone(
+                                                        endpoint.health_status,
+                                                    )}
+                                                />
                                             </div>
                                             <p className="max-w-[560px] truncate text-xs text-muted-foreground">
                                                 {endpoint.target_url}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Secret rotated{' '}
+                                                {formatDateTime(
+                                                    endpoint.secret_rotated_at,
+                                                )}
                                             </p>
                                         </div>
                                         {endpoint.can_view && (
@@ -448,4 +487,29 @@ function EmptyState({ message }: { message: string }) {
             {message}
         </div>
     );
+}
+
+function healthTone(status: string): 'success' | 'warning' | 'danger' | 'muted' {
+    if (status === 'healthy') {
+        return 'success';
+    }
+
+    if (status === 'warning' || status === 'degraded') {
+        return 'warning';
+    }
+
+    if (status === 'inactive') {
+        return 'muted';
+    }
+
+    return 'danger';
+}
+
+function healthLabel(status: string): string {
+    return {
+        healthy: 'Healthy',
+        warning: 'Warning',
+        degraded: 'Degraded',
+        inactive: 'Inactive',
+    }[status] ?? status;
 }

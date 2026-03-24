@@ -187,6 +187,8 @@ class WebhookEndpointsController extends Controller
                 endpoint: $endpoint,
                 user: $user,
                 revealedSigningSecret: $request->session()->get('webhook_signing_secret'),
+                analytics: $this->workspaceService->endpointAnalytics($endpoint),
+                rotations: $this->workspaceService->recentRotations($endpoint),
             ),
             'filters' => [
                 'status' => $status,

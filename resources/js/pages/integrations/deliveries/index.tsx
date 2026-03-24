@@ -14,6 +14,13 @@ type EndpointOption = {
     name: string;
 };
 
+type SecurityPolicy = {
+    signature_version: string;
+    signature_algorithm: string;
+    signed_content: string;
+    replay_window_seconds: number;
+};
+
 type DeliveryRow = {
     id: string;
     webhook_endpoint_id: string;
@@ -23,11 +30,13 @@ type DeliveryRow = {
     status_label: string;
     status: string;
     attempt_count: number;
+    first_attempt_at?: string | null;
     response_status?: number | null;
     duration_ms?: number | null;
     failure_message?: string | null;
     next_retry_at?: string | null;
     delivered_at?: string | null;
+    dead_lettered_at?: string | null;
     created_at?: string | null;
     can_retry: boolean;
 };
@@ -55,6 +64,7 @@ type Props = {
     statusOptions: Option[];
     eventOptions: Option[];
     endpointOptions: EndpointOption[];
+    securityPolicy: SecurityPolicy;
     deliveries: {
         data: DeliveryRow[];
         links: PaginationLink[];
@@ -70,6 +80,7 @@ export default function WebhookDeliveriesIndex({
     statusOptions,
     eventOptions,
     endpointOptions,
+    securityPolicy,
     deliveries,
 }: Props) {
     const form = useForm({
@@ -136,6 +147,21 @@ export default function WebhookDeliveriesIndex({
                         value={String(summary.pending)}
                     />
                 </section>
+
+                <div className="rounded-xl border p-4 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="font-medium">Delivery policy</p>
+                            <p className="text-xs text-muted-foreground">
+                                Consumers should verify{' '}
+                                <code>{securityPolicy.signature_algorithm}</code>{' '}
+                                over <code>{securityPolicy.signed_content}</code>{' '}
+                                and reject payloads older than{' '}
+                                {securityPolicy.replay_window_seconds} seconds.
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 <form
                     className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-5"
@@ -336,12 +362,18 @@ export default function WebhookDeliveriesIndex({
                                         </p>
                                     </td>
                                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                                        <div className="space-y-1">
-                                            <p>
-                                                Created{' '}
-                                                {formatDateTime(
-                                                    delivery.created_at,
-                                                )}
+                                            <div className="space-y-1">
+                                                <p>
+                                                    First attempt{' '}
+                                                    {formatDateTime(
+                                                        delivery.first_attempt_at,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    Created{' '}
+                                                    {formatDateTime(
+                                                        delivery.created_at,
+                                                    )}
                                             </p>
                                             <p>
                                                 Delivered{' '}
@@ -349,14 +381,20 @@ export default function WebhookDeliveriesIndex({
                                                     delivery.delivered_at,
                                                 )}
                                             </p>
-                                            <p>
-                                                Next retry{' '}
-                                                {formatDateTime(
-                                                    delivery.next_retry_at,
-                                                )}
-                                            </p>
-                                        </div>
-                                    </td>
+                                                <p>
+                                                    Next retry{' '}
+                                                    {formatDateTime(
+                                                        delivery.next_retry_at,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    Dead letter{' '}
+                                                    {formatDateTime(
+                                                        delivery.dead_lettered_at,
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="inline-flex flex-wrap items-center justify-end gap-3">
                                             {delivery.can_retry && (
