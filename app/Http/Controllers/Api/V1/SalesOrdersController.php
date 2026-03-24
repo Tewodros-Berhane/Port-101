@@ -26,10 +26,11 @@ class SalesOrdersController extends ApiController
         $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
         $status = trim((string) $request->input('status', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         $requiresApproval = $this->booleanFilter($request, 'requires_approval');
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['created_at', 'order_number', 'status', 'order_date', 'grand_total', 'confirmed_at', 'updated_at'],
+            allowed: ['created_at', 'order_number', 'external_reference', 'status', 'order_date', 'grand_total', 'confirmed_at', 'updated_at'],
             defaultSort: 'created_at',
             defaultDirection: 'desc',
         );
@@ -40,11 +41,13 @@ class SalesOrdersController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('order_number', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhereHas('partner', fn ($partnerQuery) => $partnerQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('quote', fn ($quoteQuery) => $quoteQuery->where('quote_number', 'like', "%{$search}%"));
                 });
             })
             ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->when($requiresApproval !== null, fn ($query) => $query->where('requires_approval', $requiresApproval))
             ->tap(fn ($query) => $user->applyDataScopeToQuery($query))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
@@ -61,6 +64,7 @@ class SalesOrdersController extends ApiController
             filters: [
                 'search' => $search,
                 'status' => $status,
+                'external_reference' => $externalReference,
                 'requires_approval' => $requiresApproval,
             ],
         );
@@ -143,6 +147,7 @@ class SalesOrdersController extends ApiController
     {
         $payload = [
             'id' => $order->id,
+            'external_reference' => $order->external_reference,
             'quote_id' => $order->quote_id,
             'quote_number' => $order->quote?->quote_number,
             'partner_id' => $order->partner_id,

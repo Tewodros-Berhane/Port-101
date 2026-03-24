@@ -118,6 +118,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
     Sanctum::actingAs($financeUser);
 
     $invoiceResponse = postJson('/api/v1/accounting/invoices', [
+        'external_reference' => 'EXT-INV-001',
         'partner_id' => $customer->id,
         'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
         'sales_order_id' => null,
@@ -135,6 +136,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         ],
     ])
         ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'EXT-INV-001')
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_DRAFT)
         ->assertJsonPath('data.document_type', AccountingInvoice::TYPE_CUSTOMER_INVOICE);
 
@@ -142,10 +144,11 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
 
     $invoiceId = (string) $invoiceResponse->json('data.id');
 
-    getJson('/api/v1/accounting/invoices?status=draft&document_type=customer_invoice&sort=invoice_number&direction=asc')
+    getJson('/api/v1/accounting/invoices?external_reference=EXT-INV-001&status=draft&document_type=customer_invoice&sort=invoice_number&direction=asc')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $invoiceId)
+        ->assertJsonPath('meta.filters.external_reference', 'EXT-INV-001')
         ->assertJsonPath('meta.filters.status', AccountingInvoice::STATUS_DRAFT)
         ->assertJsonPath('meta.filters.document_type', AccountingInvoice::TYPE_CUSTOMER_INVOICE)
         ->assertJsonPath('meta.sort', 'invoice_number');
@@ -178,6 +181,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
 
     $paymentResponse = postJson('/api/v1/accounting/payments', [
+        'external_reference' => 'EXT-PAY-001',
         'invoice_id' => $invoiceId,
         'payment_date' => now()->toDateString(),
         'amount' => 80,
@@ -186,14 +190,16 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         'notes' => 'Initial API payment',
     ])
         ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'EXT-PAY-001')
         ->assertJsonPath('data.status', AccountingPayment::STATUS_DRAFT);
 
     $paymentId = (string) $paymentResponse->json('data.id');
 
-    getJson('/api/v1/accounting/payments?status=draft&invoice_id='.$invoiceId.'&sort=payment_number&direction=asc')
+    getJson('/api/v1/accounting/payments?external_reference=EXT-PAY-001&status=draft&invoice_id='.$invoiceId.'&sort=payment_number&direction=asc')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $paymentId)
+        ->assertJsonPath('meta.filters.external_reference', 'EXT-PAY-001')
         ->assertJsonPath('meta.filters.status', AccountingPayment::STATUS_DRAFT)
         ->assertJsonPath('meta.filters.invoice_id', $invoiceId);
 

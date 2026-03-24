@@ -43,7 +43,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `242 passed`, `0 failed`
+- latest full suite result: `243 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -80,7 +80,7 @@ Exit condition:
 - `[x]` outbound webhook event publishing exists
 - `[~]` webhook delivery and retry visibility exists
 - `[x]` idempotency keys exist for write-heavy API actions
-- `[ ]` external reference fields exist on integration-heavy entities
+- `[x]` external reference fields exist on integration-heavy entities
 - `[ ]` webhook secret rotation history exists
 - `[ ]` replay-window verification policy is documented and enforced where required
 - `[ ]` API v1 deprecation/versioning policy is documented and emitted consistently
@@ -165,18 +165,13 @@ This is the minimum remaining implementation order.
 
 ### Phase 1: Integration Hardening
 
-1. External references
-   - add `external_reference` or equivalent on integration-heavy entities
-   - enforce uniqueness rules within the right scope
-   - expose in API resources and filters
-
-2. Webhook governance hardening
+1. Webhook governance hardening
    - secret rotation history
    - delivery replay guidance
    - event contract documentation
    - better endpoint analytics
 
-3. API versioning policy
+2. API versioning policy
    - deprecation headers
    - change-log expectations
    - compatibility rules for `v1`
@@ -298,13 +293,12 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. external references
-2. webhook governance hardening
-3. structured logs + correlation IDs
-4. queue failure dashboard + dead-letter tooling
-5. backup/restore runbooks and drills
-6. performance/index review and load testing
-7. nightly regression CI
+1. webhook governance hardening
+2. structured logs + correlation IDs
+3. queue failure dashboard + dead-letter tooling
+4. backup/restore runbooks and drills
+5. performance/index review and load testing
+6. nightly regression CI
 
 ## Ownership Rule
 

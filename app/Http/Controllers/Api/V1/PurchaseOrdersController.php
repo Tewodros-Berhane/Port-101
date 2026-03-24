@@ -30,10 +30,11 @@ class PurchaseOrdersController extends ApiController
         $status = trim((string) $request->input('status', ''));
         $partnerId = trim((string) $request->input('partner_id', ''));
         $rfqId = trim((string) $request->input('rfq_id', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         $requiresApproval = $this->booleanFilter($request, 'requires_approval');
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['created_at', 'updated_at', 'order_date', 'order_number', 'status', 'grand_total', 'ordered_at'],
+            allowed: ['created_at', 'updated_at', 'order_date', 'order_number', 'external_reference', 'status', 'grand_total', 'ordered_at'],
             defaultSort: 'order_date',
             defaultDirection: 'desc',
         );
@@ -44,6 +45,7 @@ class PurchaseOrdersController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('order_number', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%")
                         ->orWhereHas('partner', fn ($partnerQuery) => $partnerQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('rfq', fn ($rfqQuery) => $rfqQuery->where('rfq_number', 'like', "%{$search}%"));
@@ -52,6 +54,7 @@ class PurchaseOrdersController extends ApiController
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($partnerId !== '', fn ($query) => $query->where('partner_id', $partnerId))
             ->when($rfqId !== '', fn ($query) => $query->where('rfq_id', $rfqId))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->when($requiresApproval !== null, fn ($query) => $query->where('requires_approval', $requiresApproval))
             ->tap(fn ($query) => $user->applyDataScopeToQuery($query))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
@@ -70,6 +73,7 @@ class PurchaseOrdersController extends ApiController
                 'status' => $status,
                 'partner_id' => $partnerId,
                 'rfq_id' => $rfqId,
+                'external_reference' => $externalReference,
                 'requires_approval' => $requiresApproval,
             ],
         );
@@ -227,6 +231,7 @@ class PurchaseOrdersController extends ApiController
     ): array {
         $payload = [
             'id' => $order->id,
+            'external_reference' => $order->external_reference,
             'rfq_id' => $order->rfq_id,
             'rfq_number' => $order->rfq?->rfq_number,
             'partner_id' => $order->partner_id,

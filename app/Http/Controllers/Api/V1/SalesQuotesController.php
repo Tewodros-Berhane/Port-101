@@ -28,10 +28,11 @@ class SalesQuotesController extends ApiController
         $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
         $status = trim((string) $request->input('status', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         $requiresApproval = $this->booleanFilter($request, 'requires_approval');
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['created_at', 'quote_number', 'status', 'quote_date', 'valid_until', 'grand_total', 'updated_at'],
+            allowed: ['created_at', 'quote_number', 'external_reference', 'status', 'quote_date', 'valid_until', 'grand_total', 'updated_at'],
             defaultSort: 'created_at',
             defaultDirection: 'desc',
         );
@@ -42,11 +43,13 @@ class SalesQuotesController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('quote_number', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhereHas('partner', fn ($partnerQuery) => $partnerQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('lead', fn ($leadQuery) => $leadQuery->where('title', 'like', "%{$search}%"));
                 });
             })
             ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->when($requiresApproval !== null, fn ($query) => $query->where('requires_approval', $requiresApproval))
             ->tap(fn ($query) => $user->applyDataScopeToQuery($query))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
@@ -63,6 +66,7 @@ class SalesQuotesController extends ApiController
             filters: [
                 'search' => $search,
                 'status' => $status,
+                'external_reference' => $externalReference,
                 'requires_approval' => $requiresApproval,
             ],
         );
@@ -181,6 +185,7 @@ class SalesQuotesController extends ApiController
     {
         $payload = [
             'id' => $quote->id,
+            'external_reference' => $quote->external_reference,
             'lead_id' => $quote->lead_id,
             'lead_title' => $quote->lead?->title,
             'partner_id' => $quote->partner_id,
@@ -238,6 +243,7 @@ class SalesQuotesController extends ApiController
     {
         return [
             'id' => $order->id,
+            'external_reference' => $order->external_reference,
             'quote_id' => $order->quote_id,
             'quote_number' => $order->quote?->quote_number,
             'partner_id' => $order->partner_id,

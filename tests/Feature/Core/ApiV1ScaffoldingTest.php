@@ -2,6 +2,7 @@
 
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Partner;
+use App\Core\MasterData\Models\Product;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Core\Settings\Models\Setting;
@@ -10,6 +11,7 @@ use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\postJson;
 use function Pest\Laravel\putJson;
 
 function createCompanyUserForApi(array $permissions): array
@@ -123,6 +125,100 @@ test('api v1 partners index is company scoped', function () {
         ->assertJsonPath('meta.sort', 'name')
         ->assertJsonPath('meta.direction', 'desc')
         ->assertJsonPath('meta.filters.search', 'In Company');
+});
+
+test('api v1 partner and product resources support external references with company uniqueness', function () {
+    [$user, $company] = createCompanyUserForApi([
+        'core.partners.view',
+        'core.partners.manage',
+        'core.products.view',
+        'core.products.manage',
+    ]);
+    [$otherUser, $otherCompany] = createCompanyUserForApi([
+        'core.partners.view',
+        'core.partners.manage',
+    ]);
+
+    Partner::create([
+        'company_id' => $otherCompany->id,
+        'external_reference' => 'EXT-PARTNER-001',
+        'code' => 'OTH-'.Str::upper(Str::random(4)),
+        'name' => 'Other Company External Partner',
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $otherUser->id,
+        'updated_by' => $otherUser->id,
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $partnerResponse = postJson('/api/v1/partners', [
+        'external_reference' => 'EXT-PARTNER-001',
+        'code' => 'IN-'.Str::upper(Str::random(4)),
+        'name' => 'Scoped External Partner',
+        'type' => 'customer',
+        'email' => 'external@example.com',
+        'phone' => '+251900000000',
+        'is_active' => true,
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'EXT-PARTNER-001');
+
+    $partnerId = (string) $partnerResponse->json('data.id');
+
+    getJson('/api/v1/partners?external_reference=EXT-PARTNER-001')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $partnerId)
+        ->assertJsonPath('meta.filters.external_reference', 'EXT-PARTNER-001');
+
+    postJson('/api/v1/partners', [
+        'external_reference' => 'EXT-PARTNER-001',
+        'code' => 'DUP-'.Str::upper(Str::random(4)),
+        'name' => 'Duplicate External Partner',
+        'type' => 'customer',
+        'is_active' => true,
+    ])
+        ->assertUnprocessable()
+        ->assertJsonStructure([
+            'message',
+            'errors' => ['external_reference'],
+        ]);
+
+    $productResponse = postJson('/api/v1/products', [
+        'external_reference' => 'EXT-PRODUCT-001',
+        'sku' => 'EXT-SKU-'.Str::upper(Str::random(4)),
+        'name' => 'External Reference Product',
+        'type' => Product::TYPE_STOCK,
+        'tracking_mode' => Product::TRACKING_NONE,
+        'uom_id' => null,
+        'default_tax_id' => null,
+        'description' => 'Mapped from an external system.',
+        'is_active' => true,
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'EXT-PRODUCT-001');
+
+    $productId = (string) $productResponse->json('data.id');
+
+    putJson('/api/v1/products/'.$productId, [
+        'external_reference' => 'EXT-PRODUCT-UPDATED',
+        'sku' => (string) $productResponse->json('data.sku'),
+        'name' => 'External Reference Product',
+        'type' => Product::TYPE_STOCK,
+        'tracking_mode' => Product::TRACKING_NONE,
+        'uom_id' => null,
+        'default_tax_id' => null,
+        'description' => 'Mapped from an external system.',
+        'is_active' => true,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.external_reference', 'EXT-PRODUCT-UPDATED');
+
+    getJson('/api/v1/products?search=EXT-PRODUCT-UPDATED')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $productId);
 });
 
 test('api v1 settings endpoint persists company settings', function () {

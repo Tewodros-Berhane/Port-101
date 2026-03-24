@@ -29,9 +29,10 @@ class AccountingInvoicesController extends ApiController
         $documentType = trim((string) $request->input('document_type', ''));
         $partnerId = trim((string) $request->input('partner_id', ''));
         $salesOrderId = trim((string) $request->input('sales_order_id', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['created_at', 'updated_at', 'invoice_date', 'due_date', 'invoice_number', 'status', 'grand_total', 'balance_due'],
+            allowed: ['created_at', 'updated_at', 'invoice_date', 'due_date', 'invoice_number', 'external_reference', 'status', 'grand_total', 'balance_due'],
             defaultSort: 'invoice_date',
             defaultDirection: 'desc',
         );
@@ -46,6 +47,7 @@ class AccountingInvoicesController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('invoice_number', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%")
                         ->orWhereHas('partner', fn ($partnerQuery) => $partnerQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('salesOrder', fn ($salesOrderQuery) => $salesOrderQuery->where('order_number', 'like', "%{$search}%"))
@@ -56,6 +58,7 @@ class AccountingInvoicesController extends ApiController
             ->when($documentType !== '', fn ($query) => $query->where('document_type', $documentType))
             ->when($partnerId !== '', fn ($query) => $query->where('partner_id', $partnerId))
             ->when($salesOrderId !== '', fn ($query) => $query->where('sales_order_id', $salesOrderId))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->tap(fn ($query) => $user->applyDataScopeToQuery($query))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
@@ -74,6 +77,7 @@ class AccountingInvoicesController extends ApiController
                 'document_type' => $documentType,
                 'partner_id' => $partnerId,
                 'sales_order_id' => $salesOrderId,
+                'external_reference' => $externalReference,
             ],
         );
     }
@@ -209,6 +213,7 @@ class AccountingInvoicesController extends ApiController
     ): array {
         $payload = [
             'id' => $invoice->id,
+            'external_reference' => $invoice->external_reference,
             'partner_id' => $invoice->partner_id,
             'partner_name' => $invoice->partner?->name,
             'partner_type' => $invoice->partner?->type,

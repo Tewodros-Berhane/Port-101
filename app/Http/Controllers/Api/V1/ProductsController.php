@@ -17,9 +17,10 @@ class ProductsController extends ApiController
 
         $perPage = ApiQuery::perPage($request);
         $search = trim((string) $request->input('search', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['name', 'sku', 'created_at', 'updated_at'],
+            allowed: ['name', 'sku', 'external_reference', 'created_at', 'updated_at'],
             defaultSort: 'name',
             defaultDirection: 'asc',
         );
@@ -29,9 +30,11 @@ class ProductsController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('name', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%");
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%");
                 });
             })
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
             ->withQueryString();
@@ -41,7 +44,10 @@ class ProductsController extends ApiController
             data: $products->items(),
             sort: $sort,
             direction: $direction,
-            filters: ['search' => $search],
+            filters: [
+                'search' => $search,
+                'external_reference' => $externalReference,
+            ],
         );
     }
 

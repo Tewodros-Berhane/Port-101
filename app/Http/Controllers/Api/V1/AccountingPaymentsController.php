@@ -29,10 +29,11 @@ class AccountingPaymentsController extends ApiController
         $status = trim((string) $request->input('status', ''));
         $invoiceId = trim((string) $request->input('invoice_id', ''));
         $method = trim((string) $request->input('method', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         $bankReconciled = $this->booleanFilter($request, 'bank_reconciled');
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['created_at', 'updated_at', 'payment_date', 'payment_number', 'status', 'amount', 'posted_at'],
+            allowed: ['created_at', 'updated_at', 'payment_date', 'payment_number', 'external_reference', 'status', 'amount', 'posted_at'],
             defaultSort: 'payment_date',
             defaultDirection: 'desc',
         );
@@ -46,6 +47,7 @@ class AccountingPaymentsController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('payment_number', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhere('reference', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%")
                         ->orWhereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->where('invoice_number', 'like', "%{$search}%"))
@@ -55,6 +57,7 @@ class AccountingPaymentsController extends ApiController
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($invoiceId !== '', fn ($query) => $query->where('invoice_id', $invoiceId))
             ->when($method !== '', fn ($query) => $query->where('method', $method))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->when($bankReconciled !== null, function ($query) use ($bankReconciled) {
                 if ($bankReconciled) {
                     $query->whereNotNull('bank_reconciled_at');
@@ -79,6 +82,7 @@ class AccountingPaymentsController extends ApiController
                 'status' => $status,
                 'invoice_id' => $invoiceId,
                 'method' => $method,
+                'external_reference' => $externalReference,
                 'bank_reconciled' => $bankReconciled,
             ],
         );
@@ -225,6 +229,7 @@ class AccountingPaymentsController extends ApiController
     ): array {
         $payload = [
             'id' => $payment->id,
+            'external_reference' => $payment->external_reference,
             'invoice_id' => $payment->invoice_id,
             'invoice_number' => $payment->invoice?->invoice_number,
             'invoice_status' => $payment->invoice?->status,

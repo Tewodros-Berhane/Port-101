@@ -105,6 +105,7 @@ test('api v1 project endpoints are company scoped and support nested task and ti
         ->assertJsonPath('message', 'Resource not found.');
 
     $projectResponse = postJson('/api/v1/projects', [
+        'external_reference' => 'EXT-PROJECT-001',
         'project_code' => 'PRJ-API-001',
         'name' => 'API Delivery Rollout',
         'description' => 'Created from the projects API.',
@@ -122,9 +123,16 @@ test('api v1 project endpoints are company scoped and support nested task and ti
         'health_status' => Project::HEALTH_STATUS_ON_TRACK,
     ])
         ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'EXT-PROJECT-001')
         ->assertJsonPath('data.project_code', 'PRJ-API-001');
 
     $projectId = (string) $projectResponse->json('data.id');
+
+    getJson('/api/v1/projects?external_reference=EXT-PROJECT-001&status=draft')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $projectId)
+        ->assertJsonPath('meta.filters.external_reference', 'EXT-PROJECT-001');
 
     $taskResponse = postJson("/api/v1/projects/{$projectId}/tasks", [
         'task_number' => 'TASK-API-001',

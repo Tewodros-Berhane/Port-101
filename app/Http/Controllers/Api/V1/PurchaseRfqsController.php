@@ -28,9 +28,10 @@ class PurchaseRfqsController extends ApiController
         $search = trim((string) $request->input('search', ''));
         $status = trim((string) $request->input('status', ''));
         $partnerId = trim((string) $request->input('partner_id', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['created_at', 'updated_at', 'rfq_date', 'valid_until', 'rfq_number', 'status', 'grand_total'],
+            allowed: ['created_at', 'updated_at', 'rfq_date', 'valid_until', 'rfq_number', 'external_reference', 'status', 'grand_total'],
             defaultSort: 'rfq_date',
             defaultDirection: 'desc',
         );
@@ -41,6 +42,7 @@ class PurchaseRfqsController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('rfq_number', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%")
                         ->orWhereHas('partner', fn ($partnerQuery) => $partnerQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('order', fn ($orderQuery) => $orderQuery->where('order_number', 'like', "%{$search}%"));
@@ -48,6 +50,7 @@ class PurchaseRfqsController extends ApiController
             })
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($partnerId !== '', fn ($query) => $query->where('partner_id', $partnerId))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->tap(fn ($query) => $user->applyDataScopeToQuery($query))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
@@ -64,6 +67,7 @@ class PurchaseRfqsController extends ApiController
                 'search' => $search,
                 'status' => $status,
                 'partner_id' => $partnerId,
+                'external_reference' => $externalReference,
             ],
         );
     }
@@ -208,6 +212,7 @@ class PurchaseRfqsController extends ApiController
     ): array {
         $payload = [
             'id' => $rfq->id,
+            'external_reference' => $rfq->external_reference,
             'partner_id' => $rfq->partner_id,
             'partner_name' => $rfq->partner?->name,
             'rfq_number' => $rfq->rfq_number,

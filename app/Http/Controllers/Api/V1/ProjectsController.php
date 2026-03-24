@@ -27,9 +27,10 @@ class ProjectsController extends ApiController
         $search = trim((string) $request->input('search', ''));
         $status = trim((string) $request->input('status', ''));
         $billingType = trim((string) $request->input('billing_type', ''));
+        $externalReference = trim((string) $request->input('external_reference', ''));
         ['sort' => $sort, 'direction' => $direction] = ApiQuery::sort(
             $request,
-            allowed: ['updated_at', 'name', 'project_code', 'status', 'start_date'],
+            allowed: ['updated_at', 'name', 'project_code', 'external_reference', 'status', 'start_date'],
             defaultSort: 'updated_at',
             defaultDirection: 'desc',
         );
@@ -41,11 +42,13 @@ class ProjectsController extends ApiController
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('project_code', 'like', "%{$search}%")
+                        ->orWhere('external_reference', 'like', "%{$search}%")
                         ->orWhere('name', 'like', "%{$search}%");
                 });
             })
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($billingType !== '', fn ($query) => $query->where('billing_type', $billingType))
+            ->when($externalReference !== '', fn ($query) => $query->where('external_reference', $externalReference))
             ->tap(fn ($query) => ApiQuery::applySort($query, $sort, $direction))
             ->paginate($perPage)
             ->withQueryString();
@@ -61,6 +64,7 @@ class ProjectsController extends ApiController
                 'search' => $search,
                 'status' => $status,
                 'billing_type' => $billingType,
+                'external_reference' => $externalReference,
             ],
         );
     }
@@ -170,6 +174,7 @@ class ProjectsController extends ApiController
 
         $payload = [
             'id' => $project->id,
+            'external_reference' => $project->external_reference,
             'project_code' => $project->project_code,
             'name' => $project->name,
             'description' => $project->description,

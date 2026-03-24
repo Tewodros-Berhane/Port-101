@@ -130,6 +130,7 @@ test('api v1 purchasing endpoints are company scoped and support rfq to po to re
     Sanctum::actingAs($buyer);
 
     $rfqResponse = postJson('/api/v1/purchasing/rfqs', [
+        'external_reference' => 'ERP-RFQ-001',
         'partner_id' => $vendor->id,
         'rfq_date' => now()->toDateString(),
         'valid_until' => now()->addDays(10)->toDateString(),
@@ -145,15 +146,17 @@ test('api v1 purchasing endpoints are company scoped and support rfq to po to re
         ],
     ])
         ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'ERP-RFQ-001')
         ->assertJsonPath('data.status', PurchaseRfq::STATUS_DRAFT)
         ->assertJsonPath('data.partner_id', $vendor->id);
 
     $rfqId = (string) $rfqResponse->json('data.id');
 
-    getJson('/api/v1/purchasing/rfqs?status=draft&sort=rfq_number&direction=asc')
+    getJson('/api/v1/purchasing/rfqs?external_reference=ERP-RFQ-001&status=draft&sort=rfq_number&direction=asc')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $rfqId)
+        ->assertJsonPath('meta.filters.external_reference', 'ERP-RFQ-001')
         ->assertJsonPath('meta.filters.status', PurchaseRfq::STATUS_DRAFT)
         ->assertJsonPath('meta.sort', 'rfq_number');
 
@@ -203,6 +206,7 @@ test('api v1 purchasing endpoints are company scoped and support rfq to po to re
         ->assertJsonPath('meta.filters.requires_approval', false);
 
     patchJson('/api/v1/purchasing/orders/'.$orderId, [
+        'external_reference' => 'ERP-PO-001',
         'partner_id' => $vendor->id,
         'order_date' => now()->toDateString(),
         'notes' => 'API PO updated',
@@ -217,7 +221,14 @@ test('api v1 purchasing endpoints are company scoped and support rfq to po to re
         ],
     ])
         ->assertOk()
+        ->assertJsonPath('data.external_reference', 'ERP-PO-001')
         ->assertJsonPath('data.notes', 'API PO updated');
+
+    getJson('/api/v1/purchasing/orders?external_reference=ERP-PO-001&status=draft&requires_approval=false&sort=order_number&direction=asc')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $orderId)
+        ->assertJsonPath('meta.filters.external_reference', 'ERP-PO-001');
 
     $confirmResponse = postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm')
         ->assertOk()

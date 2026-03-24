@@ -103,6 +103,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
     Sanctum::actingAs($salesUser);
 
     $leadResponse = postJson('/api/v1/sales/leads', [
+        'external_reference' => 'CRM-LEAD-001',
         'partner_id' => $partner->id,
         'title' => 'API Expansion Opportunity',
         'stage' => 'new',
@@ -111,6 +112,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         'notes' => 'Inbound request from the API.',
     ], apiIdempotencyHeaders())
         ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'CRM-LEAD-001')
         ->assertJsonPath('data.title', 'API Expansion Opportunity')
         ->assertJsonPath('data.stage', 'new');
 
@@ -128,13 +130,14 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ->assertJsonPath('data.stage', 'qualified')
         ->assertJsonPath('data.estimated_value', 1200);
 
-    getJson('/api/v1/sales/leads?stage=qualified&sort=title&direction=asc&per_page=500')
+    getJson('/api/v1/sales/leads?external_reference=CRM-LEAD-001&stage=qualified&sort=title&direction=asc&per_page=500')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $leadId)
         ->assertJsonPath('meta.per_page', 100)
         ->assertJsonPath('meta.sort', 'title')
         ->assertJsonPath('meta.direction', 'asc')
+        ->assertJsonPath('meta.filters.external_reference', 'CRM-LEAD-001')
         ->assertJsonPath('meta.filters.stage', 'qualified');
 
     getJson('/api/v1/sales/leads/'.$otherLead->id)
@@ -142,6 +145,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ->assertJsonPath('message', 'Resource not found.');
 
     $quoteResponse = postJson('/api/v1/sales/quotes', [
+        'external_reference' => 'CRM-QUOTE-001',
         'lead_id' => $leadId,
         'partner_id' => $partner->id,
         'quote_date' => now()->toDateString(),
@@ -158,6 +162,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ],
     ], apiIdempotencyHeaders())
         ->assertCreated()
+        ->assertJsonPath('data.external_reference', 'CRM-QUOTE-001')
         ->assertJsonPath('data.status', 'draft')
         ->assertJsonPath('data.lines.0.product_id', $product->id);
 
@@ -203,6 +208,7 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ->assertJsonPath('meta.filters.status', 'draft');
 
     putJson("/api/v1/sales/orders/{$orderId}", [
+        'external_reference' => 'CRM-ORDER-001',
         'partner_id' => $partner->id,
         'order_date' => now()->toDateString(),
         'lines' => [
@@ -217,8 +223,15 @@ test('api v1 sales endpoints are company scoped and support lead quote and order
         ],
     ])
         ->assertOk()
+        ->assertJsonPath('data.external_reference', 'CRM-ORDER-001')
         ->assertJsonPath('data.lines.0.quantity', 4)
         ->assertJsonPath('data.grand_total', 600);
+
+    getJson('/api/v1/sales/orders?external_reference=CRM-ORDER-001&status=draft&sort=order_number&direction=asc')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $orderId)
+        ->assertJsonPath('meta.filters.external_reference', 'CRM-ORDER-001');
 
     postJson("/api/v1/sales/orders/{$orderId}/confirm", [], apiIdempotencyHeaders())
         ->assertOk()
