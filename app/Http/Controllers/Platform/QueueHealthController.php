@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Platform;
 
+use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\QueueHealthService;
 use App\Http\Controllers\Controller;
 use App\Modules\Integrations\Models\WebhookDelivery;
@@ -13,8 +14,11 @@ use Inertia\Response;
 
 class QueueHealthController extends Controller
 {
-    public function index(Request $request, QueueHealthService $queueHealthService): Response
-    {
+    public function index(
+        Request $request,
+        QueueHealthService $queueHealthService,
+        PlatformOperationalAlertingService $platformOperationalAlerting
+    ): Response {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'queue' => ['nullable', 'string', 'max:160'],
@@ -40,6 +44,7 @@ class QueueHealthController extends Controller
             ]),
             'deadWebhookDeliveries' => $queueHealthService->recentDeadWebhookDeliveries(),
             'failedReportExports' => $queueHealthService->failedReportExports(),
+            'alertingStatus' => $platformOperationalAlerting->getStatus(),
         ]);
     }
 

@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->name('dashboard.report-delivery-schedule.update');
         Route::put('dashboard/notification-governance', [PlatformDashboardController::class, 'updateNotificationGovernance'])
             ->name('dashboard.notification-governance.update');
+        Route::put('dashboard/operational-alerting', [PlatformDashboardController::class, 'updateOperationalAlerting'])
+            ->name('dashboard.operational-alerting.update');
 
         Route::resource('companies', PlatformCompaniesController::class)
             ->only(['index', 'create', 'store', 'show', 'update']);

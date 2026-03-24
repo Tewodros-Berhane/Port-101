@@ -60,6 +60,48 @@ type Props = {
             digests_opened: number;
         }[];
     };
+    operationalAlerting: {
+        enabled: boolean;
+        cooldown_minutes: number;
+        failed_jobs_threshold: number;
+        queue_backlog_threshold: number;
+        dead_webhook_threshold: number;
+        failed_report_export_threshold: number;
+        scheduler_drift_minutes: number;
+    };
+    operationalAlertingStatus: {
+        last_scan_at?: string | null;
+        heartbeat: {
+            last_seen_at?: string | null;
+            minutes_since?: number | null;
+            is_stale: boolean;
+        };
+        active_incidents: Array<{
+            id: string;
+            alert_key: string;
+            status: string;
+            severity: string;
+            title: string;
+            message: string;
+            metric_value?: number | null;
+            threshold_value?: number | null;
+            first_triggered_at?: string | null;
+            last_triggered_at?: string | null;
+            last_notified_at?: string | null;
+            resolved_at?: string | null;
+        }>;
+        recent_resolved_incidents: Array<{
+            id: string;
+            alert_key: string;
+            status: string;
+            severity: string;
+            title: string;
+            message: string;
+            metric_value?: number | null;
+            threshold_value?: number | null;
+            resolved_at?: string | null;
+        }>;
+    };
     operationsReportPresets: {
         id: string;
         name: string;
@@ -104,6 +146,8 @@ export default function PlatformGovernance({
     analyticsFilters,
     notificationGovernance,
     notificationGovernanceAnalytics,
+    operationalAlerting,
+    operationalAlertingStatus,
     operationsReportPresets,
     operationsReportDeliverySchedule,
     platformAdminOptions,
@@ -127,6 +171,20 @@ export default function PlatformGovernance({
         digest_timezone: notificationGovernance.digest_timezone ?? 'UTC',
         noisy_event_threshold:
             notificationGovernance.noisy_event_threshold ?? 3,
+    });
+    const alertingForm = useForm({
+        enabled: operationalAlerting.enabled ? '1' : '0',
+        cooldown_minutes: operationalAlerting.cooldown_minutes ?? 30,
+        failed_jobs_threshold:
+            operationalAlerting.failed_jobs_threshold ?? 5,
+        queue_backlog_threshold:
+            operationalAlerting.queue_backlog_threshold ?? 50,
+        dead_webhook_threshold:
+            operationalAlerting.dead_webhook_threshold ?? 5,
+        failed_report_export_threshold:
+            operationalAlerting.failed_report_export_threshold ?? 3,
+        scheduler_drift_minutes:
+            operationalAlerting.scheduler_drift_minutes ?? 10,
     });
     const deliveryScheduleForm = useForm({
         enabled: operationsReportDeliverySchedule.enabled ? '1' : '0',
@@ -847,6 +905,268 @@ export default function PlatformGovernance({
                 <div className="mt-4">
                     <Button type="submit" disabled={governanceForm.processing}>
                         Save governance controls
+                    </Button>
+                </div>
+            </form>
+
+            <form
+                className="mt-6 rounded-xl border p-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    alertingForm.put('/platform/dashboard/operational-alerting', {
+                        preserveScroll: true,
+                    });
+                }}
+            >
+                <div>
+                    <h2 className="text-sm font-semibold">
+                        Operational alerting
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        Trigger platform alerts for queue failures, backlog,
+                        dead webhooks, failed exports, and stale scheduler
+                        heartbeats.
+                    </p>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="alerting_enabled">Alerting</Label>
+                        <select
+                            id="alerting_enabled"
+                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                            value={alertingForm.data.enabled}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'enabled',
+                                    event.target.value,
+                                )
+                            }
+                        >
+                            <option value="1">Enabled</option>
+                            <option value="0">Disabled</option>
+                        </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="cooldown_minutes">
+                            Cooldown (minutes)
+                        </Label>
+                        <Input
+                            id="cooldown_minutes"
+                            type="number"
+                            min={1}
+                            max={1440}
+                            value={String(alertingForm.data.cooldown_minutes)}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'cooldown_minutes',
+                                    Number(event.target.value || 1),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="failed_jobs_threshold">
+                            Failed jobs threshold
+                        </Label>
+                        <Input
+                            id="failed_jobs_threshold"
+                            type="number"
+                            min={0}
+                            max={100000}
+                            value={String(
+                                alertingForm.data.failed_jobs_threshold,
+                            )}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'failed_jobs_threshold',
+                                    Number(event.target.value || 0),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="queue_backlog_threshold">
+                            Ready backlog threshold
+                        </Label>
+                        <Input
+                            id="queue_backlog_threshold"
+                            type="number"
+                            min={0}
+                            max={100000}
+                            value={String(
+                                alertingForm.data.queue_backlog_threshold,
+                            )}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'queue_backlog_threshold',
+                                    Number(event.target.value || 0),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="dead_webhook_threshold">
+                            Dead webhook threshold
+                        </Label>
+                        <Input
+                            id="dead_webhook_threshold"
+                            type="number"
+                            min={0}
+                            max={100000}
+                            value={String(
+                                alertingForm.data.dead_webhook_threshold,
+                            )}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'dead_webhook_threshold',
+                                    Number(event.target.value || 0),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="failed_report_export_threshold">
+                            Failed exports threshold
+                        </Label>
+                        <Input
+                            id="failed_report_export_threshold"
+                            type="number"
+                            min={0}
+                            max={100000}
+                            value={String(
+                                alertingForm.data.failed_report_export_threshold,
+                            )}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'failed_report_export_threshold',
+                                    Number(event.target.value || 0),
+                                )
+                            }
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="scheduler_drift_minutes">
+                            Scheduler drift (minutes)
+                        </Label>
+                        <Input
+                            id="scheduler_drift_minutes"
+                            type="number"
+                            min={1}
+                            max={1440}
+                            value={String(
+                                alertingForm.data.scheduler_drift_minutes,
+                            )}
+                            onChange={(event) =>
+                                alertingForm.setData(
+                                    'scheduler_drift_minutes',
+                                    Number(event.target.value || 1),
+                                )
+                            }
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-4">
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Last scan
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                            {formatDate(operationalAlertingStatus.last_scan_at)}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Scheduler heartbeat
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                            {formatDate(
+                                operationalAlertingStatus.heartbeat.last_seen_at,
+                            )}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {operationalAlertingStatus.heartbeat.minutes_since !==
+                            null
+                                ? `${operationalAlertingStatus.heartbeat.minutes_since} minute(s) ago`
+                                : 'No heartbeat recorded'}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Active alerts
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {operationalAlertingStatus.active_incidents.length}
+                        </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                        <p className="text-xs text-muted-foreground">
+                            Heartbeat state
+                        </p>
+                        <p className="mt-1 text-sm font-semibold">
+                            {operationalAlertingStatus.heartbeat.is_stale
+                                ? 'Stale'
+                                : 'Healthy'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                    <div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Active incidents
+                        </h3>
+                    </div>
+                    {operationalAlertingStatus.active_incidents.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No active operational alerts.
+                        </p>
+                    ) : (
+                        <div className="grid gap-3">
+                            {operationalAlertingStatus.active_incidents.map(
+                                (incident) => (
+                                    <div
+                                        key={incident.id}
+                                        className="rounded-lg border p-3"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div>
+                                                <p className="text-sm font-semibold">
+                                                    {incident.title}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {incident.severity.toUpperCase()}{' '}
+                                                    · Triggered{' '}
+                                                    {formatDate(
+                                                        incident.first_triggered_at,
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <p className="text-sm font-medium">
+                                                {incident.metric_value ?? 0} /{' '}
+                                                {incident.threshold_value ?? 0}
+                                            </p>
+                                        </div>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {incident.message}
+                                        </p>
+                                    </div>
+                                ),
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-4">
+                    <Button type="submit" disabled={alertingForm.processing}>
+                        Save operational alerting
                     </Button>
                 </div>
             </form>

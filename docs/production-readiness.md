@@ -44,7 +44,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `255 passed`, `0 failed`
+- latest full suite result: `257 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -99,7 +99,7 @@ Exit condition:
 - `[x]` webhook delivery analytics dashboard exists
 - `[x]` queue failure dashboard exists
 - `[x]` dead-letter tooling is complete beyond current webhook-level visibility
-- `[ ]` alerting exists for queue failures, job backlogs, delivery failures, and scheduler drift
+- `[x]` alerting exists for queue failures, job backlogs, delivery failures, and scheduler drift
 
 Exit condition:
 
@@ -163,15 +163,6 @@ Exit condition:
 ## Required Work Before Production
 
 This is the minimum remaining implementation order.
-
-### Phase 1: Observability and Operations
-
-1. Alerting
-   - webhook dead-letter growth
-   - queue failures
-   - report export failures
-   - scheduler missed runs
-   - unusual job latency
 
 ### Phase 3: Recovery and Deployment Discipline
 
@@ -267,11 +258,11 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. alerting closure for queue, delivery, export, and scheduler failures
-2. backup/restore runbooks and drills
-3. performance/index review and load testing
-4. nightly regression CI
-5. deployment and rollback runbooks
+1. backup/restore runbooks and drills
+2. performance/index review and load testing
+3. nightly regression CI
+4. deployment and rollback runbooks
+5. queue retry and poison-message handling policy
 
 ## Ownership Rule
 

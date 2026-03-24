@@ -4,6 +4,7 @@ use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\OperationsReportingSettingsService;
+use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
 use App\Core\Settings\Models\Setting;
@@ -704,7 +705,29 @@ Artisan::command('inventory:reorder-scan {companyId?}', function (?string $compa
     return self::SUCCESS;
 })->purpose('Scan inventory reorder rules and refresh replenishment suggestions');
 
+Artisan::command('platform:operations:heartbeat', function () {
+    app(PlatformOperationalAlertingService::class)->recordSchedulerHeartbeat();
+
+    $this->info('Platform scheduler heartbeat recorded.');
+
+    return self::SUCCESS;
+})->purpose('Record a scheduler heartbeat for platform operations monitoring');
+
+Artisan::command('platform:operations:scan-alerts {--force}', function () {
+    $result = app(PlatformOperationalAlertingService::class)->scan(
+        force: (bool) $this->option('force'),
+    );
+
+    $this->info(
+        "Platform alert scan complete. Opened: {$result['opened']}, notified: {$result['notified']}, resolved: {$result['resolved']}, active: {$result['active']}."
+    );
+
+    return self::SUCCESS;
+})->purpose('Evaluate platform operational thresholds and dispatch operator alerts');
+
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
+Schedule::command('platform:operations:heartbeat')->everyMinute();
+Schedule::command('platform:operations:scan-alerts')->everyFiveMinutes();
 Schedule::command('platform:notifications:send-digest')->everyMinute();
 Schedule::command('platform:operations-reports:deliver-scheduled')->everyMinute();
 Schedule::command('company:reports:deliver-scheduled')->everyMinute();

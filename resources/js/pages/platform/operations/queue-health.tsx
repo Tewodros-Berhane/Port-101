@@ -102,6 +102,24 @@ type Props = {
     };
     deadWebhookDeliveries: DeadWebhookDeliveryRow[];
     failedReportExports: FailedReportExportRow[];
+    alertingStatus: {
+        last_scan_at?: string | null;
+        heartbeat: {
+            last_seen_at?: string | null;
+            minutes_since?: number | null;
+            is_stale: boolean;
+        };
+        active_incidents: Array<{
+            id: string;
+            alert_key: string;
+            severity: string;
+            title: string;
+            message: string;
+            metric_value?: number | null;
+            threshold_value?: number | null;
+            first_triggered_at?: string | null;
+        }>;
+    };
 };
 
 const formatDateTime = (value?: string | null) =>
@@ -121,6 +139,7 @@ export default function PlatformQueueHealth({
     failedJobs,
     deadWebhookDeliveries,
     failedReportExports,
+    alertingStatus,
 }: Props) {
     const form = useForm({
         search: filters.search,
@@ -186,6 +205,93 @@ export default function PlatformQueueHealth({
                         value={String(summary.failed_report_exports)}
                         description={`${summary.impacted_companies} companies impacted`}
                     />
+                </section>
+
+                <section className="rounded-xl border p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">
+                                Alerting status
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Threshold-based platform alerts for failed jobs,
+                                backlog, dead webhooks, failed exports, and
+                                scheduler drift.
+                            </p>
+                        </div>
+                        <Button variant="outline" asChild>
+                            <Link href="/platform/governance">
+                                Manage alert thresholds
+                            </Link>
+                        </Button>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-4">
+                        <MetricCard
+                            label="Active alerts"
+                            value={String(alertingStatus.active_incidents.length)}
+                            description="Open operational incidents"
+                        />
+                        <MetricCard
+                            label="Last scan"
+                            value={formatDateTime(alertingStatus.last_scan_at)}
+                            description="Most recent alert evaluation"
+                        />
+                        <MetricCard
+                            label="Heartbeat"
+                            value={formatDateTime(
+                                alertingStatus.heartbeat.last_seen_at,
+                            )}
+                            description={
+                                alertingStatus.heartbeat.minutes_since !== null
+                                    ? `${alertingStatus.heartbeat.minutes_since} minute(s) ago`
+                                    : 'No heartbeat recorded'
+                            }
+                        />
+                        <MetricCard
+                            label="Heartbeat state"
+                            value={
+                                alertingStatus.heartbeat.is_stale
+                                    ? 'Stale'
+                                    : 'Healthy'
+                            }
+                            description="Scheduler drift monitor"
+                        />
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                        {alertingStatus.active_incidents.length === 0 && (
+                            <EmptyState message="No active operational alerts." />
+                        )}
+                        {alertingStatus.active_incidents.map((incident) => (
+                            <div
+                                key={incident.id}
+                                className="rounded-lg border p-3"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-sm font-semibold">
+                                            {incident.title}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {incident.severity.toUpperCase()} ·{' '}
+                                            Triggered{' '}
+                                            {formatDateTime(
+                                                incident.first_triggered_at,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <p className="text-sm font-medium">
+                                        {incident.metric_value ?? 0} /{' '}
+                                        {incident.threshold_value ?? 0}
+                                    </p>
+                                </div>
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    {incident.message}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                 </section>
 
                 <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">

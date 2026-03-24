@@ -28,4 +28,16 @@ return [
             'noisy_event_threshold' => (int) env('NOTIFICATIONS_NOISY_EVENT_THRESHOLD', 3),
         ],
     ],
+    'platform_alerting' => [
+        'enabled' => filter_var(
+            env('PLATFORM_ALERTING_ENABLED', true),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+        'cooldown_minutes' => (int) env('PLATFORM_ALERTING_COOLDOWN_MINUTES', 30),
+        'failed_jobs_threshold' => (int) env('PLATFORM_ALERTING_FAILED_JOBS_THRESHOLD', 5),
+        'queue_backlog_threshold' => (int) env('PLATFORM_ALERTING_QUEUE_BACKLOG_THRESHOLD', 50),
+        'dead_webhook_threshold' => (int) env('PLATFORM_ALERTING_DEAD_WEBHOOK_THRESHOLD', 5),
+        'failed_report_export_threshold' => (int) env('PLATFORM_ALERTING_FAILED_REPORT_EXPORT_THRESHOLD', 3),
+        'scheduler_drift_minutes' => (int) env('PLATFORM_ALERTING_SCHEDULER_DRIFT_MINUTES', 10),
+    ],
 ];

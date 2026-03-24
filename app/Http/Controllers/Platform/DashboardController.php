@@ -8,6 +8,7 @@ use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\DashboardPreferencesService;
 use App\Core\Platform\OperationsReportingSettingsService;
+use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
 use App\Http\Controllers\Controller;
@@ -188,7 +189,8 @@ class DashboardController extends Controller
     public function governance(
         Request $request,
         NotificationGovernanceService $notificationGovernance,
-        OperationsReportingSettingsService $operationsSettings
+        OperationsReportingSettingsService $operationsSettings,
+        PlatformOperationalAlertingService $platformOperationalAlerting
     ): Response {
         $validatedFilters = $this->validatedOperationsFilters($request);
         $normalizedFilters = $operationsSettings->normalizeFilters($validatedFilters);
@@ -200,6 +202,8 @@ class DashboardController extends Controller
             ],
             'notificationGovernance' => $notificationGovernance->getSettings(),
             'notificationGovernanceAnalytics' => $notificationGovernance->getAnalytics($trendWindow),
+            'operationalAlerting' => $platformOperationalAlerting->getSettings(),
+            'operationalAlertingStatus' => $platformOperationalAlerting->getStatus(),
             'operationsReportPresets' => $operationsSettings->getPresets(),
             'operationsReportDeliverySchedule' => $operationsSettings->getDeliverySchedule(),
             'platformAdminOptions' => User::query()
@@ -241,6 +245,30 @@ class DashboardController extends Controller
         return redirect()
             ->route('platform.governance')
             ->with('success', 'Notification governance controls updated.');
+    }
+
+    public function updateOperationalAlerting(
+        Request $request,
+        PlatformOperationalAlertingService $platformOperationalAlerting
+    ): RedirectResponse {
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'cooldown_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            'failed_jobs_threshold' => ['required', 'integer', 'min:0', 'max:100000'],
+            'queue_backlog_threshold' => ['required', 'integer', 'min:0', 'max:100000'],
+            'dead_webhook_threshold' => ['required', 'integer', 'min:0', 'max:100000'],
+            'failed_report_export_threshold' => ['required', 'integer', 'min:0', 'max:100000'],
+            'scheduler_drift_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+        ]);
+
+        $platformOperationalAlerting->setSettings(
+            data: $data,
+            actorId: $request->user()?->id,
+        );
+
+        return redirect()
+            ->route('platform.governance')
+            ->with('success', 'Operational alerting settings updated.');
     }
 
     public function storeReportPreset(
@@ -758,5 +786,4 @@ class DashboardController extends Controller
             ->values()
             ->all();
     }
-
 }

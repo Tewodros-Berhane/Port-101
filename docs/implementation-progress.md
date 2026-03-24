@@ -224,8 +224,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `255 passed`, `0 failed`.
-- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, governed webhook operations with secret rotation history, delivery analytics, explicit replay/signing policy, and production hardening now includes structured logging plus end-to-end request correlation IDs across HTTP, queue, and scheduler paths, plus a platform queue-health dashboard with failed-job retry/forget tooling, backlog visibility, dead-letter webhook recovery, and failed report-export retry operations on the full PostgreSQL-backed suite.
+- Latest full-suite count: `257 passed`, `0 failed`.
+- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, bundle-aware sales-kit fulfillment with parent-line invoicing preserved, API v1 now adds replay-safe idempotency, company-scoped external-reference mapping, governed webhook operations with secret rotation history, delivery analytics, explicit replay/signing policy, and production hardening now includes structured logging plus end-to-end request correlation IDs across HTTP, queue, and scheduler paths, a platform queue-health dashboard with failed-job retry/forget tooling, backlog visibility, dead-letter webhook recovery, failed report-export retry operations, and operational alerting with configurable thresholds, persisted incidents, scheduler heartbeat monitoring, and superadmin notifications for queue/backlog/dead-letter/export drift conditions on the full PostgreSQL-backed suite.
 
 ## Suggestions
 
@@ -236,4 +236,4 @@
 - Extend retention operations with archive mode and telemetry (number pruned per company/day) before hard delete.
 - Add notification preferences (per-category opt-in, mute windows, digest mode) to prevent alert fatigue as event volume grows.
 - Add attachment hardening (virus scanning queue, MIME allowlists by module, and pre-signed URL support for cloud storage).
-- Continue production observability hardening: alerting, backup/restore discipline, and performance review are now the next hardening gates after queue-health operations, structured logging, and correlation IDs are in place.
+- Continue production hardening: backup/restore discipline, performance review, and nightly regression automation are now the next hardening gates after alerting, queue-health operations, structured logging, and correlation IDs are in place.
