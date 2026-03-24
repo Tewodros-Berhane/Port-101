@@ -6,10 +6,12 @@ use App\Core\Company\Models\Company;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
+use App\Modules\Inventory\Models\ProductBundle;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -84,6 +86,11 @@ class Product extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function bundle(): HasOne
+    {
+        return $this->hasOne(ProductBundle::class, 'product_id');
+    }
+
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
@@ -93,5 +100,12 @@ class Product extends Model
     {
         return $this->type === self::TYPE_STOCK
             && in_array($this->tracking_mode, [self::TRACKING_LOT, self::TRACKING_SERIAL], true);
+    }
+
+    public function hasActiveBundle(): bool
+    {
+        return $this->relationLoaded('bundle')
+            ? (bool) $this->bundle?->is_active
+            : $this->bundle()->where('is_active', true)->exists();
     }
 }
