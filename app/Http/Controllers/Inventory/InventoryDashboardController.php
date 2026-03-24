@@ -7,6 +7,7 @@ use App\Modules\Inventory\InventorySetupService;
 use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Inventory\Models\InventoryLocation;
 use App\Modules\Inventory\Models\InventoryLot;
+use App\Modules\Inventory\Models\InventoryReplenishmentSuggestion;
 use App\Modules\Inventory\Models\InventoryStockLevel;
 use App\Modules\Inventory\Models\InventoryStockMove;
 use App\Modules\Inventory\Models\InventoryWarehouse;
@@ -39,6 +40,7 @@ class InventoryDashboardController extends Controller
         $cycleCountQuery = InventoryCycleCount::query();
         $locationQuery = InventoryLocation::query();
         $lotQuery = InventoryLot::query();
+        $suggestionQuery = InventoryReplenishmentSuggestion::query();
         $levelQuery = InventoryStockLevel::query();
         $moveQuery = InventoryStockMove::query();
 
@@ -47,6 +49,7 @@ class InventoryDashboardController extends Controller
             $cycleCountQuery = $user->applyDataScopeToQuery($cycleCountQuery);
             $locationQuery = $user->applyDataScopeToQuery($locationQuery);
             $lotQuery = $user->applyDataScopeToQuery($lotQuery);
+            $suggestionQuery = $user->applyDataScopeToQuery($suggestionQuery);
             $levelQuery = $user->applyDataScopeToQuery($levelQuery);
             $moveQuery = $user->applyDataScopeToQuery($moveQuery);
         }
@@ -113,6 +116,9 @@ class InventoryDashboardController extends Controller
                         InventoryCycleCount::STATUS_IN_PROGRESS,
                         InventoryCycleCount::STATUS_REVIEWED,
                     ])
+                    ->count(),
+                'open_replenishment_suggestions' => (clone $suggestionQuery)
+                    ->where('status', InventoryReplenishmentSuggestion::STATUS_OPEN)
                     ->count(),
                 'stock_levels' => (clone $levelQuery)->count(),
                 'draft_moves' => (clone $moveQuery)

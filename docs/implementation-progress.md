@@ -100,6 +100,7 @@
 - Phase C Inventory MVP implemented: warehouses/locations CRUD, stock levels, receipts/deliveries/transfers workflow actions (reserve/complete/cancel), inventory dashboard KPIs, and automatic stock-move reservation on sales-order confirmation.
 - Advanced inventory traceability implemented: products now support `tracking_mode` (`none`, `lot`, `serial`), tracked receipts/deliveries/transfers now persist lot/serial move lines, lot balances and reservations are maintained in `inventory_lots`, tracked move validation and auto-allocation are enforced in the shared inventory workflow, lot/serial history is visible from `/company/inventory/lots`, and `/api/v1/inventory/stock-moves` now exposes tracked move-line payloads for integrations.
 - Inventory cycle counts implemented: scoped count sessions now persist in `inventory_cycle_counts`/`inventory_cycle_count_lines`, warehouse teams can create/review/post count sessions from `/company/inventory/cycle-counts`, tracked and untracked variances now generate auditable adjustment moves, approval-threshold rules can route high-variance counts into the shared approvals queue, and dashboard KPIs now surface open count activity.
+- Inventory reordering implemented: replenishment rules now persist in `inventory_reorder_rules`, replenishment suggestions now persist in `inventory_replenishment_suggestions`, warehouse and purchasing teams can manage `/company/inventory/reordering`, on-hand/reserved/inbound/projected balances now drive replenishment suggestion generation, scans run hourly through `inventory:reorder-scan`, and open suggestions can be dismissed or converted directly into draft purchasing RFQs.
 - Phase D Accounting foundations expanded beyond lite invoicing: chart of accounts, journals, general-ledger entries, double-entry posting/reversal on invoice and payment workflows, manual journal workflow, bank reconciliation batches, financial statements/trial balance/cash-flow reporting, accounting foundation pages (`/company/accounting/accounts`, `/journals`, `/ledger`, `/statements`, `/manual-journals`, `/bank-reconciliation`), demo-data ledger backfill, and end-to-end feature coverage.
 - Accounting reconciliation controls expanded with explicit bank-batch unreconcile workflow (audit-tracked unreconcile actor/reason, payment/ledger stamp rollback, and reversible import lock release).
 - Manual journals now support approval thresholds and supporting-document attachments (company setting for threshold override, approvals queue sync, posting gate until approval, and attachments panel on edit view).
@@ -160,7 +161,7 @@
 - Master-data policies now enforce record-level data scope boundaries for non-owner company users.
 - Approval authority profile model/service foundation and SoD checks are available for upcoming module approval flows.
 - Sales module is now live at `/company/sales` with leads/quotes/orders CRUD, quote+order approvals, and conversion/confirmation workflow actions.
-- Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, stock-move lifecycle controls, cycle count sessions, and lot/serial traceability workflows for tracked products.
+- Inventory module is now live at `/company/inventory` with warehouse/location management, stock-level visibility, stock-move lifecycle controls, cycle count sessions, lot/serial traceability workflows for tracked products, and replenishment/reordering workflows that convert shortages into draft RFQs.
 - Accounting module is now live at `/company/accounting` with invoices/payments CRUD, posting, invoice reconciliation, bank reconciliation batches, unreconcile controls, persisted bank-statement CSV/OFX/CAMT imports, manual rematch controls for statement exceptions, reversal safeguards, manual journals, manual-journal approval thresholds, supporting-document attachments, chart of accounts, journals, general-ledger visibility, financial statements, and sales/inventory handoff support.
 - Purchasing module is now live at `/company/purchasing` with RFQ/PO CRUD, approval and placement lifecycle actions, receipt capture, and vendor bill handoff into accounting.
 - Approvals module is now live at `/company/approvals` with unified queue filtering, authority-checked approve/reject actions, and cross-module request tracking.
@@ -214,8 +215,8 @@
 - Command executed: `php artisan test`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `232 passed`, `0 failed`.
-- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, and API-exposed move-line traceability on the full PostgreSQL-backed suite.
+- Latest full-suite count: `235 passed`, `0 failed`.
+- Result summary after latest implementation: tracked inventory products now support lot/serial configuration, lot-aware receipt/delivery/transfer workflows, lot/serial history views, scoped cycle count sessions with approval-aware adjustment posting, replenishment rules/suggestion scans with RFQ conversion, and API-exposed move-line traceability on the full PostgreSQL-backed suite.
 
 ## Suggestions
 

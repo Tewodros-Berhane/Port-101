@@ -4,6 +4,7 @@ use App\Http\Controllers\Inventory\InventoryDashboardController;
 use App\Http\Controllers\Inventory\InventoryCycleCountsController;
 use App\Http\Controllers\Inventory\InventoryLocationsController;
 use App\Http\Controllers\Inventory\InventoryLotsController;
+use App\Http\Controllers\Inventory\InventoryReorderingController;
 use App\Http\Controllers\Inventory\InventoryStockLevelsController;
 use App\Http\Controllers\Inventory\InventoryStockMovesController;
 use App\Http\Controllers\Inventory\InventoryWarehousesController;
@@ -39,6 +40,24 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
         ->name('cycle-counts.post');
     Route::post('cycle-counts/{cycleCount}/cancel', [InventoryCycleCountsController::class, 'cancel'])
         ->name('cycle-counts.cancel');
+    Route::get('reordering', [InventoryReorderingController::class, 'index'])
+        ->name('reordering.index');
+    Route::get('reordering/create', [InventoryReorderingController::class, 'create'])
+        ->name('reordering.create');
+    Route::post('reordering', [InventoryReorderingController::class, 'store'])
+        ->name('reordering.store');
+    Route::post('reordering/scan', [InventoryReorderingController::class, 'scan'])
+        ->name('reordering.scan');
+    Route::get('reordering/{rule}/edit', [InventoryReorderingController::class, 'edit'])
+        ->name('reordering.edit');
+    Route::put('reordering/{rule}', [InventoryReorderingController::class, 'update'])
+        ->name('reordering.update');
+    Route::delete('reordering/{rule}', [InventoryReorderingController::class, 'destroy'])
+        ->name('reordering.destroy');
+    Route::post('reordering/suggestions/{suggestion}/dismiss', [InventoryReorderingController::class, 'dismiss'])
+        ->name('reordering.suggestions.dismiss');
+    Route::post('reordering/suggestions/{suggestion}/convert', [InventoryReorderingController::class, 'convert'])
+        ->name('reordering.suggestions.convert');
     Route::get('stock-levels', [InventoryStockLevelsController::class, 'index'])
         ->name('stock-levels.index');
     Route::resource('moves', InventoryStockMovesController::class)
