@@ -38,6 +38,17 @@ return [
             'platform.queue-health',
         ],
     ],
+    'performance' => [
+        'audit_output_dir' => env(
+            'PERFORMANCE_AUDIT_OUTPUT_DIR',
+            storage_path('app/performance-audits')
+        ),
+        'load_test_output_dir' => env(
+            'LOAD_TEST_OUTPUT_DIR',
+            storage_path('app/load-tests')
+        ),
+        'k6_script' => base_path('scripts/ops/k6-api-smoke.js'),
+    ],
     'attachments' => [
         'disk' => env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
         'max_size_kb' => (int) env('ATTACHMENTS_MAX_SIZE_KB', 10240),

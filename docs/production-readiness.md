@@ -26,7 +26,7 @@ Why:
 - Core platform and major modules are implemented
 - The automated suite is broad and currently green
 - API v1, outbound webhooks, and the planned integration-hardening baseline are implemented
-- But production operations hardening, restore validation, performance gates, and release discipline are still incomplete
+- But clean-environment restore validation, performance gate execution, and nightly release discipline are still incomplete
 
 ## Current Baseline
 
@@ -44,11 +44,12 @@ Current strengths:
 - backup/recovery runbook, cross-platform backup/restore scripts, and post-restore smoke-check tooling
 - disposable restore-drill automation for temporary database/storage validation
 - deployment/rollback runbook and post-deploy smoke-check tooling
+- performance audit tooling, hot-path index baseline migration, and API smoke load-test harness
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
 
-- latest full suite result: `262 passed`, `0 failed`
+- latest full suite result: `264 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -124,13 +125,13 @@ Exit condition:
 
 ### 5. Performance and Capacity
 
-- `[~]` product works functionally, but no formal production performance gate has been cleared
-- `[ ]` slow-query review has been completed
-- `[ ]` index review has been completed for high-volume tables
+- `[~]` product works functionally and now has baseline performance tooling, but no formal production performance gate has been cleared
+- `[~]` slow-query review has a baseline audit path, but no live `EXPLAIN` / `pg_stat_statements` sign-off has been completed
+- `[x]` index review has been completed for the current high-volume tables
 - `[ ]` queue throughput has been evaluated
 - `[ ]` export/report generation has been tested under realistic volume
 - `[ ]` webhook fan-out behavior has been tested under burst conditions
-- `[ ]` representative load test has been run
+- `[~]` representative load-test harness exists, but a real staged run has not been signed off yet
 
 Exit condition:
 
@@ -195,11 +196,13 @@ This is the minimum remaining implementation order.
 ### Phase 4: Performance Gate
 
 1. Query/index review
-   - audit high-write and high-read tables
-   - verify pagination and sorting paths
-   - inspect reporting/export-heavy queries
+   - run `php artisan ops:performance:audit`
+   - retain the JSON artifact from `scripts/ops/run-performance-audit.*`
+   - verify pagination and sorting paths under representative data
+   - inspect reporting/export-heavy queries with `EXPLAIN` where needed
 
 2. Load and burst testing
+   - run the k6 API smoke harness
    - invoice posting
    - project billing
    - inventory moves

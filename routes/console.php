@@ -5,6 +5,7 @@ use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\DeploymentSmokeCheckService;
 use App\Core\Platform\OperationsReportingSettingsService;
+use App\Core\Platform\PerformanceAuditService;
 use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
@@ -790,6 +791,48 @@ Artisan::command('ops:deploy:smoke-check {--json} {--require-heartbeat}', functi
 
     return $result['ok'] ? self::SUCCESS : self::FAILURE;
 })->purpose('Validate deploy-critical routes, operator data, and queue infrastructure after a release');
+
+Artisan::command('ops:performance:audit {--json}', function () {
+    $result = app(PerformanceAuditService::class)->run();
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $result['ok'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    $this->info('Performance audit');
+    $this->newLine();
+    $this->table(
+        ['Table', 'Status', 'Rows', 'Seq scans', 'Idx scans', 'Missing indexes'],
+        collect($result['tables'])
+            ->map(fn (array $table) => [
+                $table['label'],
+                $table['exists'] && $table['missing_expected_indexes'] === [] ? 'OK' : 'FAIL',
+                number_format((int) $table['estimated_rows']),
+                number_format((int) $table['seq_scan']),
+                number_format((int) $table['idx_scan']),
+                $table['missing_expected_indexes'] === []
+                    ? '-'
+                    : implode(', ', $table['missing_expected_indexes']),
+            ])
+            ->all()
+    );
+
+    $this->newLine();
+    $this->line('Recommendations:');
+    foreach ($result['recommendations'] as $recommendation) {
+        $this->line("- {$recommendation}");
+    }
+
+    $this->newLine();
+    $this->line('Config summary:');
+    foreach ($result['config'] as $key => $value) {
+        $this->line("- {$key}: ".(is_array($value) ? implode(', ', $value) : (string) $value));
+    }
+
+    return $result['ok'] ? self::SUCCESS : self::FAILURE;
+})->purpose('Audit high-volume tables, expected indexes, and PostgreSQL scan patterns');
 
 Schedule::command('core:audit-logs:prune')->dailyAt('03:00');
 Schedule::command('platform:operations:heartbeat')->everyMinute();
