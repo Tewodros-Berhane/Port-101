@@ -113,6 +113,7 @@ class WebhookDeliveryService
         $startedAt = microtime(true);
         $delivery->update([
             'status' => WebhookDelivery::STATUS_PROCESSING,
+            'first_attempt_at' => $delivery->first_attempt_at ?? now(),
             'last_attempt_at' => now(),
             'attempt_count' => (int) $delivery->attempt_count + 1,
             'updated_by' => $delivery->updated_by ?? $delivery->created_by,
@@ -126,6 +127,7 @@ class WebhookDeliveryService
             eventId: (string) $integrationEvent->id,
             eventType: (string) $integrationEvent->event_type,
             payload: $payload,
+            attemptCount: (int) $delivery->attempt_count,
         );
 
         try {
@@ -199,6 +201,7 @@ class WebhookDeliveryService
             'status' => WebhookDelivery::STATUS_PENDING,
             'next_retry_at' => null,
             'failure_message' => null,
+            'dead_lettered_at' => null,
             'updated_by' => $actorId,
         ]);
 
@@ -273,10 +276,13 @@ class WebhookDeliveryService
             'failure_message' => null,
             'next_retry_at' => null,
             'delivered_at' => now(),
+            'dead_lettered_at' => null,
         ]);
 
         $delivery->endpoint?->update([
+            'last_delivery_at' => now(),
             'last_success_at' => now(),
+            'consecutive_failure_count' => 0,
         ]);
 
         return $delivery->fresh(['endpoint', 'integrationEvent']) ?? $delivery;
@@ -304,11 +310,16 @@ class WebhookDeliveryService
             'failure_message' => $this->excerpt($failureMessage, 1000),
             'next_retry_at' => $nextRetryAt,
             'delivered_at' => null,
+            'dead_lettered_at' => $shouldRetry ? null : now(),
         ]);
 
-        $delivery->endpoint?->update([
-            'last_failure_at' => now(),
-        ]);
+        if ($delivery->endpoint) {
+            $delivery->endpoint->update([
+                'last_delivery_at' => now(),
+                'last_failure_at' => now(),
+                'consecutive_failure_count' => ((int) $delivery->endpoint->consecutive_failure_count) + 1,
+            ]);
+        }
 
         if ($shouldRetry) {
             $this->dispatchDelivery((string) $delivery->id, $nextRetryAt);

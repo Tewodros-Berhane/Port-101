@@ -48,6 +48,7 @@ class WebhookDelivery extends Model
         'event_type',
         'status',
         'attempt_count',
+        'first_attempt_at',
         'last_attempt_at',
         'next_retry_at',
         'response_status',
@@ -55,6 +56,7 @@ class WebhookDelivery extends Model
         'response_body_excerpt',
         'failure_message',
         'delivered_at',
+        'dead_lettered_at',
         'created_by',
         'updated_by',
     ];
@@ -65,9 +67,11 @@ class WebhookDelivery extends Model
             'attempt_count' => 'integer',
             'response_status' => 'integer',
             'duration_ms' => 'integer',
+            'first_attempt_at' => 'datetime',
             'last_attempt_at' => 'datetime',
             'next_retry_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'dead_lettered_at' => 'datetime',
         ];
     }
 

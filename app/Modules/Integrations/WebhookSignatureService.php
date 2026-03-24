@@ -15,6 +15,7 @@ class WebhookSignatureService
         string $eventId,
         string $eventType,
         array $payload,
+        int $attemptCount = 1,
     ): array {
         $timestamp = now()->toIso8601String();
         $rawBody = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -37,6 +38,9 @@ class WebhookSignatureService
                 'X-Port101-Event-Id' => $eventId,
                 'X-Port101-Timestamp' => $timestamp,
                 'X-Port101-Signature' => $signature,
+                'X-Port101-Signature-Version' => WebhookEndpointService::SIGNATURE_VERSION,
+                'X-Port101-Replay-Window-Seconds' => (string) WebhookEndpointService::REPLAY_WINDOW_SECONDS,
+                'X-Port101-Delivery-Attempt' => (string) $attemptCount,
             ],
             'raw_body' => $rawBody,
         ];

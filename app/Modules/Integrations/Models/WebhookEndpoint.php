@@ -27,12 +27,16 @@ class WebhookEndpoint extends Model
         'name',
         'target_url',
         'signing_secret',
+        'signing_secret_version',
         'api_version',
         'is_active',
         'subscribed_events',
+        'secret_rotated_at',
         'last_tested_at',
         'last_success_at',
         'last_failure_at',
+        'last_delivery_at',
+        'consecutive_failure_count',
         'created_by',
         'updated_by',
     ];
@@ -41,10 +45,14 @@ class WebhookEndpoint extends Model
     {
         return [
             'is_active' => 'boolean',
+            'signing_secret_version' => 'integer',
             'subscribed_events' => 'array',
+            'secret_rotated_at' => 'datetime',
             'last_tested_at' => 'datetime',
             'last_success_at' => 'datetime',
             'last_failure_at' => 'datetime',
+            'last_delivery_at' => 'datetime',
+            'consecutive_failure_count' => 'integer',
         ];
     }
 
@@ -63,6 +71,11 @@ class WebhookEndpoint extends Model
         return $this->hasOne(WebhookDelivery::class, 'webhook_endpoint_id')
             ->orderByDesc('created_at')
             ->orderByDesc('id');
+    }
+
+    public function secretRotations(): HasMany
+    {
+        return $this->hasMany(WebhookSecretRotation::class, 'webhook_endpoint_id');
     }
 
     public function createdBy(): BelongsTo
