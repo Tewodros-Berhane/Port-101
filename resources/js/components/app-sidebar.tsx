@@ -198,6 +198,11 @@ const platformAdminNavItems: NavItem[] = [
         icon: BarChart3,
     },
     {
+        title: 'Queue Health',
+        href: '/platform/operations/queue-health',
+        icon: ClipboardList,
+    },
+    {
         title: 'Governance',
         href: '/platform/governance',
         icon: Settings,

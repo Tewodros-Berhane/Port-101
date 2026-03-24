@@ -4,6 +4,7 @@ use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersCont
 use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
+use App\Http\Controllers\Platform\QueueHealthController as PlatformQueueHealthController;
 use App\Http\Controllers\Platform\ReportsController as PlatformReportsController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,16 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->name('dashboard');
         Route::get('reports', [PlatformReportsController::class, 'index'])
             ->name('reports');
+        Route::get('operations/queue-health', [PlatformQueueHealthController::class, 'index'])
+            ->name('queue-health');
+        Route::post('operations/queue-health/failed-jobs/{failedJobId}/retry', [PlatformQueueHealthController::class, 'retryFailedJob'])
+            ->name('queue-health.failed-jobs.retry');
+        Route::delete('operations/queue-health/failed-jobs/{failedJobId}', [PlatformQueueHealthController::class, 'forgetFailedJob'])
+            ->name('queue-health.failed-jobs.destroy');
+        Route::post('operations/queue-health/webhook-deliveries/{delivery}/retry', [PlatformQueueHealthController::class, 'retryWebhookDelivery'])
+            ->name('queue-health.webhook-deliveries.retry');
+        Route::post('operations/queue-health/report-exports/{reportExport}/retry', [PlatformQueueHealthController::class, 'retryReportExport'])
+            ->name('queue-health.report-exports.retry');
         Route::get('reports/export/{reportKey}', [PlatformReportsController::class, 'export'])
             ->name('reports.export');
         Route::post('reports/report-presets', [PlatformDashboardController::class, 'storeReportPreset'])

@@ -112,6 +112,34 @@ class ReportExportWorkflowService
         return $export->fresh(['requestedBy:id,name,email']) ?? $export;
     }
 
+    public function retry(ReportExport $reportExport, ?string $actorId = null): ReportExport
+    {
+        abort_if(
+            $reportExport->status !== ReportExport::STATUS_FAILED,
+            422,
+            'Only failed report exports can be retried.',
+        );
+
+        $reportExport->forceFill([
+            'status' => ReportExport::STATUS_PENDING,
+            'started_at' => null,
+            'completed_at' => null,
+            'failed_at' => null,
+            'failure_message' => null,
+            'file_path' => null,
+            'file_name' => null,
+            'mime_type' => null,
+            'file_size' => null,
+            'row_count' => null,
+            'expires_at' => null,
+            'updated_by' => $actorId ?? $reportExport->requested_by_user_id,
+        ])->save();
+
+        GenerateCompanyReportExport::dispatch($reportExport->id);
+
+        return $reportExport->fresh(['requestedBy:id,name,email']) ?? $reportExport;
+    }
+
     public function markFailed(string $reportExportId, Throwable $exception): void
     {
         /** @var ReportExport|null $export */
