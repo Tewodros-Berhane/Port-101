@@ -9,6 +9,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\PreventAuthenticatedPageCache;
 use App\Http\Middleware\RequireIdempotency;
 use App\Http\Middleware\ResolveCompanyContext;
+use App\Http\Middleware\ShareRequestLogContext;
 use App\Support\Api\ApiErrorResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -45,8 +46,13 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             ResolveCompanyContext::class,
             HandleInertiaRequests::class,
+            ShareRequestLogContext::class,
             PreventAuthenticatedPageCache::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->api(append: [
+            ShareRequestLogContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

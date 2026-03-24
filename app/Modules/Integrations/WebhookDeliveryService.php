@@ -9,6 +9,7 @@ use App\Modules\Integrations\Models\WebhookEndpoint;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -205,6 +206,17 @@ class WebhookDeliveryService
             'updated_by' => $actorId,
         ]);
 
+        Log::info('Webhook delivery retry queued.', [
+            'module' => 'integrations',
+            'entity' => 'webhook_delivery',
+            'action' => 'retry_queued',
+            'company_id' => $delivery->company_id,
+            'webhook_delivery_id' => $delivery->id,
+            'webhook_endpoint_id' => $delivery->webhook_endpoint_id,
+            'integration_event_id' => $delivery->integration_event_id,
+            'attempt_count' => (int) $delivery->attempt_count,
+        ]);
+
         $this->dispatchDelivery((string) $delivery->id);
 
         return $delivery->fresh(['endpoint', 'integrationEvent']) ?? $delivery;
@@ -259,6 +271,16 @@ class WebhookDeliveryService
             'updated_by' => $actorId,
         ]);
 
+        Log::info('Webhook test delivery queued.', [
+            'module' => 'integrations',
+            'entity' => 'webhook_delivery',
+            'action' => 'test_queued',
+            'company_id' => $endpoint->company_id,
+            'webhook_delivery_id' => $delivery->id,
+            'webhook_endpoint_id' => $endpoint->id,
+            'integration_event_id' => $event->id,
+        ]);
+
         return $delivery->fresh(['endpoint', 'integrationEvent']) ?? $delivery;
     }
 
@@ -283,6 +305,19 @@ class WebhookDeliveryService
             'last_delivery_at' => now(),
             'last_success_at' => now(),
             'consecutive_failure_count' => 0,
+        ]);
+
+        Log::info('Webhook delivery succeeded.', [
+            'module' => 'integrations',
+            'entity' => 'webhook_delivery',
+            'action' => 'delivered',
+            'company_id' => $delivery->company_id,
+            'webhook_delivery_id' => $delivery->id,
+            'webhook_endpoint_id' => $delivery->webhook_endpoint_id,
+            'integration_event_id' => $delivery->integration_event_id,
+            'response_status' => $responseStatus,
+            'duration_ms' => $durationMs,
+            'attempt_count' => (int) $delivery->attempt_count,
         ]);
 
         return $delivery->fresh(['endpoint', 'integrationEvent']) ?? $delivery;
@@ -320,6 +355,22 @@ class WebhookDeliveryService
                 'consecutive_failure_count' => ((int) $delivery->endpoint->consecutive_failure_count) + 1,
             ]);
         }
+
+        Log::warning('Webhook delivery failed.', [
+            'module' => 'integrations',
+            'entity' => 'webhook_delivery',
+            'action' => $shouldRetry ? 'failed_retry_scheduled' : 'dead_lettered',
+            'company_id' => $delivery->company_id,
+            'webhook_delivery_id' => $delivery->id,
+            'webhook_endpoint_id' => $delivery->webhook_endpoint_id,
+            'integration_event_id' => $delivery->integration_event_id,
+            'response_status' => $responseStatus,
+            'duration_ms' => $durationMs,
+            'attempt_count' => (int) $delivery->attempt_count,
+            'failure_message' => $this->excerpt($failureMessage, 500),
+            'next_retry_at' => $nextRetryAt?->toIso8601String(),
+            'dead_lettered_at' => $shouldRetry ? null : now()->toIso8601String(),
+        ]);
 
         if ($shouldRetry) {
             $this->dispatchDelivery((string) $delivery->id, $nextRetryAt);

@@ -14,10 +14,19 @@ use App\Modules\Purchasing\Events\PurchaseReceiptCompleted;
 use App\Modules\Sales\Events\SalesOrderConfirmed;
 use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
 use App\Modules\Sales\Models\SalesOrder;
+use App\Support\Logging\StructuredLogContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Console\Events\CommandFinished;
+use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Contracts\Queue\Job;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -31,6 +40,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CompanyContext::class, function () {
             return new CompanyContext;
         });
+
+        $this->app->singleton(StructuredLogContext::class, function () {
+            return new StructuredLogContext;
+        });
     }
 
     /**
@@ -39,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerStructuredLogging();
         $this->registerDomainListeners();
     }
 
@@ -59,6 +73,58 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+    }
+
+    protected function registerStructuredLogging(): void
+    {
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            app(StructuredLogContext::class)->setConsoleContext($event->command);
+        });
+
+        Event::listen(CommandFinished::class, function (): void {
+            app(StructuredLogContext::class)->clearScope('runtime');
+        });
+
+        Queue::before(function (JobProcessing $event): void {
+            $context = $this->queueContext($event->job);
+
+            app(StructuredLogContext::class)->setQueueContext($context);
+
+            Log::info('Queue job processing started.', [
+                ...$context,
+                'module' => $context['module'] ?? 'queue',
+                'entity' => $context['entity'] ?? 'job',
+                'action' => 'processing_started',
+            ]);
+        });
+
+        Queue::after(function (JobProcessed $event): void {
+            $context = $this->queueContext($event->job);
+
+            Log::info('Queue job processed successfully.', [
+                ...$context,
+                'module' => $context['module'] ?? 'queue',
+                'entity' => $context['entity'] ?? 'job',
+                'action' => 'processed',
+            ]);
+
+            app(StructuredLogContext::class)->clearScope('queue');
+        });
+
+        Queue::failing(function (JobFailed $event): void {
+            $context = $this->queueContext($event->job);
+
+            Log::error('Queue job failed.', [
+                ...$context,
+                'module' => $context['module'] ?? 'queue',
+                'entity' => $context['entity'] ?? 'job',
+                'action' => 'failed',
+                'exception' => $event->exception::class,
+                'exception_message' => $event->exception->getMessage(),
+            ]);
+
+            app(StructuredLogContext::class)->clearScope('queue');
+        });
     }
 
     protected function registerDomainListeners(): void
@@ -184,5 +250,25 @@ class AppServiceProvider extends ServiceProvider
                     orderId: $event->orderId,
                 );
         });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function queueContext(Job $job): array
+    {
+        $resolvedName = $job->resolveName();
+        $segments = explode('\\', $resolvedName);
+        $jobName = end($segments) ?: $resolvedName;
+
+        return [
+            'job_name' => $resolvedName,
+            'queue_connection' => $job->getConnectionName(),
+            'queue_name' => $job->getQueue(),
+            'job_id' => method_exists($job, 'getJobId') ? $job->getJobId() : null,
+            'module' => 'queue',
+            'entity' => $jobName,
+            'action' => 'handle',
+        ];
     }
 }
