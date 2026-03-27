@@ -2,6 +2,7 @@
 
 namespace App\Logging;
 
+use Illuminate\Log\Logger as IlluminateLogger;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\FormattableHandlerInterface;
 use Monolog\Logger;
@@ -12,9 +13,15 @@ class StructuredLoggingTap
         private readonly StructuredLogProcessor $processor,
     ) {}
 
-    public function __invoke(Logger $logger): void
+    public function __invoke(IlluminateLogger $logger): void
     {
-        foreach ($logger->getHandlers() as $handler) {
+        $monolog = $logger->getLogger();
+
+        if (! $monolog instanceof Logger) {
+            return;
+        }
+
+        foreach ($monolog->getHandlers() as $handler) {
             if ($handler instanceof FormattableHandlerInterface) {
                 $handler->setFormatter(new JsonFormatter(
                     JsonFormatter::BATCH_MODE_JSON,
@@ -25,6 +32,6 @@ class StructuredLoggingTap
             }
         }
 
-        $logger->pushProcessor($this->processor);
+        $monolog->pushProcessor($this->processor);
     }
 }
