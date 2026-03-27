@@ -26,7 +26,7 @@ Why:
 - Core platform and major modules are implemented
 - The automated suite is broad and currently green
 - API v1, outbound webhooks, and the planned integration-hardening baseline are implemented
-- But clean-environment restore sign-off, staged load validation, and security hardening are still incomplete
+- But clean-environment restore sign-off on a real populated backup, staged load validation in a target environment, and production environment secret/retention verification are still incomplete
 
 ## Current Baseline
 
@@ -42,16 +42,19 @@ Current strengths:
 - structured logging and request correlation IDs across HTTP, queue, and scheduler flows
 - queue health, dead-letter visibility, and operational alerting for failures/backlog drift
 - backup/recovery runbook, cross-platform backup/restore scripts, and post-restore smoke-check tooling
+- restore-signoff evidence tooling and cross-platform signoff wrappers
 - disposable restore-drill automation for temporary database/storage validation
 - deployment/rollback runbook and post-deploy smoke-check tooling
-- performance audit tooling, hot-path index baseline migration, and API smoke load-test harness
+- performance audit tooling, hot-path index baseline migration, API smoke load-test harness, and load-summary validation/signoff tooling
+- attachment upload/download hardening with MIME/extension allowlists, malware scan states, and quarantine download blocking
+- API v1 rate limiting and webhook target validation for HTTPS/private/local-only safety
 - nightly regression CI with retained test and performance-audit artifacts
 - long-running integration CI with seeded operational smoke artifacts
 - PostgreSQL-backed test suite
 
 Current baseline evidence:
 
-- latest full suite result: `267 passed`, `0 failed`
+- latest full suite result: `274 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -116,7 +119,7 @@ Exit condition:
 
 - `[x]` core workflows are covered by automated tests
 - `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
-- `[~]` restore procedure is documented, smoke-checked, and has disposable drill automation, but a clean-environment sign-off drill is still pending
+- `[~]` restore procedure is documented, smoke-checked, has disposable drill automation, and now has sign-off evidence tooling, but a clean-environment sign-off drill against a real populated backup is still pending
 - `[x]` disaster recovery runbook exists
 - `[x]` queue retry tooling now includes poison-message decision support and a formal operator runbook
 - `[~]` storage cleanup and retention operations are partially documented through the backup/recovery runbook
@@ -133,7 +136,7 @@ Exit condition:
 - `[ ]` queue throughput has been evaluated
 - `[ ]` export/report generation has been tested under realistic volume
 - `[ ]` webhook fan-out behavior has been tested under burst conditions
-- `[~]` representative load-test harness exists, but a real staged run has not been signed off yet
+- `[~]` representative load-test harness and summary-validation tooling exist, but a real staged run has not been signed off yet
 
 Exit condition:
 
@@ -143,11 +146,11 @@ Exit condition:
 
 - `[x]` role-based authorization and company scoping are enforced
 - `[x]` finance and approval workflows have baseline control structure
-- `[~]` attachment support exists but hardening is incomplete
-- `[ ]` attachment virus scanning exists
-- `[ ]` strict MIME allowlists by module exist
+- `[~]` attachment support now has baseline hardening, but environment-level scanner operations and cloud-storage policy decisions are still pending
+- `[x]` attachment virus scanning exists
+- `[x]` strict MIME allowlists by module exist
 - `[~]` webhook secret rotation exists, but broader credential runbook coverage is still incomplete
-- `[ ]` security review of public API and webhook surfaces is complete
+- `[~]` public API and webhook surfaces now have baseline hardening controls (rate limiting, HTTPS/private-target checks, replay/idempotency policy), but a final production review and credential checklist are still pending
 - `[ ]` production environment secret-handling checklist is documented
 
 Exit condition:
@@ -184,6 +187,7 @@ This is the minimum remaining implementation order.
    - restore to a clean environment
    - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
+   - record `php artisan ops:recovery:signoff --write` evidence for the drill workspace
 
 3. Target-environment verification
    - confirm scheduler heartbeat and queue workers are running in the target environment
@@ -200,6 +204,7 @@ This is the minimum remaining implementation order.
 
 2. Load and burst testing
    - run the k6 API smoke harness
+   - validate the retained summary with `php artisan ops:performance:validate-load <summary> --write`
    - invoice posting
    - project billing
    - inventory moves
@@ -215,11 +220,12 @@ This is the minimum remaining implementation order.
 ### Phase 5: Security Hardening
 
 1. Attachment controls
-   - add attachment virus scanning
-   - enforce strict MIME allowlists by module
+   - verify the chosen malware-scan driver in the target environment
    - verify file-handling failure paths and operator visibility
+   - decide cloud-storage signed-download policy if attachments move off the current private-disk baseline
 
 2. Public surface review
+   - validate API rate limits and webhook-target policies in a staging environment
    - review API v1 and webhook surfaces for auth, scoping, and replay expectations
    - document production secret-handling and credential rotation procedures
    - close the broader credential runbook gap beyond webhook secret rotation
@@ -275,10 +281,10 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. clean-environment restore drill sign-off
+1. clean-environment restore drill sign-off against a populated backup
 2. performance/index review and staged load testing
-3. security hardening for attachments and public integration surfaces
-4. target-environment backup scheduling and retention verification
+3. target-environment backup scheduling and retention verification
+4. production secret-handling and credential rotation checklist
 
 ## Ownership Rule
 

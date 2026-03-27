@@ -14,10 +14,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attachment extends Model
 {
+    use CompanyScoped;
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-    use CompanyScoped;
+
+    public const SCAN_PENDING = 'pending';
+
+    public const SCAN_CLEAN = 'clean';
+
+    public const SCAN_INFECTED = 'infected';
+
+    public const SCAN_FAILED = 'failed';
 
     public $incrementing = false;
 
@@ -27,6 +35,7 @@ class Attachment extends Model
         'company_id',
         'attachable_type',
         'attachable_id',
+        'security_context',
         'disk',
         'path',
         'file_name',
@@ -35,6 +44,10 @@ class Attachment extends Model
         'extension',
         'size',
         'checksum',
+        'scan_status',
+        'scan_message',
+        'scanned_at',
+        'quarantined_at',
         'uploaded_by',
     ];
 
@@ -42,6 +55,8 @@ class Attachment extends Model
     {
         return [
             'size' => 'integer',
+            'scanned_at' => 'datetime',
+            'quarantined_at' => 'datetime',
         ];
     }
 
@@ -60,4 +75,3 @@ class Attachment extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 }
-

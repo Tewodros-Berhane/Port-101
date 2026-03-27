@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Attachments\AttachmentSecurityService;
+use App\Core\Attachments\AttachmentUploadService;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\MasterData\Models\Address;
 use App\Core\MasterData\Models\Contact;
@@ -35,6 +37,11 @@ class AttachmentsController extends Controller
         'manual_journal' => AccountingManualJournal::class,
     ];
 
+    public function __construct(
+        private readonly AttachmentUploadService $attachmentUploadService,
+        private readonly AttachmentSecurityService $attachmentSecurityService,
+    ) {}
+
     public function store(Request $request): RedirectResponse
     {
         $this->authorize('create', Attachment::class);
@@ -64,34 +71,25 @@ class AttachmentsController extends Controller
             abort(403, 'Attachment target is outside the active company.');
         }
 
-        $file = $request->file('file');
-        $disk = (string) config('core.attachments.disk', 'local');
-        $path = $file->store(
-            'attachments/'.$companyId.'/'.strtolower(class_basename($modelClass)),
-            $disk
+        $this->attachmentUploadService->store(
+            file: $request->file('file'),
+            attachable: $attachable,
+            companyId: (string) $companyId,
+            context: (string) $data['attachable_type'],
+            actorId: $request->user()?->id,
         );
 
-        Attachment::create([
-            'company_id' => $companyId,
-            'attachable_type' => $attachable::class,
-            'attachable_id' => $attachable->getKey(),
-            'disk' => $disk,
-            'path' => $path,
-            'file_name' => basename($path),
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'extension' => $file->extension(),
-            'size' => $file->getSize(),
-            'checksum' => hash_file('sha256', $file->getRealPath()),
-            'uploaded_by' => $request->user()?->id,
-        ]);
+        $message = (bool) config('core.attachments.scan.enabled', true)
+            ? 'Attachment uploaded and queued for security scan.'
+            : 'Attachment uploaded.';
 
-        return back()->with('success', 'Attachment uploaded.');
+        return back()->with('success', $message);
     }
 
     public function download(Attachment $attachment)
     {
         $this->authorize('view', $attachment);
+        $this->attachmentSecurityService->assertDownloadAllowed($attachment);
 
         if (! Storage::disk($attachment->disk)->exists($attachment->path)) {
             abort(404, 'Attachment file not found.');

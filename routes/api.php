@@ -30,7 +30,7 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
         ]);
     });
 
-    Route::middleware(['auth:sanctum', 'company.context', 'company'])->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:api', 'company.context', 'company'])->group(function () {
         Route::prefix('accounting')->group(function () {
             Route::apiResource('invoices', ApiAccountingInvoicesController::class)
                 ->parameters(['invoices' => 'invoice']);

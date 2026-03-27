@@ -16,9 +16,11 @@ use App\Modules\Sales\Events\SalesOrderReadyForInvoice;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Support\Logging\StructuredLogContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Queue\Job;
+use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -27,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -53,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
         $this->registerStructuredLogging();
         $this->registerDomainListeners();
     }
@@ -74,6 +78,21 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+    }
+
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('api', function (Request $request) {
+            $rate = (int) config('core.api.rate_limit_per_minute', 120);
+
+            $identity = implode('|', [
+                $request->user()?->getAuthIdentifier() ?? 'guest',
+                $request->user()?->current_company_id ?? 'no-company',
+                $request->ip(),
+            ]);
+
+            return Limit::perMinute($rate)->by($identity);
+        });
     }
 
     protected function registerStructuredLogging(): void

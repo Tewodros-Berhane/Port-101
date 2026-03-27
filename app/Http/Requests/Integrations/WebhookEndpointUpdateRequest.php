@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Integrations;
 
 use App\Modules\Integrations\WebhookEventCatalog;
+use App\Modules\Integrations\WebhookTargetSecurityService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,19 +34,11 @@ class WebhookEndpointUpdateRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {
-            $url = trim((string) $this->input('target_url', ''));
+            $error = app(WebhookTargetSecurityService::class)
+                ->validationError($this->input('target_url'));
 
-            if ($url === '') {
-                return;
-            }
-
-            $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
-
-            if (app()->isProduction() && $scheme !== 'https') {
-                $validator->errors()->add(
-                    'target_url',
-                    'Webhook endpoints must use HTTPS in production.',
-                );
+            if ($error !== null) {
+                $validator->errors()->add('target_url', $error);
             }
         });
     }

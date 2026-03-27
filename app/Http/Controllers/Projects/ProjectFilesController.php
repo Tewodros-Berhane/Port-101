@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Projects;
 
+use App\Core\Attachments\AttachmentSecurityService;
+use App\Core\Attachments\AttachmentUploadService;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Audit\Models\AuditLog;
 use App\Http\Controllers\Controller;
@@ -12,6 +14,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ProjectFilesController extends Controller
 {
+    public function __construct(
+        private readonly AttachmentUploadService $attachmentUploadService,
+        private readonly AttachmentSecurityService $attachmentSecurityService,
+    ) {}
+
     public function store(Project $project, Request $request): RedirectResponse
     {
         $this->authorize('view', $project);
@@ -25,27 +32,13 @@ class ProjectFilesController extends Controller
             ],
         ]);
 
-        $file = $data['file'];
-        $disk = (string) config('core.attachments.disk', 'local');
-        $path = $file->store(
-            'attachments/'.$project->company_id.'/projects',
-            $disk
+        $attachment = $this->attachmentUploadService->store(
+            file: $data['file'],
+            attachable: $project,
+            companyId: (string) $project->company_id,
+            context: 'project',
+            actorId: $request->user()?->id,
         );
-
-        $attachment = Attachment::create([
-            'company_id' => $project->company_id,
-            'attachable_type' => Project::class,
-            'attachable_id' => $project->id,
-            'disk' => $disk,
-            'path' => $path,
-            'file_name' => basename($path),
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'extension' => $file->extension(),
-            'size' => $file->getSize(),
-            'checksum' => hash_file('sha256', $file->getRealPath()),
-            'uploaded_by' => $request->user()?->id,
-        ]);
 
         $this->recordFileActivity(
             project: $project,
@@ -62,6 +55,7 @@ class ProjectFilesController extends Controller
         $project = $this->projectForAttachment($attachment);
 
         $this->authorize('view', $project);
+        $this->attachmentSecurityService->assertDownloadAllowed($attachment);
 
         if (! Storage::disk($attachment->disk)->exists($attachment->path)) {
             abort(404, 'Attachment file not found.');
