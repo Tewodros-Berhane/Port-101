@@ -27,7 +27,7 @@ const salesOrdersSuccess = new Rate('sales_orders_success');
 const webhookEndpointsSuccess = new Rate('webhook_endpoints_success');
 
 export const options = {
-    vus: Number(__ENV.K6_VUS || 10),
+    vus: Number(__ENV.K6_VUS || 4),
     duration: __ENV.K6_DURATION || '60s',
     thresholds: {
         http_req_failed: ['rate<0.02'],

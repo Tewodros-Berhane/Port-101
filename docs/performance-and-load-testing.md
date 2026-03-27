@@ -1,6 +1,6 @@
 # Performance And Load Testing
 
-_Last updated: 2026-03-25_
+_Last updated: 2026-03-27_
 
 ## Purpose
 
@@ -13,6 +13,7 @@ This document covers:
 - the added index baseline migration
 - the API smoke load-test harness
 - the load-summary validation/sign-off command
+- the validation profiles used for local rehearsal versus target-environment sign-off
 - the remaining manual performance gates still required before production sign-off
 
 This is an operations and readiness document, not a promise that production capacity has already been validated.
@@ -148,6 +149,8 @@ Wrapper scripts:
 - `scripts/ops/run-api-load-test.sh`
 - `scripts/ops/create-load-test-token.ps1`
 - `scripts/ops/create-load-test-token.sh`
+- `scripts/ops/run-seeded-load-signoff.ps1`
+- `scripts/ops/run-seeded-load-signoff.sh`
 
 The harness currently exercises:
 
@@ -158,6 +161,8 @@ The harness currently exercises:
 - `GET /api/v1/webhooks/endpoints`
 
 This is a representative read-path smoke harness for the current API v1 surface.
+
+The wrapper defaults now use `4` VUs instead of `10` so the baseline smoke run stays under the current authenticated API throttle (`API_RATE_LIMIT_PER_MINUTE=120`) rather than self-triggering avoidable `429` responses during local rehearsal.
 
 It is not yet the full production load gate for:
 
@@ -207,20 +212,43 @@ The helper will:
 4. rotate any existing token with the same name
 5. print a plain bearer token for the k6 harness
 
+## Disposable Seeded Load Rehearsal
+
+If the working application database is not representative, you can run the load harness against a disposable seeded local environment:
+
+```powershell
+.\scripts\ops\run-seeded-load-signoff.ps1
+```
+
+```bash
+./scripts/ops/run-seeded-load-signoff.sh
+```
+
+This helper will:
+
+1. create a temporary PostgreSQL source database
+2. migrate it
+3. seed `DatabaseSeeder`
+4. seed `DemoCompanyWorkflowSeeder`
+5. mint a dedicated load-test token
+6. boot a disposable local Laravel server against that seeded database
+7. run the k6 harness and validate the summary
+8. drop the temporary source database by default
+
 ## Running The Load Harness
 
 ### PowerShell
 
 ```powershell
 $token = (.\scripts\ops\create-load-test-token.ps1 -JsonOnly | ConvertFrom-Json).token
-.\scripts\ops\run-api-load-test.ps1 -BaseUrl "http://localhost:8000" -ApiToken $token -Vus 10 -Duration "60s"
+.\scripts\ops\run-api-load-test.ps1 -BaseUrl "http://localhost:8000" -ApiToken $token -Vus 4 -Duration "60s"
 ```
 
 ### Shell
 
 ```bash
 TOKEN="$(./scripts/ops/create-load-test-token.sh --json | jq -r '.token')"
-./scripts/ops/run-api-load-test.sh --base-url "http://localhost:8000" --api-token "${TOKEN}" --vus 10 --duration "60s"
+./scripts/ops/run-api-load-test.sh --base-url "http://localhost:8000" --api-token "${TOKEN}" --vus 4 --duration "60s"
 ```
 
 The wrapper writes a timestamped k6 summary JSON file under:
@@ -233,13 +261,46 @@ By default, the wrapper now validates the retained summary with:
 php artisan ops:performance:validate-load <summary-json> --write
 ```
 
+Validation profile can be selected explicitly:
+
+```powershell
+php artisan ops:performance:validate-load <summary-json> --write --profile=default
+php artisan ops:performance:validate-load <summary-json> --write --profile=rehearsal
+```
+
 This writes a timestamped sign-off artifact under:
 
 - `storage/app/load-signoffs`
 
+## Validation Profiles
+
+### `default`
+
+Use this for real staging or target-environment sign-off.
+
+- overall request failure rate: `< 2%`
+- overall `p95` request duration: `< 1500ms`
+- per-endpoint check success rate:
+  - health: `> 99%`
+  - protected list endpoints: `> 95%`
+
+This is the profile that matters for production-readiness evidence.
+
+### `rehearsal`
+
+Use this only for disposable local seeded rehearsals where the goal is to validate the load path end to end without claiming production performance.
+
+- overall request failure rate: `< 5%`
+- overall `p95` request duration: `< 3500ms`
+- per-endpoint check success rate:
+  - health: `> 99%`
+  - protected list endpoints: `> 95%`
+
+The seeded sign-off helpers now default to this profile.
+
 ## Initial Baseline Thresholds
 
-The current k6 harness uses these initial thresholds:
+The `default` profile currently uses these initial thresholds:
 
 - overall request failure rate: `< 2%`
 - overall `p95` request duration: `< 1500ms`
@@ -250,6 +311,8 @@ The current k6 harness uses these initial thresholds:
 These are baseline smoke thresholds, not final production SLOs.
 
 Tighten them once you have production-like data volume and measured operator expectations.
+
+The local seeded rehearsal now passes end to end under the `rehearsal` profile and retains both a summary JSON under `storage/app/load-tests` and a sign-off artifact under `storage/app/load-signoffs`. That does not replace the required target-environment run under the `default` profile.
 
 ## Minimum Review Procedure Before Production Sign-Off
 

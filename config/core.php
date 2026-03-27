@@ -62,15 +62,28 @@ return [
             storage_path('app/load-signoffs')
         ),
         'k6_script' => base_path('scripts/ops/k6-api-smoke.js'),
-        'load_thresholds' => [
-            'max_failed_rate' => (float) env('LOAD_TEST_MAX_FAILED_RATE', 0.02),
-            'max_p95_ms' => (float) env('LOAD_TEST_MAX_P95_MS', 1500),
-            'endpoint_success_rates' => [
-                'health_success' => (float) env('LOAD_TEST_HEALTH_SUCCESS_RATE', 0.99),
-                'projects_success' => (float) env('LOAD_TEST_PROJECTS_SUCCESS_RATE', 0.95),
-                'inventory_stock_balances_success' => (float) env('LOAD_TEST_INVENTORY_SUCCESS_RATE', 0.95),
-                'sales_orders_success' => (float) env('LOAD_TEST_SALES_SUCCESS_RATE', 0.95),
-                'webhook_endpoints_success' => (float) env('LOAD_TEST_WEBHOOKS_SUCCESS_RATE', 0.95),
+        'load_validation_profiles' => [
+            'default' => [
+                'max_failed_rate' => (float) env('LOAD_TEST_MAX_FAILED_RATE', 0.02),
+                'max_p95_ms' => (float) env('LOAD_TEST_MAX_P95_MS', 1500),
+                'endpoint_success_rates' => [
+                    'health_success' => (float) env('LOAD_TEST_HEALTH_SUCCESS_RATE', 0.99),
+                    'projects_success' => (float) env('LOAD_TEST_PROJECTS_SUCCESS_RATE', 0.95),
+                    'inventory_stock_balances_success' => (float) env('LOAD_TEST_INVENTORY_SUCCESS_RATE', 0.95),
+                    'sales_orders_success' => (float) env('LOAD_TEST_SALES_SUCCESS_RATE', 0.95),
+                    'webhook_endpoints_success' => (float) env('LOAD_TEST_WEBHOOKS_SUCCESS_RATE', 0.95),
+                ],
+            ],
+            'rehearsal' => [
+                'max_failed_rate' => (float) env('LOAD_TEST_REHEARSAL_MAX_FAILED_RATE', 0.05),
+                'max_p95_ms' => (float) env('LOAD_TEST_REHEARSAL_MAX_P95_MS', 3500),
+                'endpoint_success_rates' => [
+                    'health_success' => (float) env('LOAD_TEST_REHEARSAL_HEALTH_SUCCESS_RATE', 0.99),
+                    'projects_success' => (float) env('LOAD_TEST_REHEARSAL_PROJECTS_SUCCESS_RATE', 0.95),
+                    'inventory_stock_balances_success' => (float) env('LOAD_TEST_REHEARSAL_INVENTORY_SUCCESS_RATE', 0.95),
+                    'sales_orders_success' => (float) env('LOAD_TEST_REHEARSAL_SALES_SUCCESS_RATE', 0.95),
+                    'webhook_endpoints_success' => (float) env('LOAD_TEST_REHEARSAL_WEBHOOKS_SUCCESS_RATE', 0.95),
+                ],
             ],
         ],
     ],

@@ -9,23 +9,27 @@ class LoadTestValidationService
     /**
      * @return array<string, mixed>
      */
-    public function configSummary(): array
+    public function configSummary(string $profile = 'default'): array
     {
+        $thresholds = $this->thresholds($profile);
+
         return [
+            'profile' => $profile,
             'summary_output_dir' => (string) config('core.performance.load_test_output_dir'),
             'signoff_output_dir' => (string) config('core.performance.load_signoff_output_dir'),
-            'max_failed_rate' => (float) config('core.performance.load_thresholds.max_failed_rate', 0.02),
-            'max_p95_ms' => (float) config('core.performance.load_thresholds.max_p95_ms', 1500),
-            'endpoint_success_rates' => (array) config('core.performance.load_thresholds.endpoint_success_rates', []),
+            'max_failed_rate' => (float) ($thresholds['max_failed_rate'] ?? 0.02),
+            'max_p95_ms' => (float) ($thresholds['max_p95_ms'] ?? 1500),
+            'endpoint_success_rates' => (array) ($thresholds['endpoint_success_rates'] ?? []),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function run(string $summaryFile, bool $writeArtifact = false): array
+    public function run(string $summaryFile, bool $writeArtifact = false, string $profile = 'default'): array
     {
         $summaryState = $this->readSummary($summaryFile);
+        $thresholds = $this->thresholds($profile);
         $checks = [
             $this->summaryFileCheck($summaryState),
         ];
@@ -40,7 +44,7 @@ class LoadTestValidationService
                 'HTTP request failure rate',
                 $failedRate,
                 '<=',
-                (float) config('core.performance.load_thresholds.max_failed_rate', 0.02),
+                (float) ($thresholds['max_failed_rate'] ?? 0.02),
                 fn (float $actual, float $threshold) => $actual <= $threshold,
             );
 
@@ -49,12 +53,12 @@ class LoadTestValidationService
                 'HTTP request duration p95',
                 $p95Duration,
                 '<=',
-                (float) config('core.performance.load_thresholds.max_p95_ms', 1500),
+                (float) ($thresholds['max_p95_ms'] ?? 1500),
                 fn (float $actual, float $threshold) => $actual <= $threshold,
                 'ms',
             );
 
-            foreach ((array) config('core.performance.load_thresholds.endpoint_success_rates', []) as $metric => $threshold) {
+            foreach ((array) ($thresholds['endpoint_success_rates'] ?? []) as $metric => $threshold) {
                 $checks[] = $this->thresholdCheck(
                     $metric,
                     ucfirst(str_replace('_', ' ', $metric)),
@@ -69,10 +73,11 @@ class LoadTestValidationService
         $result = [
             'ok' => collect($checks)->every(fn (array $check) => (bool) ($check['ok'] ?? false)),
             'generated_at' => now()->toIso8601String(),
+            'profile' => $profile,
             'summary_file' => $summaryFile,
             'checks' => $checks,
             'summary' => $summaryState['summary'] ?? null,
-            'config' => $this->configSummary(),
+            'config' => $this->configSummary($profile),
             'artifact_path' => null,
         ];
 
@@ -81,6 +86,16 @@ class LoadTestValidationService
         }
 
         return $result;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function thresholds(string $profile): array
+    {
+        $profiles = (array) config('core.performance.load_validation_profiles', []);
+
+        return (array) ($profiles[$profile] ?? $profiles['default'] ?? []);
     }
 
     /**
@@ -140,7 +155,15 @@ class LoadTestValidationService
      */
     private function metricValue(array $summary, string $metric, string $valueKey): ?float
     {
-        $values = data_get($summary, "metrics.{$metric}.values");
+        $metricState = data_get($summary, "metrics.{$metric}");
+
+        if (! is_array($metricState)) {
+            return null;
+        }
+
+        $values = is_array($metricState['values'] ?? null)
+            ? $metricState['values']
+            : $metricState;
 
         if (! is_array($values)) {
             return null;
@@ -151,6 +174,7 @@ class LoadTestValidationService
             str_replace(['(', ')'], '', $valueKey),
             strtolower($valueKey),
             strtolower(str_replace(['(', ')'], '', $valueKey)),
+            'value',
         ];
 
         foreach ($candidates as $candidate) {

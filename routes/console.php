@@ -878,10 +878,11 @@ Artisan::command('ops:recovery:signoff {--workspace=} {--json} {--write}', funct
     return $result['ok'] ? self::SUCCESS : self::FAILURE;
 })->purpose('Validate restore-drill evidence and write a clean-environment recovery sign-off artifact');
 
-Artisan::command('ops:performance:validate-load {summaryFile} {--json} {--write}', function () {
+Artisan::command('ops:performance:validate-load {summaryFile} {--json} {--write} {--profile=default}', function () {
     $result = app(LoadTestValidationService::class)->run(
         summaryFile: (string) $this->argument('summaryFile'),
         writeArtifact: (bool) $this->option('write'),
+        profile: (string) $this->option('profile'),
     );
 
     if ((bool) $this->option('json')) {

@@ -26,7 +26,7 @@ Why:
 - Core platform and major modules are implemented
 - The automated suite is broad and currently green
 - API v1, outbound webhooks, and the planned integration-hardening baseline are implemented
-- But clean-environment restore sign-off on a real populated backup, staged load validation in a target environment, and production environment secret/retention verification are still incomplete
+- Local restore and load rehearsals now pass with retained evidence, but clean-environment restore sign-off on real scheduled backup artifacts, target-environment staged load validation under the default profile, and production environment secret/retention verification are still incomplete
 
 ## Current Baseline
 
@@ -54,9 +54,10 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `276 passed`, `0 failed`
+- latest full suite result: `279 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
+- seeded local load rehearsal now passes under the dedicated `rehearsal` validation profile with retained summary and sign-off artifacts
 
 ## Release Gate Status
 
@@ -136,7 +137,7 @@ Exit condition:
 - `[ ]` queue throughput has been evaluated
 - `[ ]` export/report generation has been tested under realistic volume
 - `[ ]` webhook fan-out behavior has been tested under burst conditions
-- `[~]` representative load-test harness and summary-validation tooling exist, but a real staged run has not been signed off yet
+- `[~]` representative load-test harness and summary-validation tooling exist, and a local seeded rehearsal now passes under the dedicated `rehearsal` profile, but a real target-environment run under the `default` profile has not been signed off yet
 
 Exit condition:
 
@@ -149,9 +150,9 @@ Exit condition:
 - `[~]` attachment support now has baseline hardening, but environment-level scanner operations and cloud-storage policy decisions are still pending
 - `[x]` attachment virus scanning exists
 - `[x]` strict MIME allowlists by module exist
-- `[~]` webhook secret rotation exists, but broader credential runbook coverage is still incomplete
+- `[~]` webhook secret rotation exists, but broader credential runbook evidence is still incomplete
 - `[~]` public API and webhook surfaces now have baseline hardening controls (rate limiting, HTTPS/private-target checks, replay/idempotency policy), but a final production review and credential checklist are still pending
-- `[ ]` production environment secret-handling checklist is documented
+- `[~]` production environment secret-handling checklist is documented, but target-environment ownership and evidence are still pending
 
 Exit condition:
 
@@ -206,12 +207,13 @@ This is the minimum remaining implementation order.
 
 2. Load and burst testing
    - run the k6 API smoke harness
-   - validate the retained summary with `php artisan ops:performance:validate-load <summary> --write`
+   - validate the retained summary with `php artisan ops:performance:validate-load <summary> --write --profile=default`
    - invoice posting
    - project billing
    - inventory moves
    - webhook fan-out
    - report export jobs
+   - note: `scripts/ops/run-seeded-load-signoff.*` now covers local rehearsal only and uses the `rehearsal` profile
 
 3. Capacity baselines
    - expected tenants
@@ -283,10 +285,10 @@ Port-101 status: `not yet`
 
 ## Recommended Next Execution Order
 
-1. clean-environment restore drill sign-off against a populated backup
-2. performance/index review and staged load testing
+1. clean-environment restore drill sign-off against scheduled target-environment backup artifacts
+2. target-environment staged load test under the `default` validation profile
 3. target-environment backup scheduling and retention verification
-4. production secret-handling and credential rotation checklist
+4. production secret-handling and credential rotation checklist evidence
 
 ## Ownership Rule
 

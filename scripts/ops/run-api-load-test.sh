@@ -7,10 +7,12 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 BASE_URL_OVERRIDE="${BASE_URL:-}"
 API_TOKEN_OVERRIDE="${API_TOKEN:-}"
-VUS="${K6_VUS:-10}"
+VUS="${K6_VUS:-4}"
 DURATION="${K6_DURATION:-60s}"
 SUMMARY_FILE=""
 SKIP_VALIDATION=0
+K6_BIN_OVERRIDE="${K6_BIN:-k6}"
+VALIDATION_PROFILE="${LOAD_TEST_VALIDATION_PROFILE:-default}"
 
 dotenv_value() {
   local key="$1"
@@ -54,6 +56,14 @@ while [[ $# -gt 0 ]]; do
       SUMMARY_FILE="$2"
       shift 2
       ;;
+    --k6-bin)
+      K6_BIN_OVERRIDE="$2"
+      shift 2
+      ;;
+    --validation-profile)
+      VALIDATION_PROFILE="$2"
+      shift 2
+      ;;
     --skip-validation)
       SKIP_VALIDATION=1
       shift
@@ -65,8 +75,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if ! command -v k6 >/dev/null 2>&1; then
-  echo "k6 is required on PATH to run the API load harness." >&2
+if ! command -v "${K6_BIN_OVERRIDE}" >/dev/null 2>&1 && [[ ! -x "${K6_BIN_OVERRIDE}" ]]; then
+  echo "k6 is required on PATH or provided through --k6-bin / K6_BIN to run the API load harness." >&2
   exit 1
 fi
 
@@ -86,13 +96,14 @@ export API_TOKEN="${API_TOKEN_OVERRIDE}"
 export K6_VUS="${VUS}"
 export K6_DURATION="${DURATION}"
 export K6_WEB_DASHBOARD="false"
+export LOAD_TEST_VALIDATION_PROFILE="${VALIDATION_PROFILE}"
 
-k6 run \
+"${K6_BIN_OVERRIDE}" run \
   --summary-export "${SUMMARY_FILE}" \
   "${SCRIPT_DIR}/k6-api-smoke.js"
 
 echo "k6 summary written to ${SUMMARY_FILE}"
 
 if [[ "${SKIP_VALIDATION}" -eq 0 ]]; then
-  php artisan ops:performance:validate-load "${SUMMARY_FILE}" --write
+  php artisan ops:performance:validate-load "${SUMMARY_FILE}" --write "--profile=${VALIDATION_PROFILE}"
 fi

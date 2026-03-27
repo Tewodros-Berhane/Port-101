@@ -2,9 +2,11 @@ param(
     [string] $BaseUrl,
     [string] $ApiToken,
     [string] $SummaryFile,
-    [int] $Vus = 10,
+    [int] $Vus = 4,
     [string] $Duration = "60s",
-    [switch] $SkipValidation
+    [switch] $SkipValidation,
+    [string] $K6Bin,
+    [string] $ValidationProfile = "default"
 )
 
 Set-StrictMode -Version Latest
@@ -43,9 +45,40 @@ function Get-DotEnvValue {
     return $value
 }
 
-if (-not (Get-Command k6 -ErrorAction SilentlyContinue)) {
-    throw "k6 is required on PATH to run the API load harness."
+function Resolve-K6Binary {
+    param(
+        [string] $ExplicitBinary
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitBinary)) {
+        if (Test-Path $ExplicitBinary) {
+            return (Resolve-Path $ExplicitBinary).Path
+        }
+
+        throw "Specified k6 binary [$ExplicitBinary] does not exist."
+    }
+
+    $resolved = Get-Command k6 -ErrorAction SilentlyContinue
+
+    if ($resolved) {
+        return $resolved.Source
+    }
+
+    $candidates = @(
+        'C:\Program Files\k6\k6.exe',
+        'C:\Program Files (x86)\k6\k6.exe'
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw "k6 is required on PATH or available via -K6Bin to run the API load harness."
 }
+
+$k6Binary = Resolve-K6Binary -ExplicitBinary $K6Bin
 
 if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
     $BaseUrl = [Environment]::GetEnvironmentVariable('BASE_URL')
@@ -70,20 +103,20 @@ $env:K6_VUS = $Vus
 $env:K6_DURATION = $Duration
 $env:K6_WEB_DASHBOARD = 'false'
 
-& k6 run `
+& $k6Binary run `
     --summary-export $SummaryFile `
     (Join-Path $PSScriptRoot "k6-api-smoke.js")
 
 if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+    throw "k6 failed with exit code $LASTEXITCODE."
 }
 
 Write-Output "k6 summary written to $SummaryFile"
 
 if (-not $SkipValidation) {
-    & php artisan ops:performance:validate-load $SummaryFile --write
+    & php artisan ops:performance:validate-load $SummaryFile --write "--profile=$ValidationProfile"
 
     if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+        throw "Load-test validation failed with exit code $LASTEXITCODE."
     }
 }
