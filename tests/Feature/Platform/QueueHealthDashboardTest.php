@@ -1,6 +1,7 @@
 <?php
 
 use App\Core\Company\Models\Company;
+use App\Core\Platform\Models\QueueFailureReview;
 use App\Models\User;
 use App\Modules\Integrations\Models\IntegrationEvent;
 use App\Modules\Integrations\Models\WebhookDelivery;
@@ -8,6 +9,7 @@ use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Integrations\WebhookEventCatalog;
 use App\Modules\Reports\CompanyReportsService;
 use App\Modules\Reports\Models\ReportExport;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -37,8 +39,12 @@ function createQueueHealthCompany(User $owner): Company
     ]);
 }
 
-function createFailedQueueHealthJob(string $label, ?string $companyId = null, ?string $userId = null): string
-{
+function createFailedQueueHealthJob(
+    string $label,
+    ?string $companyId = null,
+    ?string $userId = null,
+    ?\Throwable $exception = null,
+): string {
     $payload = json_encode([
         'uuid' => (string) Str::uuid(),
         'displayName' => CaptureRetriedQueueJob::class,
@@ -69,7 +75,7 @@ function createFailedQueueHealthJob(string $label, ?string $companyId = null, ?s
         'sync',
         'default',
         $payload ?: '{}',
-        new RuntimeException('Queue failure for '.$label),
+        $exception ?? new RuntimeException('Queue failure for '.$label),
     );
 }
 
@@ -145,6 +151,12 @@ test('superadmin can view the platform queue health dashboard', function () {
     $company = createQueueHealthCompany($superAdmin);
 
     createFailedQueueHealthJob('dashboard-render', $company->id, $superAdmin->id);
+    createFailedQueueHealthJob(
+        'authorization-poison',
+        $company->id,
+        $superAdmin->id,
+        new AuthorizationException('Forbidden queue action'),
+    );
     createQueueHealthDeadWebhookDelivery($company->id, $superAdmin->id);
     createFailedQueueHealthReportExport($company->id, $superAdmin->id);
 
@@ -155,7 +167,9 @@ test('superadmin can view the platform queue health dashboard', function () {
             ->component('platform/operations/queue-health')
             ->has('summary')
             ->has('backlogByQueue')
-            ->has('failedJobs.data', 1)
+            ->where('summary.poison_suspected_failed_jobs', 1)
+            ->has('failedJobs.data', 2)
+            ->has('recentPoisonReviews')
             ->has('deadWebhookDeliveries', 1)
             ->has('failedReportExports', 1));
 });
@@ -182,6 +196,33 @@ test('superadmin can retry and forget failed queue jobs from queue health', func
         ->assertRedirect(route('platform.queue-health'));
 
     expect(app(FailedJobProviderInterface::class)->find($forgetId))->toBeNull();
+});
+
+test('superadmin can discard poison jobs from queue health and retain review history', function () {
+    $superAdmin = createQueueHealthSuperAdmin();
+    $company = createQueueHealthCompany($superAdmin);
+
+    $poisonId = createFailedQueueHealthJob(
+        'discard-poison',
+        $company->id,
+        $superAdmin->id,
+        new AuthorizationException('Forbidden queue action'),
+    );
+
+    actingAs($superAdmin)
+        ->from(route('platform.queue-health'))
+        ->post(route('platform.queue-health.failed-jobs.discard-poison', ['failedJobId' => $poisonId]))
+        ->assertRedirect(route('platform.queue-health'));
+
+    expect(app(FailedJobProviderInterface::class)->find($poisonId))->toBeNull();
+
+    $review = QueueFailureReview::query()
+        ->where('failed_job_id', $poisonId)
+        ->first();
+
+    expect($review)->not->toBeNull()
+        ->and($review?->decision)->toBe(QueueFailureReview::DECISION_DISCARDED)
+        ->and($review?->classification)->toBe(QueueFailureReview::CLASSIFICATION_POISON_SUSPECTED);
 });
 
 test('superadmin can retry dead webhook deliveries from queue health', function () {
