@@ -119,7 +119,7 @@ Exit condition:
 
 - `[x]` core workflows are covered by automated tests
 - `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
-- `[~]` restore procedure is documented, smoke-checked, has disposable drill automation, and now has sign-off evidence tooling, but a clean-environment sign-off drill against a real populated backup is still pending
+- `[~]` restore procedure is documented, smoke-checked, has disposable drill automation, now has sign-off evidence tooling, and has passed a local seeded rehearsal, but a clean-environment sign-off drill against target-environment scheduled artifacts is still pending
 - `[x]` disaster recovery runbook exists
 - `[x]` queue retry tooling now includes poison-message decision support and a formal operator runbook
 - `[~]` storage cleanup and retention operations are partially documented through the backup/recovery runbook
@@ -188,11 +188,13 @@ This is the minimum remaining implementation order.
    - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
    - record `php artisan ops:recovery:signoff --write` evidence for the drill workspace
+   - for local rehearsal only, use `.\scripts\ops\run-seeded-restore-signoff.ps1` if the working DB is not representative
 
 3. Target-environment verification
    - confirm scheduler heartbeat and queue workers are running in the target environment
    - confirm backup jobs, retention, and artifact storage are active in the target environment
    - record clean-environment restore sign-off evidence
+   - complete `docs/backup-scheduling-and-retention.md`
 
 ### Phase 4: Performance Gate
 
@@ -227,7 +229,7 @@ This is the minimum remaining implementation order.
 2. Public surface review
    - validate API rate limits and webhook-target policies in a staging environment
    - review API v1 and webhook surfaces for auth, scoping, and replay expectations
-   - document production secret-handling and credential rotation procedures
+   - complete `docs/secret-handling-and-rotation.md`
    - close the broader credential runbook gap beyond webhook secret rotation
 
 ## Strict Production Exit Criteria
