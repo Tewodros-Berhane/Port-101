@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Define how modules depend on each other, which tables/services are shared, and how the next major module (`Projects/Services`) should be implemented in Port-101.
+Define how modules depend on each other, which tables/services are shared, and how major module implementations fit into Port-101.
 
 This file now serves two purposes:
 
 - the dependency reference for the current ERP architecture
-- the execution blueprint for the upcoming `Projects/Services` module
+- the execution blueprint for major module plans such as `Projects/Services` and `HR / People Ops`
 
 ## Architecture Baseline
 
@@ -41,6 +41,7 @@ Cross-cutting services already available to all modules:
 - **Purchasing** -> depends on Core + Inventory
 - **Accounting** -> depends on Core + Sales + Purchasing
 - **Projects/Services** -> depends on Core + Accounting, and integrates with Sales, Approvals, Reports, Notifications, and Attachments
+- **HR / People Ops** -> depends on Core + Accounting, and integrates with Projects, Approvals, Reports, Notifications, and Attachments
 - **Reporting** -> depends on all modules
 
 ## Current Module Dependencies
@@ -110,6 +111,37 @@ Provides data to:
 - Projects/Services: customer invoice draft generation for time, milestone, and rebillable service work
 - Reports: P&L, balance sheet, trial balance, cash flow, aging, ledger views
 
+### HR / People Ops Module
+
+Depends on:
+
+- Core: companies, users, roles, settings, attachments, notifications, audit, approval services
+- Accounting: reimbursement payout handoff, payroll accrual posting, payable settlement
+
+Integrates tightly with:
+
+- Reports: headcount, leave balances, attendance anomalies, payroll register, reimbursement aging
+- Approvals: leave approval, attendance correction approval, reimbursement approval, payroll release
+- Projects/Services: optional labor-cost allocation and later capacity/timesheet integration
+
+Provides data to:
+
+- Accounting: reimbursement and payroll posting payloads
+- Reports: HR and workforce reporting datasets
+- Projects/Services: optional employee cost and availability context
+
+Implementation sequence against the rest of the ERP:
+
+1. Employee foundation can start immediately because Core dependencies already exist.
+2. Leave and Attendance stay mostly inside HR + Core + Approvals.
+3. Reimbursements become useful once Accounting handoff is wired.
+4. Payroll Lite should only start after employee contracts, leave, and attendance are stable.
+5. Projects/Services integration should stay optional until HR records and payroll costing are trustworthy.
+
+Detailed implementation blueprint:
+
+- `docs/hr-module-plan.md`
+
 ### Reports Module
 
 Depends on:
@@ -139,6 +171,55 @@ Current and planned event examples:
 - `ProjectBillableApproved` -> create customer invoice draft
 - `ProjectMilestoneCompleted` -> mark milestone billable
 - `ProjectTimesheetApproved` -> update billable quantity/cost snapshot
+- `LeaveRequestApproved` -> create payroll work-entry impact
+- `AttendanceRecordFinalized` -> refresh payroll work entries
+- `ReimbursementClaimApproved` -> create Accounting reimbursement payout or payslip reimbursement handoff
+- `PayrollRunPosted` -> create Accounting accrual linkage
+
+## HR / People Ops Dependency Matrix
+
+This section defines exactly how the planned HR module should sit against the existing modules.
+
+| Module | Dependency level | HR consumes | HR publishes back |
+| --- | --- | --- | --- |
+| Core | Hard | companies, users, roles, settings, attachments, notifications, audit, approvals | employee-scoped attachments, audit records, HR notification traffic |
+| Accounting | Hard | reimbursement payout flow, payroll accrual posting, payable settlement context | reimbursement payment payloads, payroll accrual entries, payment/settlement linkage |
+| Reports | Strong | export infrastructure, report job pipeline, PDF/XLSX patterns | headcount, leave, attendance, reimbursement, payroll reporting datasets |
+| Approvals | Strong | approval authority and threshold rules | leave, attendance correction, reimbursement, payroll release approval events |
+| Projects/Services | Optional strong | project references for rebillable claims or labor-cost allocation | employee availability context, approved leave visibility, optional labor cost allocation |
+| Notifications | Strong | in-app and email delivery mechanisms | employee/manager approval and status notifications |
+| Attachments | Strong | employee documents, receipts, payslip and contract file storage | attachment metadata under HR retention/privacy rules |
+| Sales | Weak/optional | none for MVP | none initially, later possible commission context |
+| Inventory | Weak/optional | none for MVP | none initially |
+| Purchasing | Weak/optional | none for MVP | none initially |
+
+HR implementation guardrails:
+
+- HR should not be blocked on Sales, Inventory, or Purchasing.
+- HR should integrate with Accounting only through workflow services and explicit posting/reimbursement handoff.
+- HR should integrate with Projects only after core employee, leave, attendance, and payroll data becomes reliable enough to use for capacity or cost allocation.
+
+## HR / People Ops Delivery Order
+
+If HR is the next major module after the current ERP scope, the correct dependency-aware rollout is:
+
+1. Employees foundation
+   - departments, designations, employees, contracts, documents, HR roles/policies
+2. Leave
+   - leave types, periods, allocations, requests, approvals
+3. Attendance
+   - shifts, check-ins, daily attendance records, correction requests
+4. Reimbursements
+   - claims, receipts, manager/finance approval, Accounting payout handoff
+5. Payroll Lite
+   - salary structures, compensation assignments, work entries, payroll runs, payslips, Accounting accrual posting
+6. Reports + selective API/self-service completion
+
+This order is intentional:
+
+- leave and attendance generate the clean operational inputs payroll needs later
+- reimbursements are useful early but do not require full payroll completion
+- payroll should be built last because it has the tightest dependency on stable HR inputs and Accounting discipline
 
 ---
 
