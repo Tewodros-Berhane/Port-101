@@ -54,7 +54,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `274 passed`, `0 failed`
+- latest full suite result: `276 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 

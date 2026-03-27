@@ -4,6 +4,7 @@ use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\DeploymentSmokeCheckService;
+use App\Core\Platform\LoadTestTokenService;
 use App\Core\Platform\LoadTestValidationService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Platform\PerformanceAuditService;
@@ -36,6 +37,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Validation\ValidationException;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -914,6 +916,64 @@ Artisan::command('ops:performance:validate-load {summaryFile} {--json} {--write}
 
     return $result['ok'] ? self::SUCCESS : self::FAILURE;
 })->purpose('Validate a k6 summary export against Port-101 load thresholds and record sign-off evidence');
+
+Artisan::command('ops:load-test:token {email?} {--company=} {--name=ops-load-test} {--abilities=*} {--json}', function (?string $email = null) {
+    $rawAbilities = $this->option('abilities');
+    $abilities = collect(is_array($rawAbilities) ? $rawAbilities : explode(',', (string) $rawAbilities))
+        ->map(fn ($ability) => trim((string) $ability))
+        ->filter()
+        ->values()
+        ->all();
+
+    try {
+        $result = app(LoadTestTokenService::class)->issue(
+            email: $email,
+            companyReference: $this->option('company') ? (string) $this->option('company') : null,
+            tokenName: (string) $this->option('name'),
+            abilities: $abilities === [] ? ['*'] : $abilities,
+        );
+    } catch (ValidationException $exception) {
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode([
+                'message' => 'Load-test token issuance failed.',
+                'errors' => $exception->errors(),
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        } else {
+            foreach ($exception->errors() as $field => $messages) {
+                foreach ($messages as $message) {
+                    $this->error("[{$field}] {$message}");
+                }
+            }
+        }
+
+        return self::FAILURE;
+    }
+
+    $payload = [
+        'user_email' => $result['user']->email,
+        'company_slug' => $result['company']->slug,
+        'token_name' => $result['token_name'],
+        'abilities' => $result['abilities'],
+        'token' => $result['token'],
+    ];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return self::SUCCESS;
+    }
+
+    $this->info('Load-test token issued');
+    $this->newLine();
+    $this->line('User: '.$payload['user_email']);
+    $this->line('Company: '.$payload['company_slug']);
+    $this->line('Token name: '.$payload['token_name']);
+    $this->line('Abilities: '.implode(', ', $payload['abilities']));
+    $this->newLine();
+    $this->line($payload['token']);
+
+    return self::SUCCESS;
+})->purpose('Issue a dedicated Sanctum token for API load testing against an active company');
 
 Artisan::command('ops:integration:smoke-check {--json} {--company=}', function () {
     $result = app(SeededIntegrationSmokeCheckService::class)->run(

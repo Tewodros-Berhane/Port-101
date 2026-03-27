@@ -146,6 +146,8 @@ Wrapper scripts:
 
 - `scripts/ops/run-api-load-test.ps1`
 - `scripts/ops/run-api-load-test.sh`
+- `scripts/ops/create-load-test-token.ps1`
+- `scripts/ops/create-load-test-token.sh`
 
 The harness currently exercises:
 
@@ -177,20 +179,48 @@ You need:
 
 If `k6` is not installed, the wrapper scripts will fail fast with a clear error.
 
+## Minting A Load-test Token
+
+To issue a dedicated token for the load harness:
+
+```powershell
+.\scripts\ops\create-load-test-token.ps1
+```
+
+Optional targeting:
+
+```powershell
+.\scripts\ops\create-load-test-token.ps1 -Email "owner@demo.port101.test" -Company "demo-company-workflow"
+```
+
+Direct Artisan form:
+
+```powershell
+php artisan ops:load-test:token --company=demo-company-workflow --json
+```
+
+The helper will:
+
+1. resolve an active company
+2. resolve a valid user for that company
+3. switch the user onto that company if needed
+4. rotate any existing token with the same name
+5. print a plain bearer token for the k6 harness
+
 ## Running The Load Harness
 
 ### PowerShell
 
 ```powershell
-$env:API_TOKEN = "your-token"
-.\scripts\ops\run-api-load-test.ps1 -BaseUrl "http://localhost:8000" -Vus 10 -Duration "60s"
+$token = (.\scripts\ops\create-load-test-token.ps1 -JsonOnly | ConvertFrom-Json).token
+.\scripts\ops\run-api-load-test.ps1 -BaseUrl "http://localhost:8000" -ApiToken $token -Vus 10 -Duration "60s"
 ```
 
 ### Shell
 
 ```bash
-export API_TOKEN="your-token"
-./scripts/ops/run-api-load-test.sh --base-url "http://localhost:8000" --vus 10 --duration "60s"
+TOKEN="$(./scripts/ops/create-load-test-token.sh --json | jq -r '.token')"
+./scripts/ops/run-api-load-test.sh --base-url "http://localhost:8000" --api-token "${TOKEN}" --vus 10 --duration "60s"
 ```
 
 The wrapper writes a timestamped k6 summary JSON file under:
