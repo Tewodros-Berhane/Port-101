@@ -3,7 +3,8 @@ param(
     [string] $ApiToken,
     [string] $SummaryFile,
     [int] $Vus = 10,
-    [string] $Duration = "60s"
+    [string] $Duration = "60s",
+    [switch] $SkipValidation
 )
 
 Set-StrictMode -Version Latest
@@ -78,3 +79,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Output "k6 summary written to $SummaryFile"
+
+if (-not $SkipValidation) {
+    & php artisan ops:performance:validate-load $SummaryFile --write
+
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}

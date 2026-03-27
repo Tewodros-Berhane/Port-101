@@ -23,6 +23,16 @@ return [
             'storage/app/public',
         ],
     ],
+    'recovery' => [
+        'restore_drill_root' => env(
+            'RESTORE_DRILL_ROOT',
+            storage_path('app/restore-drills')
+        ),
+        'signoff_output_dir' => env(
+            'RECOVERY_SIGNOFF_OUTPUT_DIR',
+            storage_path('app/recovery-signoffs')
+        ),
+    ],
     'deployment' => [
         'smoke_check_routes' => [
             'login',
@@ -47,10 +57,44 @@ return [
             'LOAD_TEST_OUTPUT_DIR',
             storage_path('app/load-tests')
         ),
+        'load_signoff_output_dir' => env(
+            'LOAD_SIGNOFF_OUTPUT_DIR',
+            storage_path('app/load-signoffs')
+        ),
         'k6_script' => base_path('scripts/ops/k6-api-smoke.js'),
+        'load_thresholds' => [
+            'max_failed_rate' => (float) env('LOAD_TEST_MAX_FAILED_RATE', 0.02),
+            'max_p95_ms' => (float) env('LOAD_TEST_MAX_P95_MS', 1500),
+            'endpoint_success_rates' => [
+                'health_success' => (float) env('LOAD_TEST_HEALTH_SUCCESS_RATE', 0.99),
+                'projects_success' => (float) env('LOAD_TEST_PROJECTS_SUCCESS_RATE', 0.95),
+                'inventory_stock_balances_success' => (float) env('LOAD_TEST_INVENTORY_SUCCESS_RATE', 0.95),
+                'sales_orders_success' => (float) env('LOAD_TEST_SALES_SUCCESS_RATE', 0.95),
+                'webhook_endpoints_success' => (float) env('LOAD_TEST_WEBHOOKS_SUCCESS_RATE', 0.95),
+            ],
+        ],
+    ],
+    'api' => [
+        'rate_limit_per_minute' => (int) env('API_RATE_LIMIT_PER_MINUTE', 120),
     ],
     'integration' => [
         'smoke_check_company_slug' => env('INTEGRATION_SMOKE_CHECK_COMPANY_SLUG', 'demo-company-workflow'),
+    ],
+    'webhooks' => [
+        'require_https' => env('WEBHOOK_REQUIRE_HTTPS'),
+        'allow_private_targets' => env('WEBHOOK_ALLOW_PRIVATE_TARGETS'),
+        'blocked_hostnames' => [
+            'localhost',
+            '127.0.0.1',
+            '::1',
+            'host.docker.internal',
+        ],
+        'blocked_host_suffixes' => [
+            '.localhost',
+            '.local',
+            '.internal',
+            '.test',
+        ],
     ],
     'queue_failures' => [
         'poison_similarity_window_hours' => (int) env('QUEUE_POISON_SIMILARITY_WINDOW_HOURS', 24),
@@ -66,6 +110,137 @@ return [
     'attachments' => [
         'disk' => env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
         'max_size_kb' => (int) env('ATTACHMENTS_MAX_SIZE_KB', 10240),
+        'download_requires_clean_scan' => filter_var(
+            env('ATTACHMENTS_DOWNLOAD_REQUIRES_CLEAN_SCAN', true),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+        'scan' => [
+            'enabled' => filter_var(
+                env('ATTACHMENTS_SCAN_ENABLED', true),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+            'driver' => env('ATTACHMENTS_SCAN_DRIVER', 'basic'),
+            'binary' => env('ATTACHMENTS_SCAN_BINARY', 'clamscan'),
+            'timeout_seconds' => (int) env('ATTACHMENTS_SCAN_TIMEOUT_SECONDS', 30),
+        ],
+        'allowlists' => [
+            'default' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'text/plain',
+                    'text/csv',
+                    'text/tab-separated-values',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/png',
+                    'image/jpeg',
+                    'image/webp',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'txt',
+                    'csv',
+                    'tsv',
+                    'xls',
+                    'xlsx',
+                    'docx',
+                    'png',
+                    'jpg',
+                    'jpeg',
+                    'webp',
+                ],
+            ],
+            'partner' => [],
+            'contact' => [],
+            'address' => [],
+            'product' => [],
+            'project' => [],
+            'manual_journal' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'text/plain',
+                    'text/csv',
+                    'text/tab-separated-values',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'txt',
+                    'csv',
+                    'tsv',
+                    'xls',
+                    'xlsx',
+                    'docx',
+                ],
+            ],
+            'tax' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'text/plain',
+                    'text/csv',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'txt',
+                    'csv',
+                    'xls',
+                    'xlsx',
+                ],
+            ],
+            'currency' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'text/plain',
+                    'text/csv',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'txt',
+                    'csv',
+                    'xls',
+                    'xlsx',
+                ],
+            ],
+            'uom' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'text/plain',
+                    'text/csv',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'txt',
+                    'csv',
+                    'xls',
+                    'xlsx',
+                ],
+            ],
+            'price_list' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'text/plain',
+                    'text/csv',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'txt',
+                    'csv',
+                    'xls',
+                    'xlsx',
+                ],
+            ],
+        ],
     ],
     'notifications' => [
         'governance' => [

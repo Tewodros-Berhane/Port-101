@@ -12,6 +12,7 @@ This document covers:
 - the `ops:performance:audit` command
 - the added index baseline migration
 - the API smoke load-test harness
+- the load-summary validation/sign-off command
 - the remaining manual performance gates still required before production sign-off
 
 This is an operations and readiness document, not a promise that production capacity has already been validated.
@@ -196,6 +197,16 @@ The wrapper writes a timestamped k6 summary JSON file under:
 
 - `storage/app/load-tests`
 
+By default, the wrapper now validates the retained summary with:
+
+```powershell
+php artisan ops:performance:validate-load <summary-json> --write
+```
+
+This writes a timestamped sign-off artifact under:
+
+- `storage/app/load-signoffs`
+
 ## Initial Baseline Thresholds
 
 The current k6 harness uses these initial thresholds:
@@ -218,7 +229,8 @@ Do this in order:
 2. run `php artisan ops:performance:audit`
 3. retain the JSON artifact from `scripts/ops/run-performance-audit.*`
 4. run the k6 API smoke harness against representative seeded/staging data
-5. review:
+5. validate the retained summary with `php artisan ops:performance:validate-load <summary-json> --write`
+6. review:
    - p95 latency
    - error rate
    - queue impact during the run

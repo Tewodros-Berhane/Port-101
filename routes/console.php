@@ -4,11 +4,13 @@ use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\Platform\DeploymentSmokeCheckService;
+use App\Core\Platform\LoadTestValidationService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Platform\PerformanceAuditService;
 use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
+use App\Core\Platform\RecoverySignoffService;
 use App\Core\Platform\RecoverySmokeCheckService;
 use App\Core\Platform\SeededIntegrationSmokeCheckService;
 use App\Core\Settings\Models\Setting;
@@ -834,6 +836,84 @@ Artisan::command('ops:performance:audit {--json}', function () {
 
     return $result['ok'] ? self::SUCCESS : self::FAILURE;
 })->purpose('Audit high-volume tables, expected indexes, and PostgreSQL scan patterns');
+
+Artisan::command('ops:recovery:signoff {--workspace=} {--json} {--write}', function () {
+    $result = app(RecoverySignoffService::class)->run(
+        workspace: $this->option('workspace') ? (string) $this->option('workspace') : null,
+        writeArtifact: (bool) $this->option('write'),
+    );
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $result['ok'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    $this->info('Recovery sign-off');
+    $this->newLine();
+    $this->table(
+        ['Check', 'Status', 'Detail'],
+        collect($result['checks'])
+            ->map(fn (array $check) => [
+                $check['label'],
+                $check['ok'] ? 'OK' : 'FAIL',
+                $check['detail'],
+            ])
+            ->all()
+    );
+
+    $this->newLine();
+    $this->line('Config summary:');
+    foreach ($result['config'] as $key => $value) {
+        $this->line("- {$key}: ".(is_array($value) ? implode(', ', $value) : (string) $value));
+    }
+
+    if ($result['artifact_path']) {
+        $this->newLine();
+        $this->info('Sign-off artifact written to '.$result['artifact_path']);
+    }
+
+    return $result['ok'] ? self::SUCCESS : self::FAILURE;
+})->purpose('Validate restore-drill evidence and write a clean-environment recovery sign-off artifact');
+
+Artisan::command('ops:performance:validate-load {summaryFile} {--json} {--write}', function () {
+    $result = app(LoadTestValidationService::class)->run(
+        summaryFile: (string) $this->argument('summaryFile'),
+        writeArtifact: (bool) $this->option('write'),
+    );
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $result['ok'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    $this->info('Load-test validation');
+    $this->newLine();
+    $this->table(
+        ['Check', 'Status', 'Detail'],
+        collect($result['checks'])
+            ->map(fn (array $check) => [
+                $check['label'],
+                $check['ok'] ? 'OK' : 'FAIL',
+                $check['detail'],
+            ])
+            ->all()
+    );
+
+    $this->newLine();
+    $this->line('Config summary:');
+    foreach ($result['config'] as $key => $value) {
+        $this->line("- {$key}: ".(is_array($value) ? implode(', ', $value) : (string) $value));
+    }
+
+    if ($result['artifact_path']) {
+        $this->newLine();
+        $this->info('Load sign-off artifact written to '.$result['artifact_path']);
+    }
+
+    return $result['ok'] ? self::SUCCESS : self::FAILURE;
+})->purpose('Validate a k6 summary export against Port-101 load thresholds and record sign-off evidence');
 
 Artisan::command('ops:integration:smoke-check {--json} {--company=}', function () {
     $result = app(SeededIntegrationSmokeCheckService::class)->run(

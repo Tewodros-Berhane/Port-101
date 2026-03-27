@@ -12,6 +12,7 @@ This runbook covers:
 - local storage backups for `storage/app/private` and `storage/app/public`
 - restore validation with `php artisan ops:recovery:smoke-check`
 - automated disposable restore-drill execution
+- restore sign-off evidence recording with `php artisan ops:recovery:signoff`
 
 This runbook does not replace infrastructure-level snapshots, managed database point-in-time recovery, or secret-management procedures. Those should still exist in production.
 
@@ -281,6 +282,28 @@ Look for:
 
 - `logs/recovery-smoke-check.json`
 - `logs/deploy-smoke-check.json`
+
+## Recording Restore Sign-off
+
+After a disposable or clean-environment restore drill passes, record the final sign-off artifact against the workspace:
+
+```powershell
+php artisan ops:recovery:signoff --workspace=storage\\app\\restore-drills\\<timestamp>-<suffix> --write
+```
+
+Wrapper scripts:
+
+```powershell
+.\\scripts\\ops\\record-restore-signoff.ps1 -Workspace storage\\app\\restore-drills\\<timestamp>-<suffix>
+```
+
+```bash
+./scripts/ops/record-restore-signoff.sh --workspace storage/app/restore-drills/<timestamp>-<suffix>
+```
+
+The command verifies that the restore workspace already contains the required recovery/deploy smoke evidence and then writes a timestamped sign-off artifact under:
+
+- `storage/app/restore-signoffs/`
 
 ## Recovery Smoke Check
 

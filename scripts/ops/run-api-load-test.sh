@@ -10,6 +10,7 @@ API_TOKEN_OVERRIDE="${API_TOKEN:-}"
 VUS="${K6_VUS:-10}"
 DURATION="${K6_DURATION:-60s}"
 SUMMARY_FILE=""
+SKIP_VALIDATION=0
 
 dotenv_value() {
   local key="$1"
@@ -53,6 +54,10 @@ while [[ $# -gt 0 ]]; do
       SUMMARY_FILE="$2"
       shift 2
       ;;
+    --skip-validation)
+      SKIP_VALIDATION=1
+      shift
+      ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 1
@@ -87,3 +92,7 @@ k6 run \
   "${SCRIPT_DIR}/k6-api-smoke.js"
 
 echo "k6 summary written to ${SUMMARY_FILE}"
+
+if [[ "${SKIP_VALIDATION}" -eq 0 ]]; then
+  php artisan ops:performance:validate-load "${SUMMARY_FILE}" --write
+fi
