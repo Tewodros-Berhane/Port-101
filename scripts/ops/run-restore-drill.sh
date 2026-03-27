@@ -175,7 +175,7 @@ export BACKUP_ATTACHMENTS_DISK="local"
 export BACKUP_DATABASE_DUMP_DIR="${BACKUP_DATABASE_DIR}"
 export BACKUP_STORAGE_ARCHIVE_DIR="${BACKUP_STORAGE_DIR}"
 
-php artisan optimize:clear >/dev/null
+php artisan config:clear >/dev/null
 php artisan migrate --force >/dev/null
 php artisan platform:operations:heartbeat >/dev/null
 php artisan ops:recovery:smoke-check --json > "${LOGS_DIR}/recovery-smoke-check.json"

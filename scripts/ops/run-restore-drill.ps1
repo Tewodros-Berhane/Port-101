@@ -198,9 +198,9 @@ try {
         [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value)
     }
 
-    & php artisan optimize:clear | Out-Null
+    & php artisan config:clear | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "php artisan optimize:clear failed."
+        throw "php artisan config:clear failed."
     }
 
     & php artisan migrate --force | Out-Null

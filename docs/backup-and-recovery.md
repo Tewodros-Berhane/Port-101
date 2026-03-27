@@ -366,6 +366,26 @@ If any of the following fail, stop and do not reopen traffic:
 4. queue health page load
 5. authentication flow
 
+## Seeded Local Sign-off Rehearsal
+
+If the working application database is empty or not representative, you can generate a disposable populated source database and run the full restore-drill plus sign-off path without mutating the working DB:
+
+```powershell
+.\scripts\ops\run-seeded-restore-signoff.ps1
+```
+
+This helper:
+
+1. creates a temporary PostgreSQL source database
+2. migrates it
+3. seeds `DatabaseSeeder`
+4. seeds `DemoCompanyWorkflowSeeder`
+5. runs `run-restore-drill.ps1` against that populated source
+6. records sign-off evidence for the new workspace
+7. drops the temporary source database by default
+
+Use this for local readiness rehearsals only. Target-environment production sign-off should still use actual scheduled backup artifacts from the environment being certified.
+
 ## Suggested Scheduling
 
 ### Linux cron example
