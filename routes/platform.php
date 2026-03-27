@@ -20,6 +20,8 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->name('queue-health');
         Route::post('operations/queue-health/failed-jobs/{failedJobId}/retry', [PlatformQueueHealthController::class, 'retryFailedJob'])
             ->name('queue-health.failed-jobs.retry');
+        Route::post('operations/queue-health/failed-jobs/{failedJobId}/discard-poison', [PlatformQueueHealthController::class, 'discardFailedJobAsPoison'])
+            ->name('queue-health.failed-jobs.discard-poison');
         Route::delete('operations/queue-health/failed-jobs/{failedJobId}', [PlatformQueueHealthController::class, 'forgetFailedJob'])
             ->name('queue-health.failed-jobs.destroy');
         Route::post('operations/queue-health/webhook-deliveries/{delivery}/retry', [PlatformQueueHealthController::class, 'retryWebhookDelivery'])

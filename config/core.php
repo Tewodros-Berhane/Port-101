@@ -52,6 +52,17 @@ return [
     'integration' => [
         'smoke_check_company_slug' => env('INTEGRATION_SMOKE_CHECK_COMPANY_SLUG', 'demo-company-workflow'),
     ],
+    'queue_failures' => [
+        'poison_similarity_window_hours' => (int) env('QUEUE_POISON_SIMILARITY_WINDOW_HOURS', 24),
+        'poison_similarity_threshold' => (int) env('QUEUE_POISON_SIMILARITY_THRESHOLD', 3),
+        'non_retryable_exceptions' => [
+            \Illuminate\Auth\Access\AuthorizationException::class,
+            \Illuminate\Database\Eloquent\ModelNotFoundException::class,
+            \Illuminate\Validation\ValidationException::class,
+            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
+            \Symfony\Component\HttpKernel\Exception\BadRequestHttpException::class,
+        ],
+    ],
     'attachments' => [
         'disk' => env('ATTACHMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
         'max_size_kb' => (int) env('ATTACHMENTS_MAX_SIZE_KB', 10240),

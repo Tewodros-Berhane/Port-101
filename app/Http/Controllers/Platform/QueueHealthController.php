@@ -42,6 +42,7 @@ class QueueHealthController extends Controller
                 'search' => $search,
                 'queue' => $queue,
             ]),
+            'recentPoisonReviews' => $queueHealthService->recentPoisonReviews(),
             'deadWebhookDeliveries' => $queueHealthService->recentDeadWebhookDeliveries(),
             'failedReportExports' => $queueHealthService->failedReportExports(),
             'alertingStatus' => $platformOperationalAlerting->getStatus(),
@@ -73,6 +74,22 @@ class QueueHealthController extends Controller
             $deleted
                 ? 'Failed job was removed from the failure queue.'
                 : 'Failed job was not found.',
+        );
+    }
+
+    public function discardFailedJobAsPoison(
+        string $failedJobId,
+        Request $request,
+        QueueHealthService $queueHealthService
+    ): RedirectResponse {
+        $queueHealthService->discardFailedJobAsPoison(
+            $failedJobId,
+            $request->user()?->id,
+        );
+
+        return back(303)->with(
+            'success',
+            'Failed job was discarded as a poison message and recorded for operator review.',
         );
     }
 

@@ -15,7 +15,7 @@ Production-ready here means:
 
 ## Current Verdict
 
-As of `2026-03-25`, Port-101 is:
+As of `2026-03-27`, Port-101 is:
 
 - `demo-ready`: yes
 - `pilot-ready`: yes, with caution, for a controlled environment
@@ -26,7 +26,7 @@ Why:
 - Core platform and major modules are implemented
 - The automated suite is broad and currently green
 - API v1, outbound webhooks, and the planned integration-hardening baseline are implemented
-- But clean-environment restore validation, performance gate execution, and nightly release discipline are still incomplete
+- But clean-environment restore sign-off, staged load validation, and security hardening are still incomplete
 
 ## Current Baseline
 
@@ -51,7 +51,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `264 passed`, `0 failed`
+- latest full suite result: `267 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 
@@ -118,7 +118,7 @@ Exit condition:
 - `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
 - `[~]` restore procedure is documented, smoke-checked, and has disposable drill automation, but a clean-environment sign-off drill is still pending
 - `[x]` disaster recovery runbook exists
-- `[~]` queue retry tooling exists, but a formal poison-message policy/runbook is still incomplete
+- `[x]` queue retry tooling now includes poison-message decision support and a formal operator runbook
 - `[~]` storage cleanup and retention operations are partially documented through the backup/recovery runbook
 
 Exit condition:
@@ -185,15 +185,10 @@ This is the minimum remaining implementation order.
    - run `php artisan ops:recovery:smoke-check`
    - verify app boots and critical workflows function
 
-3. Long-running integration CI
-   - extended workflow duration
-   - module-spanning regression slices
-   - scheduled smoke workflow or seeded operational checks
-
-4. Queue retry and poison-message policy
-   - retry rules
-   - dead-letter escalation path
-   - operator decision points for discard vs replay
+3. Target-environment verification
+   - confirm scheduler heartbeat and queue workers are running in the target environment
+   - confirm backup jobs, retention, and artifact storage are active in the target environment
+   - record clean-environment restore sign-off evidence
 
 ### Phase 4: Performance Gate
 
@@ -216,6 +211,18 @@ This is the minimum remaining implementation order.
    - expected data growth
    - queue throughput budget
    - storage growth budget
+
+### Phase 5: Security Hardening
+
+1. Attachment controls
+   - add attachment virus scanning
+   - enforce strict MIME allowlists by module
+   - verify file-handling failure paths and operator visibility
+
+2. Public surface review
+   - review API v1 and webhook surfaces for auth, scoping, and replay expectations
+   - document production secret-handling and credential rotation procedures
+   - close the broader credential runbook gap beyond webhook secret rotation
 
 ## Strict Production Exit Criteria
 
@@ -269,10 +276,9 @@ Port-101 status: `not yet`
 ## Recommended Next Execution Order
 
 1. clean-environment restore drill sign-off
-2. performance/index review and load testing
-3. nightly regression CI
-4. queue retry and poison-message handling policy
-5. long-running integration job
+2. performance/index review and staged load testing
+3. security hardening for attachments and public integration surfaces
+4. target-environment backup scheduling and retention verification
 
 ## Ownership Rule
 

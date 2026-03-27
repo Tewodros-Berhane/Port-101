@@ -4,6 +4,7 @@ namespace App\Core\Platform;
 
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
+use App\Core\Platform\Models\QueueFailureReview;
 use App\Models\User;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\WebhookDeliveryService;
@@ -26,6 +27,11 @@ class QueueHealthService
      * @var array<int, array<string, mixed>>|null
      */
     private ?array $recentFailedJobSnapshots = null;
+
+    /**
+     * @var array<string, array<string, mixed>>|null
+     */
+    private ?array $queueFailureReviews = null;
 
     public function __construct(
         private readonly FailedJobProviderInterface $failedJobProvider,
@@ -57,6 +63,9 @@ class QueueHealthService
             'reserved_jobs' => (int) $backlogByQueue->sum('reserved_jobs'),
             'delayed_jobs' => (int) $backlogByQueue->sum('delayed_jobs'),
             'failed_jobs' => $failedJobsCount,
+            'poison_suspected_failed_jobs' => (int) $recentFailedJobs
+                ->where('triage_level', QueueFailureReview::CLASSIFICATION_POISON_SUSPECTED)
+                ->count(),
             'failed_jobs_last_24_hours' => (int) (clone $this->failedJobsQuery())
                 ->where('failed_at', '>=', now()->subDay())
                 ->count(),
@@ -239,7 +248,15 @@ class QueueHealthService
             ->withQueryString();
 
         $snapshots = collect($paginator->items())
-            ->map(fn ($record) => $this->mapFailedJobRecord($record));
+            ->map(fn ($record) => $this->mapFailedJobRecord($record))
+            ->values();
+
+        $fingerprintCounts = $this->fingerprintCounts(
+            collect($this->recentFailedJobSnapshots())
+                ->merge($snapshots)
+                ->unique('id')
+                ->all()
+        );
 
         $companyNames = Company::query()
             ->whereIn('id', $snapshots->pluck('company_id')->filter()->unique()->all())
@@ -261,9 +278,42 @@ class QueueHealthService
 
                     return $snapshot;
                 })
+                ->map(fn (array $snapshot) => $this->applyTriage($snapshot, $fingerprintCounts))
         );
 
         return $paginator;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function recentPoisonReviews(int $limit = 8): array
+    {
+        return QueueFailureReview::query()
+            ->with([
+                'company:id,name',
+                'reviewedBy:id,name,email',
+            ])
+            ->where('decision', QueueFailureReview::DECISION_DISCARDED)
+            ->latest('reviewed_at')
+            ->limit($limit)
+            ->get()
+            ->map(function (QueueFailureReview $review) {
+                return [
+                    'id' => $review->id,
+                    'failed_job_id' => $review->failed_job_id,
+                    'company_id' => $review->company_id,
+                    'company_name' => $review->company?->name,
+                    'job_name_label' => $review->job_name_label,
+                    'queue' => $review->queue,
+                    'exception_class' => $review->exception_class,
+                    'reviewed_at' => $review->reviewed_at?->toIso8601String(),
+                    'reviewed_by_name' => $review->reviewedBy?->name,
+                    'decision' => $review->decision,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -452,6 +502,74 @@ class QueueHealthService
         return $deleted;
     }
 
+    public function discardFailedJobAsPoison(
+        string $failedJobId,
+        ?string $actorId = null,
+        ?string $notes = null,
+    ): QueueFailureReview {
+        $record = $this->failedJobProvider->find($failedJobId);
+
+        abort_if(! $record, 404, 'Failed job was not found.');
+
+        $snapshot = $this->mapFailedJobRecord($record);
+        $triagedSnapshot = $this->applyTriage(
+            $snapshot,
+            $this->fingerprintCounts(
+                collect($this->recentFailedJobSnapshots())
+                    ->push($snapshot)
+                    ->unique('id')
+                    ->all()
+            )
+        );
+
+        $this->failedJobProvider->forget($failedJobId);
+
+        $review = QueueFailureReview::updateOrCreate(
+            ['failed_job_id' => $triagedSnapshot['id']],
+            [
+                'queue' => $triagedSnapshot['queue'],
+                'connection' => $triagedSnapshot['connection'],
+                'job_name' => $triagedSnapshot['job_name'],
+                'job_name_label' => $triagedSnapshot['job_name_label'],
+                'request_id' => $triagedSnapshot['request_id'],
+                'company_id' => $triagedSnapshot['company_id'],
+                'exception_class' => $triagedSnapshot['exception_class'],
+                'exception_message' => $triagedSnapshot['exception_message'],
+                'classification' => $triagedSnapshot['triage_level'],
+                'recommended_action' => $triagedSnapshot['recommended_action'],
+                'decision' => QueueFailureReview::DECISION_DISCARDED,
+                'notes' => $notes,
+                'reviewed_by' => $actorId,
+                'reviewed_at' => now(),
+            ],
+        );
+
+        $this->queueFailureReviews = null;
+        $this->recentFailedJobSnapshots = null;
+
+        $this->recordAudit(
+            action: 'queue_job_poison_discarded',
+            actorId: $actorId,
+            auditableId: $failedJobId,
+            companyId: $triagedSnapshot['company_id'],
+            changes: [
+                'before' => ['status' => 'failed'],
+                'after' => ['status' => 'discarded_as_poison'],
+            ],
+            metadata: [
+                'queue' => $triagedSnapshot['queue'],
+                'job_name' => $triagedSnapshot['job_name'],
+                'request_id' => $triagedSnapshot['request_id'],
+                'triage_level' => $triagedSnapshot['triage_level'],
+                'recommended_action' => $triagedSnapshot['recommended_action'],
+                'similar_failure_count' => $triagedSnapshot['similar_failure_count'],
+                'triage_reasons' => $triagedSnapshot['triage_reasons'],
+            ],
+        );
+
+        return $review;
+    }
+
     public function retryWebhookDelivery(WebhookDelivery $delivery, ?string $actorId = null): WebhookDelivery
     {
         $beforeStatus = $delivery->status;
@@ -512,7 +630,7 @@ class QueueHealthService
         $userNames = User::query()
             ->pluck('name', 'id');
 
-        $this->recentFailedJobSnapshots = $this->failedJobsQuery()
+        $snapshots = $this->failedJobsQuery()
             ->orderByDesc('failed_at')
             ->limit($limit)
             ->get()
@@ -527,10 +645,114 @@ class QueueHealthService
 
                 return $snapshot;
             })
-            ->values()
+            ->values();
+
+        $fingerprintCounts = $this->fingerprintCounts($snapshots->all());
+
+        $this->recentFailedJobSnapshots = $snapshots
+            ->map(fn (array $snapshot) => $this->applyTriage($snapshot, $fingerprintCounts))
             ->all();
 
         return $this->recentFailedJobSnapshots;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $snapshots
+     * @return array<string, int>
+     */
+    private function fingerprintCounts(array $snapshots): array
+    {
+        return collect($snapshots)
+            ->groupBy(fn (array $snapshot) => $this->failureFingerprint($snapshot))
+            ->map(fn (Collection $group) => $group->count())
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, int>  $fingerprintCounts
+     * @return array<string, mixed>
+     */
+    private function applyTriage(array $snapshot, array $fingerprintCounts): array
+    {
+        $fingerprint = $this->failureFingerprint($snapshot);
+        $similarFailureCount = (int) ($fingerprintCounts[$fingerprint] ?? 1);
+        $threshold = max(2, (int) config('core.queue_failures.poison_similarity_threshold', 3));
+        $nonRetryable = collect((array) config('core.queue_failures.non_retryable_exceptions', []))
+            ->contains(fn (string $exceptionClass) => $exceptionClass === $snapshot['exception_class']);
+
+        $triageLevel = QueueFailureReview::CLASSIFICATION_RETRYABLE;
+        $recommendedAction = QueueFailureReview::ACTION_RETRY;
+        $reasons = [];
+
+        if ($nonRetryable) {
+            $triageLevel = QueueFailureReview::CLASSIFICATION_POISON_SUSPECTED;
+            $recommendedAction = QueueFailureReview::ACTION_DISCARD;
+            $reasons[] = 'Failure class is configured as non-retryable.';
+        } elseif ($similarFailureCount >= $threshold) {
+            $triageLevel = QueueFailureReview::CLASSIFICATION_POISON_SUSPECTED;
+            $recommendedAction = QueueFailureReview::ACTION_DISCARD;
+            $reasons[] = "Similar failures reached the poison threshold ({$similarFailureCount}/{$threshold}).";
+        } elseif ($similarFailureCount > 1) {
+            $triageLevel = QueueFailureReview::CLASSIFICATION_INVESTIGATE;
+            $recommendedAction = QueueFailureReview::ACTION_REVIEW;
+            $reasons[] = "Similar failures were detected {$similarFailureCount} time(s) in the review window.";
+        } else {
+            $reasons[] = 'No poison-message indicators detected for this failure fingerprint.';
+        }
+
+        $review = $this->queueFailureReviews()[$snapshot['id']] ?? null;
+
+        $snapshot['triage_level'] = $triageLevel;
+        $snapshot['recommended_action'] = $recommendedAction;
+        $snapshot['similar_failure_count'] = $similarFailureCount;
+        $snapshot['triage_reasons'] = $reasons;
+        $snapshot['review_decision'] = $review['decision'] ?? null;
+        $snapshot['review_notes'] = $review['notes'] ?? null;
+        $snapshot['reviewed_at'] = $review['reviewed_at'] ?? null;
+        $snapshot['reviewed_by_name'] = $review['reviewed_by_name'] ?? null;
+        $snapshot['can_discard_as_poison'] = $review === null;
+
+        return $snapshot;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function queueFailureReviews(): array
+    {
+        if ($this->queueFailureReviews !== null) {
+            return $this->queueFailureReviews;
+        }
+
+        $this->queueFailureReviews = QueueFailureReview::query()
+            ->with('reviewedBy:id,name')
+            ->get()
+            ->keyBy('failed_job_id')
+            ->map(function (QueueFailureReview $review) {
+                return [
+                    'decision' => $review->decision,
+                    'notes' => $review->notes,
+                    'reviewed_at' => $review->reviewed_at?->toIso8601String(),
+                    'reviewed_by_name' => $review->reviewedBy?->name,
+                ];
+            })
+            ->all();
+
+        return $this->queueFailureReviews;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function failureFingerprint(array $snapshot): string
+    {
+        return implode('|', [
+            (string) ($snapshot['queue'] ?? ''),
+            (string) ($snapshot['job_name_label'] ?? ''),
+            (string) ($snapshot['exception_class'] ?? ''),
+            (string) ($snapshot['company_id'] ?? ''),
+        ]);
     }
 
     private function failedJobsQuery(): Builder

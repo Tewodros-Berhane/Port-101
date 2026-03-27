@@ -40,8 +40,16 @@ type FailedJobRow = {
     failed_at?: string | null;
     exception_class: string;
     exception_message: string;
+    triage_level: string;
+    recommended_action: string;
+    similar_failure_count: number;
+    triage_reasons: string[];
+    review_decision?: string | null;
+    reviewed_at?: string | null;
+    reviewed_by_name?: string | null;
     can_retry: boolean;
     can_forget: boolean;
+    can_discard_as_poison: boolean;
 };
 
 type PaginationLink = {
@@ -85,6 +93,7 @@ type Props = {
         reserved_jobs: number;
         delayed_jobs: number;
         failed_jobs: number;
+        poison_suspected_failed_jobs: number;
         failed_jobs_last_24_hours: number;
         dead_webhook_deliveries: number;
         failed_report_exports: number;
@@ -100,6 +109,18 @@ type Props = {
         data: FailedJobRow[];
         links: PaginationLink[];
     };
+    recentPoisonReviews: Array<{
+        id: string;
+        failed_job_id: string;
+        company_id?: string | null;
+        company_name?: string | null;
+        job_name_label?: string | null;
+        queue: string;
+        exception_class?: string | null;
+        reviewed_at?: string | null;
+        reviewed_by_name?: string | null;
+        decision: string;
+    }>;
     deadWebhookDeliveries: DeadWebhookDeliveryRow[];
     failedReportExports: FailedReportExportRow[];
     alertingStatus: {
@@ -137,6 +158,7 @@ export default function PlatformQueueHealth({
     topFailureReasons,
     companyImpact,
     failedJobs,
+    recentPoisonReviews,
     deadWebhookDeliveries,
     failedReportExports,
     alertingStatus,
@@ -179,7 +201,7 @@ export default function PlatformQueueHealth({
                     </div>
                 </div>
 
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <MetricCard
                         label="Queued jobs"
                         value={String(summary.queued_jobs)}
@@ -194,6 +216,11 @@ export default function PlatformQueueHealth({
                         label="Failed jobs"
                         value={String(summary.failed_jobs)}
                         description={`${summary.failed_jobs_last_24_hours} in the last 24h`}
+                    />
+                    <MetricCard
+                        label="Poison suspects"
+                        value={String(summary.poison_suspected_failed_jobs)}
+                        description="Jobs currently flagged for discard review"
                     />
                     <MetricCard
                         label="Dead webhooks"
@@ -436,9 +463,18 @@ export default function PlatformQueueHealth({
                         <div>
                             <h2 className="text-sm font-semibold">Failed jobs</h2>
                             <p className="text-xs text-muted-foreground">
-                                Retry or forget failed queue records without leaving the platform workspace.
+                                Retry transient failures, or discard poison messages when the same non-retryable
+                                failure keeps repeating.
                             </p>
                         </div>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border p-4">
+                        <p className="text-sm font-medium">Poison-message policy</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            Replay once when the failure looks transient. Discard as poison when guidance says
+                            `discard as poison`, especially for non-retryable exceptions or repeated matching failures.
+                        </p>
                     </div>
 
                     <div className="mt-4 overflow-x-auto">
@@ -451,13 +487,14 @@ export default function PlatformQueueHealth({
                                     <th className="px-3 py-2 font-medium">Company</th>
                                     <th className="px-3 py-2 font-medium">Request ID</th>
                                     <th className="px-3 py-2 font-medium">Failure</th>
+                                    <th className="px-3 py-2 font-medium">Guidance</th>
                                     <th className="px-3 py-2 font-medium">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {failedJobs.data.length === 0 && (
                                     <tr>
-                                        <td className="px-3 py-6 text-sm text-muted-foreground" colSpan={7}>
+                                        <td className="px-3 py-6 text-sm text-muted-foreground" colSpan={8}>
                                             No failed jobs match the current filters.
                                         </td>
                                     </tr>
@@ -501,6 +538,38 @@ export default function PlatformQueueHealth({
                                             </div>
                                         </td>
                                         <td className="px-3 py-3">
+                                            <div className="space-y-1">
+                                                <p className="font-medium">
+                                                    {titleize(job.triage_level)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {titleize(job.recommended_action)}
+                                                    {job.similar_failure_count > 1
+                                                        ? ` | ${job.similar_failure_count} similar`
+                                                        : ''}
+                                                </p>
+                                                {job.triage_reasons.map((reason) => (
+                                                    <p
+                                                        key={`${job.id}-${reason}`}
+                                                        className="max-w-[260px] text-xs text-muted-foreground"
+                                                    >
+                                                        {reason}
+                                                    </p>
+                                                ))}
+                                                {job.review_decision && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Reviewed: {titleize(job.review_decision)}
+                                                        {job.reviewed_by_name
+                                                            ? ` by ${job.reviewed_by_name}`
+                                                            : ''}
+                                                        {job.reviewed_at
+                                                            ? ` on ${formatDateTime(job.reviewed_at)}`
+                                                            : ''}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-3">
                                             <div className="flex flex-wrap gap-2">
                                                 <Button
                                                     size="sm"
@@ -515,6 +584,27 @@ export default function PlatformQueueHealth({
                                                 >
                                                     Retry
                                                 </Button>
+                                                {job.can_discard_as_poison && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            if (
+                                                                window.confirm(
+                                                                    'Discard this failed job as a poison message? This removes it from the retry queue and records the operator decision.',
+                                                                )
+                                                            ) {
+                                                                router.post(
+                                                                    `/platform/operations/queue-health/failed-jobs/${job.id}/discard-poison`,
+                                                                    {},
+                                                                    { preserveScroll: true },
+                                                                );
+                                                            }
+                                                        }}
+                                                    >
+                                                        Discard as poison
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
@@ -560,6 +650,60 @@ export default function PlatformQueueHealth({
                     )}
                 </section>
                 <section className="grid gap-6 xl:grid-cols-2">
+                    <div className="rounded-xl border p-5">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-semibold">Recent poison decisions</h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Operator discards recorded for repeated or non-retryable queue failures.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {recentPoisonReviews.length === 0 && (
+                                <EmptyState message="No poison-message decisions have been recorded." />
+                            )}
+
+                            {recentPoisonReviews.map((review) => (
+                                <div key={review.id} className="rounded-xl border p-4">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="space-y-1">
+                                            <p className="font-medium">
+                                                {review.job_name_label ?? 'Unknown job'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {review.company_id ? (
+                                                    <Link
+                                                        href={`/platform/companies/${review.company_id}`}
+                                                        className="hover:underline"
+                                                    >
+                                                        {review.company_name ?? review.company_id}
+                                                    </Link>
+                                                ) : (
+                                                    'Unknown company'
+                                                )}{' '}
+                                                | {review.queue}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {review.exception_class ?? 'Unknown failure'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {titleize(review.decision)}
+                                                {review.reviewed_by_name
+                                                    ? ` by ${review.reviewed_by_name}`
+                                                    : ''}
+                                            </p>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            {formatDateTime(review.reviewed_at)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="rounded-xl border p-5">
                         <div className="flex items-center justify-between gap-3">
                             <div>
