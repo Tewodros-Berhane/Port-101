@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Integrations\WebhookEventCatalog;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
@@ -240,6 +241,20 @@ test('api v1 webhook management enforces permissions and validation contracts', 
             'message',
             'errors' => ['name', 'target_url', 'subscribed_events.0'],
         ]);
+
+    Config::set('core.webhooks.require_https', true);
+    Config::set('core.webhooks.allow_private_targets', false);
+
+    postJson('/api/v1/webhooks/endpoints', [
+        'name' => 'Unsafe Endpoint',
+        'target_url' => 'https://127.0.0.1/internal',
+        'subscribed_events' => [WebhookEventCatalog::SALES_ORDER_CONFIRMED],
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath(
+            'errors.target_url.0',
+            'Webhook endpoints cannot target localhost or local-only hostnames.',
+        );
 
     $delivered = WebhookDelivery::create([
         'company_id' => $company->id,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Attachments\AttachmentMalwareScanService;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Address;
@@ -16,6 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+
 use function Pest\Laravel\actingAs;
 
 function createCompanyUserForAttachments(array $permissions): array
@@ -63,6 +65,8 @@ function createCompanyUserForAttachments(array $permissions): array
 test('attachments can be uploaded downloaded and deleted for partner records', function () {
     Storage::fake('attachments');
     config()->set('core.attachments.disk', 'attachments');
+    config()->set('core.attachments.scan.enabled', true);
+    config()->set('core.attachments.scan.driver', 'basic');
 
     [$user, $company] = createCompanyUserForAttachments([
         'core.partners.manage',
@@ -96,6 +100,8 @@ test('attachments can be uploaded downloaded and deleted for partner records', f
     expect($attachment?->attachable_type)->toBe(Partner::class);
     expect($attachment?->attachable_id)->toBe($partner->id);
     expect($attachment?->company_id)->toBe($company->id);
+    expect($attachment?->scan_status)->toBe(Attachment::SCAN_CLEAN);
+    expect($attachment?->scanned_at)->not->toBeNull();
 
     Storage::disk('attachments')->assertExists($attachment->path);
 
@@ -111,6 +117,91 @@ test('attachments can be uploaded downloaded and deleted for partner records', f
 
     expect($deletedAttachment?->trashed())->toBeTrue();
     Storage::disk('attachments')->assertMissing($attachment->path);
+});
+
+test('attachments reject file types outside the context allowlist', function () {
+    Storage::fake('attachments');
+    config()->set('core.attachments.disk', 'attachments');
+
+    [$user, $company] = createCompanyUserForAttachments([
+        'core.partners.manage',
+        'core.attachments.view',
+        'core.attachments.manage',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'code' => 'P-'.Str::upper(Str::random(6)),
+        'name' => 'Attachment Restriction Partner',
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('core.attachments.store'), [
+            'attachable_type' => 'partner',
+            'attachable_id' => $partner->id,
+            'file' => UploadedFile::fake()->create('payload.exe', 20, 'application/x-msdownload'),
+        ])
+        ->assertSessionHasErrors('file');
+
+    expect(Attachment::query()->count())->toBe(0);
+});
+
+test('infected attachments are quarantined and cannot be downloaded', function () {
+    Storage::fake('attachments');
+    config()->set('core.attachments.disk', 'attachments');
+    config()->set('core.attachments.scan.enabled', true);
+    config()->set('core.attachments.scan.driver', 'basic');
+
+    [$user, $company] = createCompanyUserForAttachments([
+        'core.partners.manage',
+        'core.attachments.view',
+        'core.attachments.manage',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'code' => 'P-'.Str::upper(Str::random(6)),
+        'name' => 'Attachment Malware Partner',
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    $path = 'attachments/'.$company->id.'/partner/eicar.txt';
+    Storage::disk('attachments')->put($path, AttachmentMalwareScanService::EICAR_SIGNATURE);
+
+    $attachment = Attachment::create([
+        'company_id' => $company->id,
+        'attachable_type' => $partner::class,
+        'attachable_id' => $partner->id,
+        'security_context' => 'partner',
+        'disk' => 'attachments',
+        'path' => $path,
+        'file_name' => 'eicar.txt',
+        'original_name' => 'eicar.txt',
+        'mime_type' => 'text/plain',
+        'extension' => 'txt',
+        'size' => strlen(AttachmentMalwareScanService::EICAR_SIGNATURE),
+        'checksum' => hash('sha256', AttachmentMalwareScanService::EICAR_SIGNATURE),
+        'scan_status' => Attachment::SCAN_INFECTED,
+        'scan_message' => 'EICAR signature detected during scan.',
+        'scanned_at' => now(),
+        'quarantined_at' => now(),
+        'uploaded_by' => $user->id,
+    ]);
+
+    expect($attachment)->not->toBeNull()
+        ->and($attachment->fresh()?->scan_status)->toBe(Attachment::SCAN_INFECTED)
+        ->and($attachment->fresh()?->quarantined_at)->not->toBeNull();
+
+    actingAs($user)
+        ->get(route('core.attachments.download', $attachment))
+        ->assertStatus(423);
 });
 
 test('attachment metadata is available on all supported master-data edit pages', function () {

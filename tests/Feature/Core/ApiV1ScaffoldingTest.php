@@ -9,6 +9,7 @@ use App\Core\Settings\Models\Setting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
@@ -335,4 +336,20 @@ test('api v1 emits deprecation and sunset headers when configured', function () 
         ->assertHeader('X-API-Version', 'v1')
         ->assertHeader('Deprecation', '@'.$deprecationAt->timestamp)
         ->assertHeader('Sunset', $sunsetAt->toRfc7231String());
+});
+
+test('api v1 applies rate limiting to authenticated routes', function () {
+    [$user] = createCompanyUserForApi(['core.partners.view']);
+
+    Config::set('core.api.rate_limit_per_minute', 1);
+    Sanctum::actingAs($user);
+
+    getJson('/api/v1/partners')
+        ->assertOk();
+
+    getJson('/api/v1/partners')
+        ->assertStatus(429)
+        ->assertHeader('X-API-Version', 'v1');
+
+    RateLimiter::clear(implode('|', [$user->id, $user->current_company_id, '127.0.0.1']));
 });
