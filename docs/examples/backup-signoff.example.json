@@ -1,0 +1,15 @@
+{
+  "environment": "staging",
+  "owner": "platform-ops",
+  "database_backup_job_reference": "scheduler://database-backup-nightly",
+  "storage_backup_job_reference": "scheduler://storage-backup-nightly",
+  "database_backup_artifact_reference": "s3://port101-backups/staging/database/2026-03-27.sql.gz",
+  "storage_backup_artifact_reference": "s3://port101-backups/staging/storage/2026-03-27.tar.gz",
+  "retention_cleanup_reference": "job-run://staging-backup-retention-2026-03-27",
+  "restore_signoff_artifact": "storage/app/recovery-signoffs/restore-signoff-20260327-000000-staging.json",
+  "smoke_check_artifact": "storage/app/restore-drills/20260327-000000-staging/logs/recovery-smoke-check.json",
+  "artifact_storage_location": "s3://port101-backups/staging",
+  "encrypted_at_rest": true,
+  "stored_outside_primary_host": true,
+  "backup_failure_alerting": true
+}

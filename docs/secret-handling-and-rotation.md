@@ -4,6 +4,15 @@ As of `2026-03-27`, Port-101 has webhook secret rotation history and hardened pu
 
 This document is the operational checklist for that gap.
 
+Port-101 now includes sign-off tooling for this checklist:
+
+```powershell
+php artisan ops:security:signoff docs/examples/security-signoff.example.json --write
+.\scripts\ops\record-security-signoff.ps1 docs/examples/security-signoff.example.json -Write
+```
+
+Use `docs/examples/security-signoff.example.json` as the structure template, then replace the placeholder references with real target-environment evidence before writing the artifact.
+
 ## Secrets In Scope
 
 At minimum, review:
@@ -96,3 +105,9 @@ Do not mark secret handling complete until all answers are `yes`.
 - Is verification after rotation documented?
 - Are staging and production credentials separated?
 - Are webhook receiver expectations documented for integrators?
+
+Once the target-environment evidence file is complete, record the final security sign-off artifact with:
+
+```powershell
+php artisan ops:security:signoff <evidence-json> --write
+```

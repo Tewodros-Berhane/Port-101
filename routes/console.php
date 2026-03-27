@@ -8,11 +8,13 @@ use App\Core\Platform\LoadTestTokenService;
 use App\Core\Platform\LoadTestValidationService;
 use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Platform\PerformanceAuditService;
+use App\Core\Platform\BackupOperationsSignoffService;
 use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
 use App\Core\Platform\RecoverySignoffService;
 use App\Core\Platform\RecoverySmokeCheckService;
+use App\Core\Platform\SecurityGovernanceSignoffService;
 use App\Core\Platform\SeededIntegrationSmokeCheckService;
 use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
@@ -975,6 +977,84 @@ Artisan::command('ops:load-test:token {email?} {--company=} {--name=ops-load-tes
 
     return self::SUCCESS;
 })->purpose('Issue a dedicated Sanctum token for API load testing against an active company');
+
+Artisan::command('ops:backup:signoff {evidenceFile} {--json} {--write}', function () {
+    $result = app(BackupOperationsSignoffService::class)->run(
+        evidenceFile: (string) $this->argument('evidenceFile'),
+        writeArtifact: (bool) $this->option('write'),
+    );
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $result['ok'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    $this->info('Backup operations sign-off');
+    $this->newLine();
+    $this->table(
+        ['Check', 'Status', 'Detail'],
+        collect($result['checks'])
+            ->map(fn (array $check) => [
+                $check['label'],
+                $check['ok'] ? 'OK' : 'FAIL',
+                $check['detail'],
+            ])
+            ->all()
+    );
+
+    $this->newLine();
+    $this->line('Config summary:');
+    foreach ($result['config'] as $key => $value) {
+        $this->line("- {$key}: ".(is_array($value) ? implode(', ', $value) : (string) $value));
+    }
+
+    if ($result['artifact_path']) {
+        $this->newLine();
+        $this->info('Sign-off artifact written to '.$result['artifact_path']);
+    }
+
+    return $result['ok'] ? self::SUCCESS : self::FAILURE;
+})->purpose('Validate target-environment backup scheduling evidence and record a backup sign-off artifact');
+
+Artisan::command('ops:security:signoff {evidenceFile} {--json} {--write}', function () {
+    $result = app(SecurityGovernanceSignoffService::class)->run(
+        evidenceFile: (string) $this->argument('evidenceFile'),
+        writeArtifact: (bool) $this->option('write'),
+    );
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $result['ok'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    $this->info('Security governance sign-off');
+    $this->newLine();
+    $this->table(
+        ['Check', 'Status', 'Detail'],
+        collect($result['checks'])
+            ->map(fn (array $check) => [
+                $check['label'],
+                $check['ok'] ? 'OK' : 'FAIL',
+                $check['detail'],
+            ])
+            ->all()
+    );
+
+    $this->newLine();
+    $this->line('Config summary:');
+    foreach ($result['config'] as $key => $value) {
+        $this->line("- {$key}: ".(is_array($value) ? implode(', ', $value) : (string) $value));
+    }
+
+    if ($result['artifact_path']) {
+        $this->newLine();
+        $this->info('Sign-off artifact written to '.$result['artifact_path']);
+    }
+
+    return $result['ok'] ? self::SUCCESS : self::FAILURE;
+})->purpose('Validate target-environment secret governance evidence and record a security sign-off artifact');
 
 Artisan::command('ops:integration:smoke-check {--json} {--company=}', function () {
     $result = app(SeededIntegrationSmokeCheckService::class)->run(

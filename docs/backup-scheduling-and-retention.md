@@ -4,6 +4,15 @@ As of `2026-03-27`, Port-101 has backup/restore scripts, restore-drill automatio
 
 This checklist is for that last mile. It is not a replacement for `docs/backup-and-recovery.md`.
 
+Port-101 now includes sign-off tooling for this checklist:
+
+```powershell
+php artisan ops:backup:signoff docs/examples/backup-signoff.example.json --write
+.\scripts\ops\record-backup-signoff.ps1 docs/examples/backup-signoff.example.json -Write
+```
+
+Use `docs/examples/backup-signoff.example.json` as the structure template, then replace the placeholder references with real target-environment evidence before writing the artifact.
+
 ## Minimum Backup Policy
 
 - database backups run on a defined schedule
@@ -92,4 +101,10 @@ If you want a disposable seeded source for a local rehearsal without touching th
 
 ```powershell
 .\scripts\ops\run-seeded-restore-signoff.ps1
+```
+
+Once the target-environment evidence file is complete, record the final backup sign-off artifact with:
+
+```powershell
+php artisan ops:backup:signoff <evidence-json> --write
 ```

@@ -54,7 +54,7 @@ Current strengths:
 
 Current baseline evidence:
 
-- latest full suite result: `279 passed`, `0 failed`
+- latest full suite result: `283 passed`, `0 failed`
 - build pipeline passes locally
 - company and platform workflows are broadly covered by feature tests
 - seeded local load rehearsal now passes under the dedicated `rehearsal` validation profile with retained summary and sign-off artifacts
@@ -119,7 +119,7 @@ Exit condition:
 ### 4. Reliability and Recovery
 
 - `[x]` core workflows are covered by automated tests
-- `[~]` backup strategy is documented and script-automated, but environment scheduling/retention verification is still pending
+- `[~]` backup strategy is documented, script-automated, and now has explicit signoff tooling, but environment scheduling/retention verification is still pending
 - `[~]` restore procedure is documented, smoke-checked, has disposable drill automation, now has sign-off evidence tooling, and has passed a local seeded rehearsal, but a clean-environment sign-off drill against target-environment scheduled artifacts is still pending
 - `[x]` disaster recovery runbook exists
 - `[x]` queue retry tooling now includes poison-message decision support and a formal operator runbook
@@ -150,7 +150,7 @@ Exit condition:
 - `[~]` attachment support now has baseline hardening, but environment-level scanner operations and cloud-storage policy decisions are still pending
 - `[x]` attachment virus scanning exists
 - `[x]` strict MIME allowlists by module exist
-- `[~]` webhook secret rotation exists, but broader credential runbook evidence is still incomplete
+- `[~]` webhook secret rotation exists, and broader credential governance now has explicit signoff tooling, but target-environment evidence is still incomplete
 - `[~]` public API and webhook surfaces now have baseline hardening controls (rate limiting, HTTPS/private-target checks, replay/idempotency policy), but a final production review and credential checklist are still pending
 - `[~]` production environment secret-handling checklist is documented, but target-environment ownership and evidence are still pending
 

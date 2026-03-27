@@ -22,6 +22,10 @@ return [
             'storage/app/private',
             'storage/app/public',
         ],
+        'signoff_output_dir' => env(
+            'BACKUP_SIGNOFF_OUTPUT_DIR',
+            storage_path('app/backup-signoffs')
+        ),
     ],
     'recovery' => [
         'restore_drill_root' => env(
@@ -108,6 +112,12 @@ return [
             '.internal',
             '.test',
         ],
+    ],
+    'security' => [
+        'signoff_output_dir' => env(
+            'SECURITY_SIGNOFF_OUTPUT_DIR',
+            storage_path('app/security-signoffs')
+        ),
     ],
     'queue_failures' => [
         'poison_similarity_window_hours' => (int) env('QUEUE_POISON_SIMILARITY_WINDOW_HOURS', 24),

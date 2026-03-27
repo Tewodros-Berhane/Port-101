@@ -1,0 +1,15 @@
+{
+  "environment": "staging",
+  "owner": "security-ops",
+  "secret_store": "aws-secrets-manager://port101/staging",
+  "webhook_rotation_evidence": "runbook://webhook-rotation-drill-2026-03-27",
+  "api_token_ownership_reference": "inventory://integration-owners-2026-03-27",
+  "credential_rotation_runbook_reference": "docs/secret-handling-and-rotation.md",
+  "malware_scan_dependency_reference": "runbook://clamav-staging-validation-2026-03-27",
+  "recovery_secret_reference": "runbook://restore-secret-access-2026-03-27",
+  "emergency_rotation_reference": "runbook://emergency-rotation-2026-03-27",
+  "staging_production_separated": true,
+  "secret_manager_backed": true,
+  "developer_workstation_independent": true,
+  "rotation_cadence_defined": true
+}
