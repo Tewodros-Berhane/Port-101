@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Hr\HrWorkspaceService;
 use App\Modules\Hr\Models\HrEmployee;
 use App\Modules\Hr\Models\HrEmployeeContract;
+use App\Modules\Hr\Models\HrPayslip;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -69,6 +70,7 @@ class HrDashboardController extends Controller
             'contractsEndingSoon' => $contractsEndingSoon,
             'abilities' => [
                 'can_create_employee' => $user->can('create', HrEmployee::class),
+                'can_view_payroll' => $user->can('viewAny', HrPayslip::class),
             ],
         ]);
     }

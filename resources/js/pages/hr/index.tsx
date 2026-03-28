@@ -40,6 +40,7 @@ type Props = {
     contractsEndingSoon: ContractRow[];
     abilities: {
         can_create_employee: boolean;
+        can_view_payroll: boolean;
     };
 };
 
@@ -57,7 +58,7 @@ export default function HrIndex({ summary, recentEmployees, contractsEndingSoon,
                 <div>
                     <h1 className="text-xl font-semibold">HR module</h1>
                     <p className="text-sm text-muted-foreground">
-                        Employee records, leave controls, attendance operations, reimbursements, and people workflows.
+                        Employee records, leave controls, attendance operations, reimbursements, payroll, and people workflows.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -75,6 +76,11 @@ export default function HrIndex({ summary, recentEmployees, contractsEndingSoon,
                     <Button variant="outline" asChild>
                         <Link href="/company/hr/reimbursements">Reimbursements</Link>
                     </Button>
+                    {abilities.can_view_payroll && (
+                        <Button variant="outline" asChild>
+                            <Link href="/company/hr/payroll">Payroll</Link>
+                        </Button>
+                    )}
                     <Button variant="outline" asChild>
                         <Link href="/company/hr/employees">Employee workspace</Link>
                     </Button>

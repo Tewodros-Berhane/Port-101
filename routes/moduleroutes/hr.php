@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Hr\HrAttendanceController;
 use App\Http\Controllers\Hr\HrAttendanceRequestsController;
+use App\Http\Controllers\Hr\HrCompensationAssignmentsController;
 use App\Http\Controllers\Hr\HrDashboardController;
 use App\Http\Controllers\Hr\HrEmployeeContractsController;
 use App\Http\Controllers\Hr\HrEmployeeDocumentsController;
@@ -10,10 +11,15 @@ use App\Http\Controllers\Hr\HrLeaveAllocationsController;
 use App\Http\Controllers\Hr\HrLeavePeriodsController;
 use App\Http\Controllers\Hr\HrLeaveRequestsController;
 use App\Http\Controllers\Hr\HrLeaveTypesController;
+use App\Http\Controllers\Hr\HrPayrollController;
+use App\Http\Controllers\Hr\HrPayrollPeriodsController;
+use App\Http\Controllers\Hr\HrPayrollRunsController;
+use App\Http\Controllers\Hr\HrPayslipsController;
 use App\Http\Controllers\Hr\HrReimbursementCategoriesController;
 use App\Http\Controllers\Hr\HrReimbursementClaimsController;
 use App\Http\Controllers\Hr\HrReimbursementReceiptsController;
 use App\Http\Controllers\Hr\HrReimbursementsController;
+use App\Http\Controllers\Hr\HrSalaryStructuresController;
 use App\Http\Controllers\Hr\HrShiftAssignmentsController;
 use App\Http\Controllers\Hr\HrShiftsController;
 use Illuminate\Support\Facades\Route;
@@ -176,4 +182,52 @@ Route::prefix('hr')->name('hr.')->group(function () {
         ->name('reimbursements.receipts.download');
     Route::delete('reimbursements/lines/{line}/receipt', [HrReimbursementReceiptsController::class, 'destroy'])
         ->name('reimbursements.receipts.destroy');
+
+    Route::get('payroll', [HrPayrollController::class, 'index'])
+        ->name('payroll.index');
+
+    Route::get('payroll/structures/create', [HrSalaryStructuresController::class, 'create'])
+        ->name('payroll.structures.create');
+    Route::post('payroll/structures', [HrSalaryStructuresController::class, 'store'])
+        ->name('payroll.structures.store');
+    Route::get('payroll/structures/{structure}/edit', [HrSalaryStructuresController::class, 'edit'])
+        ->name('payroll.structures.edit');
+    Route::put('payroll/structures/{structure}', [HrSalaryStructuresController::class, 'update'])
+        ->name('payroll.structures.update');
+
+    Route::get('payroll/assignments/create', [HrCompensationAssignmentsController::class, 'create'])
+        ->name('payroll.assignments.create');
+    Route::post('payroll/assignments', [HrCompensationAssignmentsController::class, 'store'])
+        ->name('payroll.assignments.store');
+    Route::get('payroll/assignments/{assignment}/edit', [HrCompensationAssignmentsController::class, 'edit'])
+        ->name('payroll.assignments.edit');
+    Route::put('payroll/assignments/{assignment}', [HrCompensationAssignmentsController::class, 'update'])
+        ->name('payroll.assignments.update');
+
+    Route::get('payroll/periods/create', [HrPayrollPeriodsController::class, 'create'])
+        ->name('payroll.periods.create');
+    Route::post('payroll/periods', [HrPayrollPeriodsController::class, 'store'])
+        ->name('payroll.periods.store');
+    Route::get('payroll/periods/{period}/edit', [HrPayrollPeriodsController::class, 'edit'])
+        ->name('payroll.periods.edit');
+    Route::put('payroll/periods/{period}', [HrPayrollPeriodsController::class, 'update'])
+        ->name('payroll.periods.update');
+
+    Route::get('payroll/runs/create', [HrPayrollRunsController::class, 'create'])
+        ->name('payroll.runs.create');
+    Route::post('payroll/runs', [HrPayrollRunsController::class, 'store'])
+        ->name('payroll.runs.store');
+    Route::get('payroll/runs/{run}', [HrPayrollRunsController::class, 'show'])
+        ->name('payroll.runs.show');
+    Route::post('payroll/runs/{run}/prepare', [HrPayrollRunsController::class, 'prepare'])
+        ->name('payroll.runs.prepare');
+    Route::post('payroll/runs/{run}/approve', [HrPayrollRunsController::class, 'approve'])
+        ->name('payroll.runs.approve');
+    Route::post('payroll/runs/{run}/reject', [HrPayrollRunsController::class, 'reject'])
+        ->name('payroll.runs.reject');
+    Route::post('payroll/runs/{run}/post', [HrPayrollRunsController::class, 'post'])
+        ->name('payroll.runs.post');
+
+    Route::get('payroll/payslips/{payslip}', [HrPayslipsController::class, 'show'])
+        ->name('payroll.payslips.show');
 });
