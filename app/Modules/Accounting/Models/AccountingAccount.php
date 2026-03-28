@@ -65,6 +65,12 @@ class AccountingAccount extends Model
 
     public const SYSTEM_PURCHASE_EXPENSE = 'purchase_expense';
 
+    public const SYSTEM_PAYROLL_EXPENSE = 'payroll_expense';
+
+    public const SYSTEM_PAYROLL_PAYABLE = 'payroll_payable';
+
+    public const SYSTEM_PAYROLL_DEDUCTIONS_PAYABLE = 'payroll_deductions_payable';
+
     public const SYSTEM_RETAINED_EARNINGS = 'retained_earnings';
 
     public $incrementing = false;

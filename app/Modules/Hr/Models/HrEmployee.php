@@ -189,6 +189,26 @@ class HrEmployee extends Model
             ->orderByDesc('created_at');
     }
 
+    public function compensationAssignments(): HasMany
+    {
+        return $this->hasMany(HrCompensationAssignment::class, 'employee_id')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at');
+    }
+
+    public function payrollWorkEntries(): HasMany
+    {
+        return $this->hasMany(HrPayrollWorkEntry::class, 'employee_id')
+            ->orderByDesc('from_datetime')
+            ->orderByDesc('created_at');
+    }
+
+    public function payslips(): HasMany
+    {
+        return $this->hasMany(HrPayslip::class, 'employee_id')
+            ->orderByDesc('created_at');
+    }
+
     public function scopeAccessibleTo(Builder $query, User $user): Builder
     {
         if ($user->is_super_admin) {
