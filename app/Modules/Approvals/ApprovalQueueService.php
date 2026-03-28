@@ -10,9 +10,11 @@ use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
 use App\Modules\Hr\HrAttendanceService;
 use App\Modules\Hr\HrLeaveService;
+use App\Modules\Hr\HrPayrollService;
 use App\Modules\Hr\HrReimbursementService;
 use App\Modules\Hr\Models\HrAttendanceRequest;
 use App\Modules\Hr\Models\HrLeaveRequest;
+use App\Modules\Hr\Models\HrPayrollRun;
 use App\Modules\Hr\Models\HrReimbursementClaim;
 use App\Modules\Inventory\InventoryCycleCountService;
 use App\Modules\Inventory\Models\InventoryCycleCount;
@@ -37,6 +39,7 @@ class ApprovalQueueService
         private readonly InventoryCycleCountService $inventoryCycleCountService,
         private readonly HrAttendanceService $hrAttendanceService,
         private readonly HrLeaveService $hrLeaveService,
+        private readonly HrPayrollService $hrPayrollService,
         private readonly HrReimbursementService $hrReimbursementService,
     ) {}
 
@@ -51,6 +54,7 @@ class ApprovalQueueService
         $this->syncHrLeaveRequests($company, $actorId);
         $this->syncHrAttendanceRequests($company, $actorId);
         $this->syncHrReimbursementRequests($company, $actorId);
+        $this->syncHrPayrollRuns($company, $actorId);
     }
 
     /**
@@ -273,6 +277,8 @@ class ApprovalQueueService
                 );
 
                 return;
+            } elseif ($source instanceof HrPayrollRun) {
+                $source = $this->hrPayrollService->approveRun($source, $actor->id);
             }
 
             $this->markApproved(
@@ -398,6 +404,8 @@ class ApprovalQueueService
                 );
 
                 return;
+            } elseif ($source instanceof HrPayrollRun) {
+                $source = $this->hrPayrollService->rejectRun($source, $reason, $actor->id);
             }
 
             $this->markRejected(
@@ -766,6 +774,46 @@ class ApprovalQueueService
         );
     }
 
+    private function syncHrPayrollRuns(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = HrPayrollRun::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $runs = HrPayrollRun::query()
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->whereIn('status', [
+                    HrPayrollRun::STATUS_PREPARED,
+                    HrPayrollRun::STATUS_APPROVED,
+                ]);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $runs,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_HR,
+            action: ApprovalRequest::ACTION_HR_PAYROLL_APPROVAL,
+            isPending: fn (HrPayrollRun $run) => $run->status === HrPayrollRun::STATUS_PREPARED,
+            isApproved: fn (HrPayrollRun $run) => in_array($run->status, [
+                HrPayrollRun::STATUS_APPROVED,
+                HrPayrollRun::STATUS_POSTED,
+            ], true),
+            isRejected: fn (HrPayrollRun $run) => false,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
     /**
      * @param  Collection<int, Model>  $sources
      * @param  callable(Model): bool  $isPending
@@ -1006,8 +1054,12 @@ class ApprovalQueueService
                 || $source instanceof HrAttendanceRequest
                 || $source instanceof HrReimbursementClaim
                 ? ($source->requested_by_user_id ?: $source->getAttribute('created_by') ?: null)
-                : ($source->getAttribute('created_by') ?: null),
-            'requested_at' => $source->getAttribute('created_at') ?: now(),
+                : ($source instanceof HrPayrollRun
+                    ? ($source->prepared_by_user_id ?: $source->getAttribute('created_by') ?: null)
+                    : ($source->getAttribute('created_by') ?: null)),
+            'requested_at' => $source instanceof HrPayrollRun
+                ? ($source->prepared_at ?: $source->getAttribute('created_at') ?: now())
+                : ($source->getAttribute('created_at') ?: now()),
             'amount' => $amount,
             'currency_code' => (string) ($source->getAttribute('currency_code') ?: $company->currency_code ?: 'USD'),
             'risk_level' => $this->riskLevelForAmount($amount),
@@ -1017,7 +1069,8 @@ class ApprovalQueueService
                 'approver_user_id' => $source instanceof HrLeaveRequest
                     || $source instanceof HrAttendanceRequest
                     || $source instanceof HrReimbursementClaim
-                    ? $source->approver_user_id
+                    || $source instanceof HrPayrollRun
+                    ? ($source instanceof HrPayrollRun ? $source->approver_user_id : $source->approver_user_id)
                     : null,
             ],
             'created_by' => $source->getAttribute('created_by') ?: $actorId,
@@ -1063,6 +1116,10 @@ class ApprovalQueueService
             return (string) $source->claim_number;
         }
 
+        if ($source instanceof HrPayrollRun) {
+            return (string) $source->run_number;
+        }
+
         return null;
     }
 
@@ -1102,6 +1159,10 @@ class ApprovalQueueService
 
             if ($source instanceof HrReimbursementClaim) {
                 return round((float) $source->total_amount, 2);
+            }
+
+            if ($source instanceof HrPayrollRun) {
+                return round((float) $source->total_net, 2);
             }
 
             return null;
@@ -1202,6 +1263,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             HrReimbursementClaim::class => HrReimbursementClaim::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            HrPayrollRun::class => HrPayrollRun::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,

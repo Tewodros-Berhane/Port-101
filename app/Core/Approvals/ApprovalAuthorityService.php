@@ -42,7 +42,7 @@ class ApprovalAuthorityService
         if (
             $requesterId
             && (string) $requesterId === (string) $approver->id
-            && in_array($action, ['po_final_approval', 'vendor_first_payment_approval', 'hr_leave_approval', 'hr_attendance_approval', 'hr_reimbursement_approval'], true)
+            && in_array($action, ['po_final_approval', 'vendor_first_payment_approval', 'hr_leave_approval', 'hr_attendance_approval', 'hr_reimbursement_approval', 'hr_payroll_approval'], true)
         ) {
             return false;
         }

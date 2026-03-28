@@ -22,6 +22,7 @@ use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Hr\Models\HrAttendanceRecord;
 use App\Modules\Hr\Models\HrAttendanceRequest;
+use App\Modules\Hr\Models\HrCompensationAssignment;
 use App\Modules\Hr\Models\HrEmployee;
 use App\Modules\Hr\Models\HrEmployeeContract;
 use App\Modules\Hr\Models\HrEmployeeDocument;
@@ -29,8 +30,12 @@ use App\Modules\Hr\Models\HrLeaveAllocation;
 use App\Modules\Hr\Models\HrLeavePeriod;
 use App\Modules\Hr\Models\HrLeaveRequest;
 use App\Modules\Hr\Models\HrLeaveType;
+use App\Modules\Hr\Models\HrPayrollPeriod;
+use App\Modules\Hr\Models\HrPayrollRun;
+use App\Modules\Hr\Models\HrPayslip;
 use App\Modules\Hr\Models\HrReimbursementCategory;
 use App\Modules\Hr\Models\HrReimbursementClaim;
+use App\Modules\Hr\Models\HrSalaryStructure;
 use App\Modules\Hr\Models\HrShift;
 use App\Modules\Hr\Models\HrShiftAssignment;
 use App\Modules\Integrations\Models\WebhookDelivery;
@@ -68,6 +73,7 @@ use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
 use App\Policies\HrAttendanceRecordPolicy;
 use App\Policies\HrAttendanceRequestPolicy;
+use App\Policies\HrCompensationAssignmentPolicy;
 use App\Policies\HrEmployeeContractPolicy;
 use App\Policies\HrEmployeeDocumentPolicy;
 use App\Policies\HrEmployeePolicy;
@@ -75,8 +81,12 @@ use App\Policies\HrLeaveAllocationPolicy;
 use App\Policies\HrLeavePeriodPolicy;
 use App\Policies\HrLeaveRequestPolicy;
 use App\Policies\HrLeaveTypePolicy;
+use App\Policies\HrPayrollPeriodPolicy;
+use App\Policies\HrPayrollRunPolicy;
+use App\Policies\HrPayslipPolicy;
 use App\Policies\HrReimbursementCategoryPolicy;
 use App\Policies\HrReimbursementClaimPolicy;
+use App\Policies\HrSalaryStructurePolicy;
 use App\Policies\HrShiftAssignmentPolicy;
 use App\Policies\HrShiftPolicy;
 use App\Policies\InventoryCycleCountPolicy;
@@ -157,6 +167,11 @@ class AuthServiceProvider extends ServiceProvider
         HrLeaveRequest::class => HrLeaveRequestPolicy::class,
         HrReimbursementCategory::class => HrReimbursementCategoryPolicy::class,
         HrReimbursementClaim::class => HrReimbursementClaimPolicy::class,
+        HrSalaryStructure::class => HrSalaryStructurePolicy::class,
+        HrCompensationAssignment::class => HrCompensationAssignmentPolicy::class,
+        HrPayrollPeriod::class => HrPayrollPeriodPolicy::class,
+        HrPayrollRun::class => HrPayrollRunPolicy::class,
+        HrPayslip::class => HrPayslipPolicy::class,
         HrShift::class => HrShiftPolicy::class,
         HrShiftAssignment::class => HrShiftAssignmentPolicy::class,
         HrAttendanceRecord::class => HrAttendanceRecordPolicy::class,
