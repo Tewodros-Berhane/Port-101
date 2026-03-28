@@ -3,6 +3,11 @@
 use App\Http\Controllers\Api\V1\AccountingInvoicesController as ApiAccountingInvoicesController;
 use App\Http\Controllers\Api\V1\AccountingPaymentsController as ApiAccountingPaymentsController;
 use App\Http\Controllers\Api\V1\ApprovalRequestsController as ApiApprovalRequestsController;
+use App\Http\Controllers\Api\V1\HrAttendanceController as ApiHrAttendanceController;
+use App\Http\Controllers\Api\V1\HrLeaveRequestsController as ApiHrLeaveRequestsController;
+use App\Http\Controllers\Api\V1\HrPayslipsController as ApiHrPayslipsController;
+use App\Http\Controllers\Api\V1\HrProfileController as ApiHrProfileController;
+use App\Http\Controllers\Api\V1\HrReimbursementsController as ApiHrReimbursementsController;
 use App\Http\Controllers\Api\V1\InventoryStockBalancesController as ApiInventoryStockBalancesController;
 use App\Http\Controllers\Api\V1\InventoryStockMovesController as ApiInventoryStockMovesController;
 use App\Http\Controllers\Api\V1\PartnersController as ApiPartnersController;
@@ -50,6 +55,34 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::get('requests/{approvalRequest}', [ApiApprovalRequestsController::class, 'show']);
             Route::post('requests/{approvalRequest}/approve', [ApiApprovalRequestsController::class, 'approve']);
             Route::post('requests/{approvalRequest}/reject', [ApiApprovalRequestsController::class, 'reject']);
+        });
+        Route::prefix('hr')->group(function () {
+            Route::get('me', [ApiHrProfileController::class, 'show']);
+
+            Route::prefix('leave')->group(function () {
+                Route::get('requests', [ApiHrLeaveRequestsController::class, 'index']);
+                Route::post('requests', [ApiHrLeaveRequestsController::class, 'store']);
+                Route::post('requests/{leaveRequest}/approve', [ApiHrLeaveRequestsController::class, 'approve']);
+                Route::post('requests/{leaveRequest}/reject', [ApiHrLeaveRequestsController::class, 'reject']);
+            });
+
+            Route::prefix('attendance')->group(function () {
+                Route::post('check-in', [ApiHrAttendanceController::class, 'checkIn']);
+                Route::post('check-out', [ApiHrAttendanceController::class, 'checkOut']);
+                Route::get('records', [ApiHrAttendanceController::class, 'records']);
+                Route::post('requests', [ApiHrAttendanceController::class, 'storeRequest']);
+            });
+
+            Route::prefix('reimbursements')->group(function () {
+                Route::get('', [ApiHrReimbursementsController::class, 'index']);
+                Route::post('', [ApiHrReimbursementsController::class, 'store']);
+                Route::post('{claim}/submit', [ApiHrReimbursementsController::class, 'submit']);
+                Route::post('{claim}/approve', [ApiHrReimbursementsController::class, 'approve']);
+                Route::post('{claim}/reject', [ApiHrReimbursementsController::class, 'reject']);
+            });
+
+            Route::get('payslips', [ApiHrPayslipsController::class, 'index']);
+            Route::get('payslips/{payslip}', [ApiHrPayslipsController::class, 'show']);
         });
         Route::apiResource('partners', ApiPartnersController::class);
         Route::apiResource('products', ApiProductsController::class);
