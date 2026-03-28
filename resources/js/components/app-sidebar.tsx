@@ -32,6 +32,7 @@ import {
     ShoppingCart,
     Tag,
     UserCog,
+    UserRoundCheck,
     Users,
     Warehouse,
 } from 'lucide-react';
@@ -105,6 +106,12 @@ const companyModuleNavItems: NavItem[] = [
         href: '/company/projects',
         icon: FolderKanban,
         permission: 'projects.projects.view',
+    },
+    {
+        title: 'HR',
+        href: '/company/hr',
+        icon: UserRoundCheck,
+        permission: 'hr.employees.view',
     },
     {
         title: 'Approvals',
