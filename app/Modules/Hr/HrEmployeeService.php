@@ -12,6 +12,10 @@ use Illuminate\Support\Str;
 
 class HrEmployeeService
 {
+    public function __construct(
+        private readonly HrEmployeeAccessService $employeeAccessService,
+    ) {}
+
     public function create(array $attributes, User $actor): HrEmployee
     {
         return DB::transaction(function () use ($attributes, $actor): HrEmployee {
@@ -21,7 +25,7 @@ class HrEmployeeService
             $employeeNumber = $this->resolveEmployeeNumber($companyId, $attributes['employee_number'] ?? null);
             $displayName = trim((string) $attributes['first_name'].' '.(string) $attributes['last_name']);
 
-            return HrEmployee::create([
+            $employee = HrEmployee::create([
                 ...Arr::except($attributes, ['department_name', 'designation_name']),
                 'company_id' => $companyId,
                 'department_id' => $departmentId,
@@ -32,6 +36,8 @@ class HrEmployeeService
                 'created_by' => $actor->id,
                 'updated_by' => $actor->id,
             ]);
+
+            return $this->employeeAccessService->sync($employee, $attributes, $actor);
         });
     }
 
@@ -56,7 +62,7 @@ class HrEmployeeService
                 'updated_by' => $actor->id,
             ]);
 
-            return $employee->fresh() ?? $employee;
+            return $this->employeeAccessService->sync($employee, $attributes, $actor);
         });
     }
 

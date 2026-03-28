@@ -2,7 +2,9 @@
 
 namespace App\Modules\Hr\Models;
 
+use App\Core\Access\Models\Invite;
 use App\Core\Company\Models\Company;
+use App\Core\RBAC\Models\Role;
 use App\Core\Support\Auditable;
 use App\Core\Support\CompanyScoped;
 use App\Models\User;
@@ -55,6 +57,21 @@ class HrEmployee extends Model
         self::TYPE_INTERN,
     ];
 
+    public const ACCESS_STATUS_NONE = 'none';
+
+    public const ACCESS_STATUS_PENDING_INVITE = 'pending_invite';
+
+    public const ACCESS_STATUS_ACTIVE = 'active';
+
+    public const ACCESS_STATUS_SUSPENDED = 'suspended';
+
+    public const ACCESS_STATUSES = [
+        self::ACCESS_STATUS_NONE,
+        self::ACCESS_STATUS_PENDING_INVITE,
+        self::ACCESS_STATUS_ACTIVE,
+        self::ACCESS_STATUS_SUSPENDED,
+    ];
+
     public $incrementing = false;
 
     protected $keyType = 'string';
@@ -62,8 +79,11 @@ class HrEmployee extends Model
     protected $fillable = [
         'company_id',
         'user_id',
+        'requires_system_access',
+        'system_access_status',
         'department_id',
         'designation_id',
+        'system_role_id',
         'employee_number',
         'employment_status',
         'employment_type',
@@ -71,6 +91,7 @@ class HrEmployee extends Model
         'last_name',
         'display_name',
         'work_email',
+        'login_email',
         'personal_email',
         'work_phone',
         'personal_phone',
@@ -81,6 +102,7 @@ class HrEmployee extends Model
         'attendance_approver_user_id',
         'leave_approver_user_id',
         'reimbursement_approver_user_id',
+        'invite_id',
         'timezone',
         'country_code',
         'work_location',
@@ -95,6 +117,7 @@ class HrEmployee extends Model
     protected function casts(): array
     {
         return [
+            'requires_system_access' => 'boolean',
             'date_of_birth' => 'date',
             'hire_date' => 'date',
             'termination_date' => 'date',
@@ -121,6 +144,11 @@ class HrEmployee extends Model
         return $this->belongsTo(HrDesignation::class, 'designation_id');
     }
 
+    public function systemRole(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'system_role_id');
+    }
+
     public function managerEmployee(): BelongsTo
     {
         return $this->belongsTo(self::class, 'manager_employee_id');
@@ -144,6 +172,11 @@ class HrEmployee extends Model
     public function reimbursementApprover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reimbursement_approver_user_id');
+    }
+
+    public function invite(): BelongsTo
+    {
+        return $this->belongsTo(Invite::class, 'invite_id');
     }
 
     public function contracts(): HasMany

@@ -3,7 +3,9 @@
 namespace App\Core\Access\Models;
 
 use App\Core\Company\Models\Company;
+use App\Core\RBAC\Models\Role;
 use App\Models\User;
+use App\Modules\Hr\Models\HrEmployee;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +31,8 @@ class Invite extends Model
         'name',
         'role',
         'company_id',
+        'employee_id',
+        'company_role_id',
         'token',
         'expires_at',
         'accepted_at',
@@ -52,6 +56,16 @@ class Invite extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(HrEmployee::class, 'employee_id');
+    }
+
+    public function companyRole(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'company_role_id');
     }
 
     public function creator(): BelongsTo

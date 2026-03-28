@@ -7,11 +7,13 @@ use App\Core\Company\Models\CompanyUser;
 use App\Core\Notifications\NotificationGovernanceService;
 use App\Core\RBAC\Models\Role;
 use App\Http\Requests\InviteAcceptRequest;
-use App\Notifications\InviteAcceptedNotification;
 use App\Models\User;
+use App\Modules\Hr\Models\HrEmployee;
+use App\Notifications\InviteAcceptedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +22,7 @@ class InviteAcceptanceController extends Controller
     public function show(string $token): Response
     {
         $invite = Invite::query()
-            ->with('company:id,name')
+            ->with(['company:id,name', 'companyRole:id,name'])
             ->where('token', $token)
             ->first();
 
@@ -57,7 +59,7 @@ class InviteAcceptanceController extends Controller
             'invite' => [
                 'email' => $invite->email,
                 'name' => $invite->name,
-                'role' => $invite->role,
+                'role' => $invite->companyRole?->name ?? $invite->role,
                 'company' => $invite->company?->name,
             ],
             'token' => $token,
@@ -95,12 +97,19 @@ class InviteAcceptanceController extends Controller
             $user->forceFill(['is_super_admin' => true])->save();
         }
 
-        if (in_array($invite->role, ['company_owner', 'company_member'], true) && $invite->company_id) {
-            $roleSlug = $invite->role === 'company_owner' ? 'owner' : 'member';
-            $role = Role::query()
-                ->whereNull('company_id')
-                ->where('slug', $roleSlug)
-                ->first();
+        if ((in_array($invite->role, ['company_owner', 'company_member'], true) || $invite->company_role_id) && $invite->company_id) {
+            $role = $invite->company_role_id
+                ? Role::query()
+                    ->whereKey($invite->company_role_id)
+                    ->where(function ($query) use ($invite): void {
+                        $query->whereNull('company_id')
+                            ->orWhere('company_id', $invite->company_id);
+                    })
+                    ->first()
+                : Role::query()
+                    ->whereNull('company_id')
+                    ->where('slug', $invite->role === 'company_owner' ? 'owner' : 'member')
+                    ->first();
 
             CompanyUser::updateOrCreate(
                 [
@@ -118,6 +127,35 @@ class InviteAcceptanceController extends Controller
                     'current_company_id' => $invite->company_id,
                 ])->save();
             }
+        }
+
+        if ($invite->employee_id) {
+            $employee = HrEmployee::query()
+                ->whereKey($invite->employee_id)
+                ->where('company_id', $invite->company_id)
+                ->first();
+
+            if (! $employee) {
+                throw ValidationException::withMessages([
+                    'token' => 'The linked employee record is no longer available for this invite.',
+                ]);
+            }
+
+            if ($employee->user_id && (string) $employee->user_id !== (string) $user->id) {
+                throw ValidationException::withMessages([
+                    'token' => 'This employee record is already linked to a different user.',
+                ]);
+            }
+
+            $employee->forceFill([
+                'user_id' => $user->id,
+                'requires_system_access' => true,
+                'system_access_status' => HrEmployee::ACCESS_STATUS_ACTIVE,
+                'system_role_id' => $invite->company_role_id,
+                'login_email' => $invite->email,
+                'invite_id' => $invite->id,
+                'updated_by' => $user->id,
+            ])->save();
         }
 
         $invite->forceFill(['accepted_at' => now()])->save();

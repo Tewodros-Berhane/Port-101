@@ -6,6 +6,7 @@ use App\Http\Requests\Core\Concerns\CompanyMemberExistsRule;
 use App\Modules\Hr\Models\HrEmployee;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class HrEmployeeStoreRequest extends FormRequest
 {
@@ -21,17 +22,36 @@ class HrEmployeeStoreRequest extends FormRequest
         $companyId = (string) $this->user()?->current_company_id;
 
         return [
-            'user_id' => ['nullable', 'uuid', $this->companyMemberExists()],
+            'user_id' => [
+                'nullable',
+                'uuid',
+                $this->companyMemberExists(),
+                Rule::unique('hr_employees', 'user_id')->where('company_id', $companyId),
+            ],
+            'requires_system_access' => ['nullable', 'boolean'],
             'department_id' => ['nullable', 'uuid', Rule::exists('hr_departments', 'id')->where('company_id', $companyId)],
             'department_name' => ['nullable', 'string', 'max:120'],
             'designation_id' => ['nullable', 'uuid', Rule::exists('hr_designations', 'id')->where('company_id', $companyId)],
             'designation_name' => ['nullable', 'string', 'max:120'],
+            'system_role_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('roles', 'id')->where(function ($query) use ($companyId): void {
+                    $query
+                        ->where(function ($nested) use ($companyId): void {
+                            $nested->whereNull('company_id')
+                                ->orWhere('company_id', $companyId);
+                        })
+                        ->where('slug', '!=', 'owner');
+                }),
+            ],
             'employee_number' => ['nullable', 'string', 'max:64'],
             'employment_status' => ['required', Rule::in(HrEmployee::STATUSES)],
             'employment_type' => ['required', Rule::in(HrEmployee::TYPES)],
             'first_name' => ['required', 'string', 'max:120'],
             'last_name' => ['required', 'string', 'max:120'],
             'work_email' => ['nullable', 'email', 'max:255'],
+            'login_email' => ['nullable', 'email', 'max:255', Rule::unique('hr_employees', 'login_email')->where('company_id', $companyId)],
             'personal_email' => ['nullable', 'email', 'max:255'],
             'work_phone' => ['nullable', 'string', 'max:40'],
             'personal_phone' => ['nullable', 'string', 'max:40'],
@@ -50,5 +70,35 @@ class HrEmployeeStoreRequest extends FormRequest
             'emergency_contact_phone' => ['nullable', 'string', 'max:40'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $requiresSystemAccess = filter_var($this->input('requires_system_access', false), FILTER_VALIDATE_BOOL);
+            $userId = trim((string) $this->input('user_id', ''));
+            $loginEmail = trim((string) $this->input('login_email', ''));
+            $systemRoleId = trim((string) $this->input('system_role_id', ''));
+
+            if (! $requiresSystemAccess && ($userId !== '' || $loginEmail !== '' || $systemRoleId !== '')) {
+                $validator->errors()->add('requires_system_access', 'Enable system access before assigning a role, login email, or linked user.');
+            }
+
+            if (! $requiresSystemAccess) {
+                return;
+            }
+
+            if (! $this->user()?->hasPermission('hr.employee_access.manage')) {
+                $validator->errors()->add('requires_system_access', 'You do not have permission to grant system access.');
+            }
+
+            if ($systemRoleId === '') {
+                $validator->errors()->add('system_role_id', 'Select a system role for this employee.');
+            }
+
+            if ($userId === '' && $loginEmail === '') {
+                $validator->errors()->add('login_email', 'Provide a login email or link an existing company user.');
+            }
+        });
     }
 }

@@ -113,6 +113,7 @@ class CoreRolesSeeder extends Seeder
 
             ['name' => 'View Employees', 'slug' => 'hr.employees.view', 'group' => 'hr'],
             ['name' => 'Manage Employees', 'slug' => 'hr.employees.manage', 'group' => 'hr'],
+            ['name' => 'Manage Employee System Access', 'slug' => 'hr.employee_access.manage', 'group' => 'hr'],
             ['name' => 'View Employee Private Data', 'slug' => 'hr.employees.private_view', 'group' => 'hr'],
             ['name' => 'Manage Employee Private Data', 'slug' => 'hr.employees.private_manage', 'group' => 'hr'],
             ['name' => 'View Leave', 'slug' => 'hr.leave.view', 'group' => 'hr'],
@@ -352,6 +353,7 @@ class CoreRolesSeeder extends Seeder
                     'core.attachments.manage',
                     'hr.employees.view',
                     'hr.employees.manage',
+                    'hr.employee_access.manage',
                     'hr.employees.private_view',
                     'hr.employees.private_manage',
                     'hr.leave.view',
@@ -378,6 +380,7 @@ class CoreRolesSeeder extends Seeder
                     'core.attachments.manage',
                     'hr.employees.view',
                     'hr.employees.manage',
+                    'hr.employee_access.manage',
                     'hr.employees.private_view',
                     'hr.employees.private_manage',
                     'hr.leave.view',

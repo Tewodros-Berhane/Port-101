@@ -23,6 +23,7 @@ class CompanyInvitesController extends Controller
 
         $invites = Invite::query()
             ->where('company_id', $companyId)
+            ->with('companyRole:id,name')
             ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
@@ -43,7 +44,7 @@ class CompanyInvitesController extends Controller
                     'id' => $invite->id,
                     'email' => $invite->email,
                     'name' => $invite->name,
-                    'role' => $invite->role,
+                    'role' => $invite->companyRole?->name ?? $invite->role,
                     'status' => $status,
                     'invite_url' => $baseUrl.'/invites/'.$invite->token,
                     'expires_at' => $invite->expires_at?->toIso8601String(),
