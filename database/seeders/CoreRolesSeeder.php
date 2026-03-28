@@ -314,6 +314,7 @@ class CoreRolesSeeder extends Seeder
                     'hr.leave.view',
                     'hr.leave.manage',
                     'hr.attendance.view',
+                    'hr.attendance.manage',
                     'hr.reimbursements.view',
                     'hr.payroll.view',
                 ],

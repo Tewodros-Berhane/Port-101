@@ -20,6 +20,8 @@ use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Approvals\Models\ApprovalRequest;
+use App\Modules\Hr\Models\HrAttendanceRecord;
+use App\Modules\Hr\Models\HrAttendanceRequest;
 use App\Modules\Hr\Models\HrEmployee;
 use App\Modules\Hr\Models\HrEmployeeContract;
 use App\Modules\Hr\Models\HrEmployeeDocument;
@@ -27,6 +29,8 @@ use App\Modules\Hr\Models\HrLeaveAllocation;
 use App\Modules\Hr\Models\HrLeavePeriod;
 use App\Modules\Hr\Models\HrLeaveRequest;
 use App\Modules\Hr\Models\HrLeaveType;
+use App\Modules\Hr\Models\HrShift;
+use App\Modules\Hr\Models\HrShiftAssignment;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Inventory\Models\InventoryCycleCount;
@@ -60,6 +64,8 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
+use App\Policies\HrAttendanceRecordPolicy;
+use App\Policies\HrAttendanceRequestPolicy;
 use App\Policies\HrEmployeeContractPolicy;
 use App\Policies\HrEmployeeDocumentPolicy;
 use App\Policies\HrEmployeePolicy;
@@ -67,6 +73,8 @@ use App\Policies\HrLeaveAllocationPolicy;
 use App\Policies\HrLeavePeriodPolicy;
 use App\Policies\HrLeaveRequestPolicy;
 use App\Policies\HrLeaveTypePolicy;
+use App\Policies\HrShiftAssignmentPolicy;
+use App\Policies\HrShiftPolicy;
 use App\Policies\InventoryCycleCountPolicy;
 use App\Policies\InventoryLocationPolicy;
 use App\Policies\InventoryLotPolicy;
@@ -143,6 +151,10 @@ class AuthServiceProvider extends ServiceProvider
         HrLeavePeriod::class => HrLeavePeriodPolicy::class,
         HrLeaveAllocation::class => HrLeaveAllocationPolicy::class,
         HrLeaveRequest::class => HrLeaveRequestPolicy::class,
+        HrShift::class => HrShiftPolicy::class,
+        HrShiftAssignment::class => HrShiftAssignmentPolicy::class,
+        HrAttendanceRecord::class => HrAttendanceRecordPolicy::class,
+        HrAttendanceRequest::class => HrAttendanceRequestPolicy::class,
         InventoryCycleCount::class => InventoryCycleCountPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,

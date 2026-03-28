@@ -3,6 +3,8 @@
 namespace App\Policies\Concerns;
 
 use App\Models\User;
+use App\Modules\Hr\Models\HrAttendanceRecord;
+use App\Modules\Hr\Models\HrAttendanceRequest;
 use App\Modules\Hr\Models\HrEmployee;
 use App\Modules\Hr\Models\HrLeaveAllocation;
 use App\Modules\Hr\Models\HrLeaveRequest;
@@ -67,6 +69,43 @@ trait InteractsWithHrAccess
         }
 
         $employee = $leaveRequest->employee;
+
+        if (! $employee instanceof HrEmployee) {
+            return false;
+        }
+
+        return $this->isManagerOfEmployee($user, $employee)
+            || $user->canAccessDataScopedRecord($employee);
+    }
+
+    protected function canViewAttendanceRecord(User $user, HrAttendanceRecord $attendanceRecord): bool
+    {
+        $employee = $attendanceRecord->employee;
+
+        return $employee instanceof HrEmployee
+            && $this->canViewEmployeeRecord($user, $employee);
+    }
+
+    protected function canViewAttendanceRequest(User $user, HrAttendanceRequest $attendanceRequest): bool
+    {
+        $employee = $attendanceRequest->employee;
+
+        return ($employee instanceof HrEmployee && $this->canViewEmployeeRecord($user, $employee))
+            || (string) $attendanceRequest->requested_by_user_id === (string) $user->id
+            || (string) $attendanceRequest->approver_user_id === (string) $user->id;
+    }
+
+    protected function canApproveAttendanceRequest(User $user, HrAttendanceRequest $attendanceRequest): bool
+    {
+        if ((string) $attendanceRequest->requested_by_user_id === (string) $user->id) {
+            return false;
+        }
+
+        if ((string) $attendanceRequest->approver_user_id === (string) $user->id) {
+            return true;
+        }
+
+        $employee = $attendanceRequest->employee;
 
         if (! $employee instanceof HrEmployee) {
             return false;

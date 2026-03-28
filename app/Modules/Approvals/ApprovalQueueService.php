@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
+use App\Modules\Hr\HrAttendanceService;
 use App\Modules\Hr\HrLeaveService;
+use App\Modules\Hr\Models\HrAttendanceRequest;
 use App\Modules\Hr\Models\HrLeaveRequest;
 use App\Modules\Inventory\InventoryCycleCountService;
 use App\Modules\Inventory\Models\InventoryCycleCount;
@@ -19,6 +21,7 @@ use App\Modules\Purchasing\PurchasingOrderWorkflowService;
 use App\Modules\Sales\Models\SalesOrder;
 use App\Modules\Sales\Models\SalesQuote;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +33,7 @@ class ApprovalQueueService
         private readonly PurchasingOrderWorkflowService $purchasingOrderWorkflowService,
         private readonly ProjectBillableWorkflowService $projectBillableWorkflowService,
         private readonly InventoryCycleCountService $inventoryCycleCountService,
+        private readonly HrAttendanceService $hrAttendanceService,
         private readonly HrLeaveService $hrLeaveService,
     ) {}
 
@@ -42,6 +46,7 @@ class ApprovalQueueService
         $this->syncProjectBillableRequests($company, $actorId);
         $this->syncInventoryCycleCountRequests($company, $actorId);
         $this->syncHrLeaveRequests($company, $actorId);
+        $this->syncHrAttendanceRequests($company, $actorId);
     }
 
     /**
@@ -204,6 +209,8 @@ class ApprovalQueueService
                 $source = $this->inventoryCycleCountService->approve($source, $actor->id);
             } elseif ($source instanceof HrLeaveRequest) {
                 $source = $this->hrLeaveService->approve($source, $actor->id);
+            } elseif ($source instanceof HrAttendanceRequest) {
+                $source = $this->hrAttendanceService->approve($source, $actor->id);
             }
 
             $this->markApproved(
@@ -298,6 +305,8 @@ class ApprovalQueueService
                 $source = $this->inventoryCycleCountService->reject($source, $reason, $actor->id);
             } elseif ($source instanceof HrLeaveRequest) {
                 $source = $this->hrLeaveService->reject($source, $reason, $actor->id);
+            } elseif ($source instanceof HrAttendanceRequest) {
+                $source = $this->hrAttendanceService->reject($source, $reason, $actor->id);
             }
 
             $this->markRejected(
@@ -588,6 +597,40 @@ class ApprovalQueueService
         );
     }
 
+    private function syncHrAttendanceRequests(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = HrAttendanceRequest::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $attendanceRequests = HrAttendanceRequest::query()
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->where('status', HrAttendanceRequest::STATUS_SUBMITTED);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $attendanceRequests,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_HR,
+            action: ApprovalRequest::ACTION_HR_ATTENDANCE_APPROVAL,
+            isPending: fn (HrAttendanceRequest $attendanceRequest) => $attendanceRequest->status === HrAttendanceRequest::STATUS_SUBMITTED,
+            isApproved: fn (HrAttendanceRequest $attendanceRequest) => $attendanceRequest->status === HrAttendanceRequest::STATUS_APPROVED,
+            isRejected: fn (HrAttendanceRequest $attendanceRequest) => $attendanceRequest->status === HrAttendanceRequest::STATUS_REJECTED,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
     /**
      * @param  Collection<int, Model>  $sources
      * @param  callable(Model): bool  $isPending
@@ -692,7 +735,7 @@ class ApprovalQueueService
                     $request = ApprovalRequest::create([
                         ...$payload,
                         'status' => ApprovalRequest::STATUS_APPROVED,
-                        'approved_by_user_id' => $source->getAttribute('approved_by') ?: null,
+                        'approved_by_user_id' => $this->sourceApprovedBy($source),
                         'approved_at' => $source->getAttribute('approved_at') ?: now(),
                         'rejected_by_user_id' => null,
                         'rejected_at' => null,
@@ -714,7 +757,7 @@ class ApprovalQueueService
                 if ($request->status !== ApprovalRequest::STATUS_APPROVED) {
                     $this->markApproved(
                         request: $request,
-                        approverId: $source->getAttribute('approved_by') ?: null,
+                        approverId: $this->sourceApprovedBy($source),
                         approvedAt: $source->getAttribute('approved_at') ?: now(),
                         actorId: $actorId,
                         preservePayload: false,
@@ -724,7 +767,7 @@ class ApprovalQueueService
                     $this->recordDecisionStep(
                         request: $request,
                         status: ApprovalStep::STATUS_APPROVED,
-                        approverId: $source->getAttribute('approved_by') ?: null,
+                        approverId: $this->sourceApprovedBy($source),
                         notes: null,
                         actorId: $actorId,
                         actedAt: $source->getAttribute('approved_at') ?: now(),
@@ -747,7 +790,7 @@ class ApprovalQueueService
                         'approved_at' => null,
                         'rejected_by_user_id' => null,
                         'rejected_at' => now(),
-                        'rejection_reason' => (string) ($source->getAttribute('rejection_reason') ?: ''),
+                        'rejection_reason' => $this->sourceRejectionReason($source),
                     ]);
 
                     $this->recordDecisionStep(
@@ -767,7 +810,7 @@ class ApprovalQueueService
                         request: $request,
                         rejectorId: null,
                         rejectedAt: now(),
-                        reason: (string) ($source->getAttribute('rejection_reason') ?: ''),
+                        reason: $this->sourceRejectionReason($source),
                         actorId: $actorId,
                         preservePayload: false,
                         payload: $payload,
@@ -777,7 +820,7 @@ class ApprovalQueueService
                         request: $request,
                         status: ApprovalStep::STATUS_REJECTED,
                         approverId: null,
-                        notes: (string) ($source->getAttribute('rejection_reason') ?: ''),
+                        notes: $this->sourceRejectionReason($source),
                         actorId: $actorId,
                         actedAt: now(),
                     );
@@ -824,7 +867,7 @@ class ApprovalQueueService
             'source_type' => $source::class,
             'source_id' => (string) $source->getKey(),
             'source_number' => $this->sourceNumber($source),
-            'requested_by_user_id' => $source instanceof HrLeaveRequest
+            'requested_by_user_id' => $source instanceof HrLeaveRequest || $source instanceof HrAttendanceRequest
                 ? ($source->requested_by_user_id ?: $source->getAttribute('created_by') ?: null)
                 : ($source->getAttribute('created_by') ?: null),
             'requested_at' => $source->getAttribute('created_at') ?: now(),
@@ -834,7 +877,9 @@ class ApprovalQueueService
             'metadata' => [
                 'source_status' => $this->sourceStatus($source),
                 'source_reference' => $this->sourceNumber($source),
-                'approver_user_id' => $source instanceof HrLeaveRequest ? $source->approver_user_id : null,
+                'approver_user_id' => $source instanceof HrLeaveRequest || $source instanceof HrAttendanceRequest
+                    ? $source->approver_user_id
+                    : null,
             ],
             'created_by' => $source->getAttribute('created_by') ?: $actorId,
             'updated_by' => $actorId,
@@ -871,6 +916,10 @@ class ApprovalQueueService
             return (string) $source->request_number;
         }
 
+        if ($source instanceof HrAttendanceRequest) {
+            return (string) $source->request_number;
+        }
+
         return null;
     }
 
@@ -904,10 +953,32 @@ class ApprovalQueueService
                 return round((float) $source->duration_amount, 2);
             }
 
+            if ($source instanceof HrAttendanceRequest) {
+                return (float) Carbon::parse($source->from_date)->diffInDays(Carbon::parse($source->to_date)) + 1.0;
+            }
+
             return null;
         }
 
         return round((float) $amount, 2);
+    }
+
+    private function sourceApprovedBy(Model $source): ?string
+    {
+        return $source->getAttribute('approved_by')
+            ?: $source->getAttribute('approved_by_user_id')
+            ?: null;
+    }
+
+    private function sourceRejectionReason(Model $source): ?string
+    {
+        $reason = $source->getAttribute('rejection_reason')
+            ?: $source->getAttribute('decision_notes')
+            ?: null;
+
+        return $reason !== null
+            ? (string) $reason
+            : null;
     }
 
     private function riskLevelForAmount(?float $amount): string
@@ -978,6 +1049,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             HrLeaveRequest::class => HrLeaveRequest::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            HrAttendanceRequest::class => HrAttendanceRequest::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,
