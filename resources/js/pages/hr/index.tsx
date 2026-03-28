@@ -41,6 +41,7 @@ type Props = {
     abilities: {
         can_create_employee: boolean;
         can_view_payroll: boolean;
+        can_view_reports: boolean;
     };
 };
 
@@ -79,6 +80,11 @@ export default function HrIndex({ summary, recentEmployees, contractsEndingSoon,
                     {abilities.can_view_payroll && (
                         <Button variant="outline" asChild>
                             <Link href="/company/hr/payroll">Payroll</Link>
+                        </Button>
+                    )}
+                    {abilities.can_view_reports && (
+                        <Button variant="outline" asChild>
+                            <Link href="/company/hr/reports">Reports</Link>
                         </Button>
                     )}
                     <Button variant="outline" asChild>

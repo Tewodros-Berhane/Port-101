@@ -71,6 +71,7 @@ class HrDashboardController extends Controller
             'abilities' => [
                 'can_create_employee' => $user->can('create', HrEmployee::class),
                 'can_view_payroll' => $user->can('viewAny', HrPayslip::class),
+                'can_view_reports' => $user->hasPermission('hr.reports.view'),
             ],
         ]);
     }

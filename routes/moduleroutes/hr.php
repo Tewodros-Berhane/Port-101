@@ -19,6 +19,7 @@ use App\Http\Controllers\Hr\HrReimbursementCategoriesController;
 use App\Http\Controllers\Hr\HrReimbursementClaimsController;
 use App\Http\Controllers\Hr\HrReimbursementReceiptsController;
 use App\Http\Controllers\Hr\HrReimbursementsController;
+use App\Http\Controllers\Hr\HrReportsController;
 use App\Http\Controllers\Hr\HrSalaryStructuresController;
 use App\Http\Controllers\Hr\HrShiftAssignmentsController;
 use App\Http\Controllers\Hr\HrShiftsController;
@@ -230,4 +231,9 @@ Route::prefix('hr')->name('hr.')->group(function () {
 
     Route::get('payroll/payslips/{payslip}', [HrPayslipsController::class, 'show'])
         ->name('payroll.payslips.show');
+
+    Route::get('reports', [HrReportsController::class, 'index'])
+        ->name('reports.index');
+    Route::get('reports/export/{reportKey}', [HrReportsController::class, 'export'])
+        ->name('reports.export');
 });
