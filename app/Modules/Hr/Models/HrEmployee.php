@@ -183,6 +183,12 @@ class HrEmployee extends Model
             ->orderByDesc('created_at');
     }
 
+    public function reimbursementClaims(): HasMany
+    {
+        return $this->hasMany(HrReimbursementClaim::class, 'employee_id')
+            ->orderByDesc('created_at');
+    }
+
     public function scopeAccessibleTo(Builder $query, User $user): Builder
     {
         if ($user->is_super_admin) {
