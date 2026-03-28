@@ -129,6 +129,90 @@ test('hr manager can create an employee with a pending system access invite', fu
     Queue::assertPushed(SendInviteLinkMail::class);
 });
 
+test('hr manager can resend cancel and reactivate a pending employee access invite', function () {
+    $this->seed(CoreRolesSeeder::class);
+    Queue::fake();
+
+    [$manager, $company] = makeActiveCompanyMember();
+    assignHrEmployeeAccessRole($manager, $company->id, 'hr_manager');
+
+    $projectRole = Role::query()
+        ->whereNull('company_id')
+        ->where('slug', 'project_manager')
+        ->firstOrFail();
+
+    $employee = HrEmployee::create([
+        'company_id' => $company->id,
+        'employee_number' => 'EMP-ACCESS-RETRY',
+        'employment_status' => HrEmployee::STATUS_ACTIVE,
+        'employment_type' => HrEmployee::TYPE_FULL_TIME,
+        'requires_system_access' => true,
+        'system_access_status' => HrEmployee::ACCESS_STATUS_PENDING_INVITE,
+        'system_role_id' => $projectRole->id,
+        'first_name' => 'Helen',
+        'last_name' => 'Pending',
+        'display_name' => 'Helen Pending',
+        'work_email' => 'helen.pending@example.test',
+        'login_email' => 'helen.pending@example.test',
+        'hire_date' => now()->toDateString(),
+        'timezone' => 'Africa/Nairobi',
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    $invite = Invite::create([
+        'email' => 'helen.pending@example.test',
+        'name' => 'Helen Pending',
+        'role' => 'company_member',
+        'company_id' => $company->id,
+        'employee_id' => $employee->id,
+        'company_role_id' => $projectRole->id,
+        'token' => 'original-token',
+        'expires_at' => now()->addDays(7),
+        'delivery_status' => Invite::DELIVERY_SENT,
+        'delivery_attempts' => 1,
+        'created_by' => $manager->id,
+    ]);
+
+    $employee->forceFill([
+        'invite_id' => $invite->id,
+    ])->save();
+
+    actingAs($manager)
+        ->post(route('company.hr.employees.access.resend', $employee))
+        ->assertRedirect(route('company.hr.employees.show', $employee));
+
+    $invite->refresh();
+
+    expect($invite->token)->not->toBe('original-token');
+    expect($invite->delivery_status)->toBe(Invite::DELIVERY_PENDING);
+
+    Queue::assertPushed(SendInviteLinkMail::class, 1);
+
+    actingAs($manager)
+        ->delete(route('company.hr.employees.access.cancel', $employee))
+        ->assertRedirect(route('company.hr.employees.show', $employee));
+
+    $employee->refresh();
+
+    expect($employee->system_access_status)->toBe(HrEmployee::ACCESS_STATUS_SUSPENDED);
+    expect($employee->invite_id)->toBeNull();
+    expect(Invite::query()->whereKey($invite->id)->exists())->toBeFalse();
+
+    Queue::fake();
+
+    actingAs($manager)
+        ->post(route('company.hr.employees.access.reactivate', $employee))
+        ->assertRedirect(route('company.hr.employees.show', $employee));
+
+    $employee->refresh();
+
+    expect($employee->system_access_status)->toBe(HrEmployee::ACCESS_STATUS_PENDING_INVITE);
+    expect($employee->invite_id)->not->toBeNull();
+
+    Queue::assertPushed(SendInviteLinkMail::class, 1);
+});
+
 test('hr manager can link an existing company user to an employee and assign a role immediately', function () {
     $this->seed(CoreRolesSeeder::class);
     Queue::fake();
@@ -193,6 +277,100 @@ test('hr manager can link an existing company user to an employee and assign a r
     )->toBe($inventoryRole->id);
 
     Queue::assertNothingPushed();
+});
+
+test('hr manager can change role and deactivate then reactivate linked employee access', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$manager, $company] = makeActiveCompanyMember();
+    assignHrEmployeeAccessRole($manager, $company->id, 'hr_manager');
+
+    $existingUser = User::factory()->create([
+        'email' => 'reactivate.employee@example.test',
+    ]);
+    $company->users()->syncWithoutDetaching([
+        $existingUser->id => [
+            'role_id' => null,
+            'is_owner' => false,
+        ],
+    ]);
+    assignHrEmployeeAccessRole($existingUser, $company->id, 'inventory_manager');
+
+    $inventoryRole = Role::query()
+        ->whereNull('company_id')
+        ->where('slug', 'inventory_manager')
+        ->firstOrFail();
+
+    $financeRole = Role::query()
+        ->whereNull('company_id')
+        ->where('slug', 'finance_manager')
+        ->firstOrFail();
+
+    $employee = HrEmployee::create([
+        'company_id' => $company->id,
+        'employee_number' => 'EMP-ACCESS-ROLE',
+        'employment_status' => HrEmployee::STATUS_ACTIVE,
+        'employment_type' => HrEmployee::TYPE_FULL_TIME,
+        'user_id' => $existingUser->id,
+        'requires_system_access' => true,
+        'system_access_status' => HrEmployee::ACCESS_STATUS_ACTIVE,
+        'system_role_id' => $inventoryRole->id,
+        'first_name' => 'Liya',
+        'last_name' => 'Active',
+        'display_name' => 'Liya Active',
+        'work_email' => 'reactivate.employee@example.test',
+        'login_email' => 'reactivate.employee@example.test',
+        'hire_date' => now()->toDateString(),
+        'timezone' => 'Africa/Nairobi',
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    actingAs($manager)
+        ->patch(route('company.hr.employees.access.role', $employee), [
+            'role_id' => $financeRole->id,
+        ])
+        ->assertRedirect(route('company.hr.employees.show', $employee));
+
+    $employee->refresh();
+
+    expect((string) $employee->system_role_id)->toBe($financeRole->id);
+    expect(
+        DB::table('company_users')
+            ->where('company_id', $company->id)
+            ->where('user_id', $existingUser->id)
+            ->value('role_id')
+    )->toBe($financeRole->id);
+
+    actingAs($manager)
+        ->patch(route('company.hr.employees.access.deactivate', $employee))
+        ->assertRedirect(route('company.hr.employees.show', $employee));
+
+    $employee->refresh();
+    $existingUser->refresh();
+
+    expect($employee->system_access_status)->toBe(HrEmployee::ACCESS_STATUS_SUSPENDED);
+    expect(
+        DB::table('company_users')
+            ->where('company_id', $company->id)
+            ->where('user_id', $existingUser->id)
+            ->exists()
+    )->toBeFalse();
+    expect($existingUser->current_company_id)->toBeNull();
+
+    actingAs($manager)
+        ->post(route('company.hr.employees.access.reactivate', $employee))
+        ->assertRedirect(route('company.hr.employees.show', $employee));
+
+    $employee->refresh();
+
+    expect($employee->system_access_status)->toBe(HrEmployee::ACCESS_STATUS_ACTIVE);
+    expect(
+        DB::table('company_users')
+            ->where('company_id', $company->id)
+            ->where('user_id', $existingUser->id)
+            ->value('role_id')
+    )->toBe($financeRole->id);
 });
 
 test('accepting an employee access invite links the employee record and assigns the selected role', function () {

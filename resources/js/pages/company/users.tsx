@@ -11,6 +11,10 @@ type Props = {
         role_id?: string | null;
         role?: string | null;
         is_owner: boolean;
+        employee?: {
+            id: string;
+            display_name?: string | null;
+        } | null;
     }[];
     roles: {
         id: string;
@@ -66,15 +70,27 @@ export default function CompanyUsers({ members, roles }: Props) {
                 <div>
                     <h1 className="text-xl font-semibold">Company users</h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage active members in your company.
+                        Review active system users. Employee onboarding and access lifecycle changes should be managed from HR employees.
                     </p>
                 </div>
-                <Link
-                    href="/core/invites"
-                    className="text-sm font-medium text-primary"
-                >
-                    Manage invites
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link
+                        href="/company/hr/employees"
+                        className="text-sm font-medium text-primary"
+                    >
+                        Open employee directory
+                    </Link>
+                    <Link
+                        href="/core/invites"
+                        className="text-sm font-medium text-primary"
+                    >
+                        Manage invites
+                    </Link>
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border p-4 text-sm text-muted-foreground">
+                Use the employee record as the primary onboarding flow. Create or update the employee in HR, decide whether they need system access, and manage invite, deactivation, reactivation, and role changes there.
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">
@@ -83,6 +99,7 @@ export default function CompanyUsers({ members, roles }: Props) {
                         <tr>
                             <th className="px-4 py-3 font-medium">Name</th>
                             <th className="px-4 py-3 font-medium">Email</th>
+                            <th className="px-4 py-3 font-medium">Employee</th>
                             <th className="px-4 py-3 font-medium">Role</th>
                             <th className="px-4 py-3 font-medium">Owner</th>
                             <th className="px-4 py-3 text-right font-medium">
@@ -95,7 +112,7 @@ export default function CompanyUsers({ members, roles }: Props) {
                             <tr>
                                 <td
                                     className="px-4 py-8 text-center text-muted-foreground"
-                                    colSpan={5}
+                                    colSpan={6}
                                 >
                                     No users found.
                                 </td>
@@ -108,6 +125,21 @@ export default function CompanyUsers({ members, roles }: Props) {
                                 </td>
                                 <td className="px-4 py-3">
                                     {member.email ?? '-'}
+                                </td>
+                                <td className="px-4 py-3">
+                                    {member.employee ? (
+                                        <Link
+                                            href={`/company/hr/employees/${member.employee.id}`}
+                                            className="text-primary underline-offset-4 hover:underline"
+                                        >
+                                            {member.employee.display_name ??
+                                                'Open employee'}
+                                        </Link>
+                                    ) : (
+                                        <span className="text-muted-foreground">
+                                            No employee record
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-4 py-3">
                                     {member.role ?? '-'}
@@ -166,7 +198,7 @@ export default function CompanyUsers({ members, roles }: Props) {
                                                     ] === (member.role_id ?? '')
                                                 }
                                             >
-                                                Update role
+                                                Quick role update
                                             </Button>
                                         </div>
                                     )}

@@ -4,8 +4,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 
 type Contract = {
     id: string;
@@ -101,10 +101,16 @@ type Props = {
     payFrequencies: string[];
     salaryBases: string[];
     currencies: Currency[];
+    accessRoles: {
+        id: string;
+        name: string;
+        slug?: string | null;
+    }[];
 };
 
-export default function HrEmployeeShow({ employee, abilities, contractStatuses, payFrequencies, salaryBases, currencies }: Props) {
+export default function HrEmployeeShow({ employee, abilities, contractStatuses, payFrequencies, salaryBases, currencies, accessRoles }: Props) {
     const [editingContractId, setEditingContractId] = useState<string | null>(null);
+    const [accessRoleId, setAccessRoleId] = useState(employee.system_role?.id ?? '');
     const editingContract = useMemo(() => employee.contracts.find((contract) => contract.id === editingContractId) ?? null, [employee.contracts, editingContractId]);
 
     const contractForm = useForm({
@@ -130,6 +136,10 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
         is_private: true,
         file: null as File | null,
     });
+
+    useEffect(() => {
+        setAccessRoleId(employee.system_role?.id ?? '');
+    }, [employee.system_role?.id]);
 
     const openContractForm = (contract?: Contract) => {
         setEditingContractId(contract?.id ?? null);
@@ -248,6 +258,103 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                         <Detail label="Invite expires" value={employee.invite?.expires_at ? new Date(employee.invite.expires_at).toLocaleString() : null} />
                         <Detail label="Last delivery" value={employee.invite?.last_delivery_at ? new Date(employee.invite.last_delivery_at).toLocaleString() : null} />
                     </div>
+
+                    {abilities.can_manage_access && employee.requires_system_access && (
+                        <div className="mt-6 space-y-4 rounded-lg border p-4">
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                                <div className="grid gap-2">
+                                    <Label>System role</Label>
+                                    <select
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                                        value={accessRoleId}
+                                        onChange={(event) => setAccessRoleId(event.target.value)}
+                                    >
+                                        <option value="">Select role</option>
+                                        {accessRoles.map((role) => (
+                                            <option key={role.id} value={role.id}>
+                                                {role.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex items-end">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.patch(
+                                                `/company/hr/employees/${employee.id}/access/role`,
+                                                { role_id: accessRoleId },
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                        disabled={!accessRoleId || accessRoleId === (employee.system_role?.id ?? '')}
+                                    >
+                                        Update role
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                {employee.system_access_status === 'pending_invite' && (
+                                    <>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() =>
+                                                router.post(
+                                                    `/company/hr/employees/${employee.id}/access/resend`,
+                                                    {},
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        >
+                                            Resend invite
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() =>
+                                                router.delete(
+                                                    `/company/hr/employees/${employee.id}/access/invite`,
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        >
+                                            Cancel invite
+                                        </Button>
+                                    </>
+                                )}
+
+                                {employee.system_access_status === 'active' && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.patch(
+                                                `/company/hr/employees/${employee.id}/access/deactivate`,
+                                                {},
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        Deactivate access
+                                    </Button>
+                                )}
+
+                                {employee.system_access_status === 'suspended' && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.post(
+                                                `/company/hr/employees/${employee.id}/access/reactivate`,
+                                                {},
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        Reactivate access
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {employee.invite?.last_delivery_error && (
                         <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-muted-foreground">
