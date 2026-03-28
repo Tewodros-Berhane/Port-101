@@ -5,6 +5,7 @@ namespace App\Core\Support;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Support\CompanyContext;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 
 trait Auditable
@@ -48,14 +49,16 @@ trait Auditable
             ]);
         });
 
-        static::restored(function (Model $model) {
-            static::recordAudit($model, 'restored', [
-                'after' => static::filterAuditAttributes(
-                    $model,
-                    $model->getAttributes()
-                ),
-            ]);
-        });
+        if (in_array(SoftDeletes::class, class_uses_recursive(static::class), true)) {
+            static::restored(function (Model $model) {
+                static::recordAudit($model, 'restored', [
+                    'after' => static::filterAuditAttributes(
+                        $model,
+                        $model->getAttributes()
+                    ),
+                ]);
+            });
+        }
     }
 
     protected static function recordAudit(

@@ -159,6 +159,30 @@ class HrEmployee extends Model
             ->orderByDesc('created_at');
     }
 
+    public function shiftAssignments(): HasMany
+    {
+        return $this->hasMany(HrShiftAssignment::class, 'employee_id')
+            ->orderByDesc('from_date');
+    }
+
+    public function attendanceCheckins(): HasMany
+    {
+        return $this->hasMany(HrAttendanceCheckin::class, 'employee_id')
+            ->orderByDesc('recorded_at');
+    }
+
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(HrAttendanceRecord::class, 'employee_id')
+            ->orderByDesc('attendance_date');
+    }
+
+    public function attendanceRequests(): HasMany
+    {
+        return $this->hasMany(HrAttendanceRequest::class, 'employee_id')
+            ->orderByDesc('created_at');
+    }
+
     public function scopeAccessibleTo(Builder $query, User $user): Builder
     {
         if ($user->is_super_admin) {
