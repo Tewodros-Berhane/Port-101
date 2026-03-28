@@ -57,7 +57,7 @@ export default function HrIndex({ summary, recentEmployees, contractsEndingSoon,
                 <div>
                     <h1 className="text-xl font-semibold">HR module</h1>
                     <p className="text-sm text-muted-foreground">
-                        Employee records, contracts, and people operations foundation.
+                        Employee records, leave controls, attendance operations, and people workflows.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -68,6 +68,9 @@ export default function HrIndex({ summary, recentEmployees, contractsEndingSoon,
                     )}
                     <Button variant="outline" asChild>
                         <Link href="/company/hr/leave">Leave workspace</Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <Link href="/company/hr/attendance">Attendance workspace</Link>
                     </Button>
                     <Button variant="outline" asChild>
                         <Link href="/company/hr/employees">Employee workspace</Link>

@@ -1,0 +1,66 @@
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import { Head, Link, useForm } from '@inertiajs/react';
+
+type EmployeeOption = { id: string; name: string; employee_number?: string | null };
+
+type Props = {
+    employeeOptions: EmployeeOption[];
+    statuses: string[];
+    form: {
+        employee_id: string;
+        from_date: string;
+        to_date: string;
+        requested_status: string;
+        requested_check_in_at: string;
+        requested_check_out_at: string;
+        reason: string;
+        action: string;
+    };
+};
+
+const labelize = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+export default function HrAttendanceRequestCreate({ employeeOptions, statuses, form: defaults }: Props) {
+    const form = useForm(defaults);
+
+    return (
+        <AppLayout breadcrumbs={[{ title: 'Company', href: '/company/dashboard' }, { title: 'HR', href: '/company/hr' }, { title: 'Attendance', href: '/company/hr/attendance' }, { title: 'New Correction', href: '/company/hr/attendance/requests/create' }]}>
+            <Head title="New attendance correction" />
+            <div className="max-w-3xl space-y-6">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-semibold">New attendance correction</h1>
+                        <p className="text-sm text-muted-foreground">Submit a correction request for missing or incorrect attendance.</p>
+                    </div>
+                    <Button variant="outline" asChild><Link href="/company/hr/attendance">Back to attendance</Link></Button>
+                </div>
+
+                <form className="space-y-4 rounded-xl border p-4" onSubmit={(event) => { event.preventDefault(); form.post('/company/hr/attendance/requests'); }}>
+                    <Field label="Employee" error={form.errors.employee_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.employee_id} onChange={(event) => form.setData('employee_id', event.target.value)}><option value="">Select employee</option>{employeeOptions.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.employee_number ? ` (${employee.employee_number})` : ''}</option>)}</select></Field>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="From date" error={form.errors.from_date}><input type="date" className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.from_date} onChange={(event) => form.setData('from_date', event.target.value)} /></Field>
+                        <Field label="To date" error={form.errors.to_date}><input type="date" className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.to_date} onChange={(event) => form.setData('to_date', event.target.value)} /></Field>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <Field label="Requested status" error={form.errors.requested_status}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.requested_status} onChange={(event) => form.setData('requested_status', event.target.value)}>{statuses.map((status) => <option key={status} value={status}>{labelize(status)}</option>)}</select></Field>
+                        <Field label="Check in" error={form.errors.requested_check_in_at}><input type="time" className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.requested_check_in_at} onChange={(event) => form.setData('requested_check_in_at', event.target.value)} /></Field>
+                        <Field label="Check out" error={form.errors.requested_check_out_at}><input type="time" className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.requested_check_out_at} onChange={(event) => form.setData('requested_check_out_at', event.target.value)} /></Field>
+                    </div>
+                    <Field label="Reason" error={form.errors.reason}><textarea className="min-h-28 rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.data.reason} onChange={(event) => form.setData('reason', event.target.value)} /></Field>
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant={form.data.action === 'save' ? 'default' : 'outline'} onClick={() => form.setData('action', 'save')}>Save draft</Button>
+                        <Button type="button" variant={form.data.action === 'submit' ? 'default' : 'outline'} onClick={() => form.setData('action', 'submit')}>Submit now</Button>
+                        <Button type="submit">Save</Button>
+                    </div>
+                </form>
+            </div>
+        </AppLayout>
+    );
+}
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+    return <div className="grid gap-2"><Label>{label}</Label>{children}<InputError message={error} /></div>;
+}

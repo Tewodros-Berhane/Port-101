@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Hr\HrAttendanceController;
+use App\Http\Controllers\Hr\HrAttendanceRequestsController;
 use App\Http\Controllers\Hr\HrDashboardController;
 use App\Http\Controllers\Hr\HrEmployeeContractsController;
 use App\Http\Controllers\Hr\HrEmployeeDocumentsController;
@@ -8,6 +10,8 @@ use App\Http\Controllers\Hr\HrLeaveAllocationsController;
 use App\Http\Controllers\Hr\HrLeavePeriodsController;
 use App\Http\Controllers\Hr\HrLeaveRequestsController;
 use App\Http\Controllers\Hr\HrLeaveTypesController;
+use App\Http\Controllers\Hr\HrShiftAssignmentsController;
+use App\Http\Controllers\Hr\HrShiftsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('hr', [HrDashboardController::class, 'index'])
@@ -88,4 +92,46 @@ Route::prefix('hr')->name('hr.')->group(function () {
         ->name('leave.allocations.edit');
     Route::put('leave/allocations/{allocation}', [HrLeaveAllocationsController::class, 'update'])
         ->name('leave.allocations.update');
+
+    Route::get('attendance', [HrAttendanceController::class, 'index'])
+        ->name('attendance.index');
+    Route::post('attendance/check-in', [HrAttendanceController::class, 'checkIn'])
+        ->name('attendance.check-in');
+    Route::post('attendance/check-out', [HrAttendanceController::class, 'checkOut'])
+        ->name('attendance.check-out');
+
+    Route::get('attendance/requests/create', [HrAttendanceRequestsController::class, 'create'])
+        ->name('attendance.requests.create');
+    Route::post('attendance/requests', [HrAttendanceRequestsController::class, 'store'])
+        ->name('attendance.requests.store');
+    Route::get('attendance/requests/{attendanceRequest}/edit', [HrAttendanceRequestsController::class, 'edit'])
+        ->name('attendance.requests.edit');
+    Route::put('attendance/requests/{attendanceRequest}', [HrAttendanceRequestsController::class, 'update'])
+        ->name('attendance.requests.update');
+    Route::post('attendance/requests/{attendanceRequest}/submit', [HrAttendanceRequestsController::class, 'submit'])
+        ->name('attendance.requests.submit');
+    Route::post('attendance/requests/{attendanceRequest}/approve', [HrAttendanceRequestsController::class, 'approve'])
+        ->name('attendance.requests.approve');
+    Route::post('attendance/requests/{attendanceRequest}/reject', [HrAttendanceRequestsController::class, 'reject'])
+        ->name('attendance.requests.reject');
+    Route::post('attendance/requests/{attendanceRequest}/cancel', [HrAttendanceRequestsController::class, 'cancel'])
+        ->name('attendance.requests.cancel');
+
+    Route::get('attendance/shifts/create', [HrShiftsController::class, 'create'])
+        ->name('attendance.shifts.create');
+    Route::post('attendance/shifts', [HrShiftsController::class, 'store'])
+        ->name('attendance.shifts.store');
+    Route::get('attendance/shifts/{shift}/edit', [HrShiftsController::class, 'edit'])
+        ->name('attendance.shifts.edit');
+    Route::put('attendance/shifts/{shift}', [HrShiftsController::class, 'update'])
+        ->name('attendance.shifts.update');
+
+    Route::get('attendance/assignments/create', [HrShiftAssignmentsController::class, 'create'])
+        ->name('attendance.assignments.create');
+    Route::post('attendance/assignments', [HrShiftAssignmentsController::class, 'store'])
+        ->name('attendance.assignments.store');
+    Route::get('attendance/assignments/{assignment}/edit', [HrShiftAssignmentsController::class, 'edit'])
+        ->name('attendance.assignments.edit');
+    Route::put('attendance/assignments/{assignment}', [HrShiftAssignmentsController::class, 'update'])
+        ->name('attendance.assignments.update');
 });
