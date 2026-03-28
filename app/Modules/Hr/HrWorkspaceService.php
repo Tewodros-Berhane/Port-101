@@ -3,6 +3,7 @@
 namespace App\Modules\Hr;
 
 use App\Core\Company\Models\CompanyUser;
+use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Modules\Hr\Models\HrDepartment;
 use App\Modules\Hr\Models\HrDesignation;
@@ -99,6 +100,29 @@ class HrWorkspaceService
                 'email' => (string) $membership->user?->email,
             ])
             ->sortBy('name')
+            ->values()
+            ->all();
+    }
+
+    public function accessRoleOptions(?string $companyId): array
+    {
+        if (! $companyId) {
+            return [];
+        }
+
+        return Role::query()
+            ->where(function ($query) use ($companyId): void {
+                $query->whereNull('company_id')
+                    ->orWhere('company_id', $companyId);
+            })
+            ->where('slug', '!=', 'owner')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug'])
+            ->map(fn (Role $role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'slug' => $role->slug,
+            ])
             ->values()
             ->all();
     }

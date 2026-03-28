@@ -162,6 +162,7 @@
 - HR / People Ops Phase 4 implemented: reimbursements now cover reimbursement categories, multi-line employee claims, required-receipt enforcement, draft and submit flows, manager plus finance approval routing, approval-queue sync, project-aware and currency-aware claim entry, receipt upload/download/remove actions, vendor-bill handoff into accounting, payment recording, reimbursement notifications, and the dedicated `/company/hr/reimbursements` workspace.
 - HR / People Ops Phase 5 implemented: payroll lite now covers salary structures and lines, employee compensation assignments, payroll periods, payroll runs, generated work entries, employee payslips, approval-routed payroll preparation and approval, payroll journal handoff into accounting, employee payslip publishing notifications, and the dedicated `/company/hr/payroll` workspace.
 - HR / People Ops Phase 6 implemented: HR reporting now runs through `/company/hr/reports` with company-scoped employee directory, headcount, leave-balance, attendance anomaly, reimbursement aging, payroll register, and payslip summary exports in PDF/XLSX, and `/api/v1/hr` now exposes employee self-service plus manager workflows for profile, leave, attendance, reimbursements, and payslips.
+- HR employee access onboarding foundation implemented: employee create/edit flows now support explicit `requires_system_access` provisioning, app-role selection, login email capture, pending invite issuance for new users, direct role assignment for already-linked company users, employee-linked invite acceptance backfill into `hr_employees`, and dedicated HR coverage for no-access, pending-invite, active-link, and invite-acceptance scenarios.
 
 ## Deferred / Out of Scope
 
@@ -229,6 +230,7 @@
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
 - HR module is now live at `/company/hr` with the people-ops dashboard, employee profile CRUD, private employee-data gating, contract management, employee document upload/download flows, leave types/periods/allocations, self-service leave requests, shift and shift-assignment management, self-service attendance punching, daily attendance records, attendance correction approvals, reimbursement categories, multi-line reimbursement claims, receipt handling, approval-routed reimbursement decisions, accounting handoff, payroll salary structures, compensation assignments, payroll periods, payroll runs, payslip visibility, dedicated HR reports at `/company/hr/reports`, accounting-backed payroll posting, and company-scoped HR roles for HR managers, HR officers, line managers, payroll managers, and self-service employees.
+- HR employee onboarding now supports optional system-access provisioning directly from the employee flow: HR managers can keep employees as HR-only records, link existing company users into employee records with an app role, or send employee-linked invites that assign the selected company role and activate the employee record on invite acceptance.
 - Confirmed service orders now provision a linked project workspace automatically, so service delivery can move from Sales into Projects without manual project setup.
 - API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
 - API v1 now exposes the Sales workspace for integrations under `/api/v1/sales`, including approval-aware quote/order actions and downstream project provisioning on confirmed service orders.
@@ -243,13 +245,13 @@
 
 - No currently listed core or delivered module surfaces are placeholder-only; remaining roadmap work is integration hardening follow-through and production hardening.
 
-### Test run result (2026-03-28)
+### Test run result (2026-03-29)
 
 - Command executed: `php -d memory_limit=512M vendor/bin/pest`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `304 passed`, `0 failed`.
-- Result summary after latest implementation: HR Phase 6 now adds dedicated HR report exports at `/company/hr/reports` plus `/api/v1/hr` endpoints for profile, leave, attendance, reimbursements, and payslips; the PostgreSQL-backed suite remains fully passing across the broader platform, module, API, integration, and operational-hardening coverage.
+- Latest full-suite count: `308 passed`, `0 failed`.
+- Result summary after latest implementation: HR employee onboarding now supports employee-driven system-access provisioning with role selection, pending invite issuance, existing-user linking, and invite-acceptance linkage back into `hr_employees`, while the PostgreSQL-backed suite remains fully passing across the broader platform, module, API, integration, and operational-hardening coverage.
 
 ## Suggestions
 

@@ -1,4 +1,4 @@
-import InputError from '@/components/input-error';
+ï»¿import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -43,11 +43,6 @@ type Currency = {
     name: string;
 };
 
-type Option = {
-    id: string;
-    name: string;
-};
-
 type Props = {
     employee: {
         id: string;
@@ -74,7 +69,21 @@ type Props = {
         department?: { id: string; name: string; code?: string | null } | null;
         designation?: { id: string; name: string; code?: string | null } | null;
         manager?: { id: string; display_name: string; employee_number?: string | null } | null;
+        requires_system_access: boolean;
+        system_access_status: string;
+        login_email?: string | null;
+        system_role?: { id: string; name: string; slug?: string | null } | null;
         linked_user?: { id: string; name: string; email?: string | null } | null;
+        invite?: {
+            id: string;
+            email: string;
+            accepted_at?: string | null;
+            expires_at?: string | null;
+            delivery_status?: string | null;
+            delivery_attempts: number;
+            last_delivery_at?: string | null;
+            last_delivery_error?: string | null;
+        } | null;
         attendance_approver?: { id: string; name: string; email?: string | null } | null;
         leave_approver?: { id: string; name: string; email?: string | null } | null;
         reimbursement_approver?: { id: string; name: string; email?: string | null } | null;
@@ -86,6 +95,7 @@ type Props = {
         can_edit_employee: boolean;
         can_view_private: boolean;
         can_manage_private: boolean;
+        can_manage_access: boolean;
     };
     contractStatuses: string[];
     payFrequencies: string[];
@@ -154,7 +164,7 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                 <div>
                     <h1 className="text-xl font-semibold">{employee.display_name}</h1>
                     <p className="text-sm text-muted-foreground">
-                        {employee.employee_number} · {employee.employment_status.replaceAll('_', ' ')} · {employee.employment_type.replaceAll('_', ' ')}
+                        {employee.employee_number} Â· {employee.employment_status.replaceAll('_', ' ')} Â· {employee.employment_type.replaceAll('_', ' ')}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -169,20 +179,20 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                 </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <Metric label="Department" value={employee.department?.name ?? '-'} />
                 <Metric label="Designation" value={employee.designation?.name ?? '-'} />
                 <Metric label="Contracts" value={employee.contracts.length.toString()} />
                 <Metric label="Documents" value={employee.attachment_count.toString()} />
+                <Metric label="System access" value={employee.requires_system_access ? employee.system_access_status.replaceAll('_', ' ') : 'none'} />
             </div>
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
                 <div className="rounded-xl border p-4">
                     <h2 className="text-sm font-semibold">Employee profile</h2>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 text-sm">
+                    <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
                         <Detail label="Work email" value={employee.work_email} />
                         <Detail label="Work phone" value={employee.work_phone} />
-                        <Detail label="Linked user" value={employee.linked_user ? `${employee.linked_user.name}${employee.linked_user.email ? ` (${employee.linked_user.email})` : ''}` : null} />
                         <Detail label="Hire date" value={employee.hire_date} />
                         <Detail label="Manager" value={employee.manager ? `${employee.manager.display_name}${employee.manager.employee_number ? ` (${employee.manager.employee_number})` : ''}` : null} />
                         <Detail label="Location" value={employee.work_location} />
@@ -191,7 +201,7 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                     </div>
 
                     {abilities.can_view_private && (
-                        <div className="mt-6 grid gap-3 md:grid-cols-2 text-sm">
+                        <div className="mt-6 grid gap-3 text-sm md:grid-cols-2">
                             <Detail label="Personal email" value={employee.personal_email} />
                             <Detail label="Personal phone" value={employee.personal_phone} />
                             <Detail label="Date of birth" value={employee.date_of_birth} />
@@ -213,6 +223,40 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                 </div>
 
                 <div className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-semibold">System access</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                App login, invite status, and assigned company role.
+                            </p>
+                        </div>
+                        {abilities.can_edit_employee && abilities.can_manage_access && (
+                            <Button variant="outline" asChild>
+                                <Link href={`/company/hr/employees/${employee.id}/edit`}>Manage access</Link>
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                        <Detail label="Access required" value={employee.requires_system_access ? 'Yes' : 'No'} />
+                        <Detail label="Access status" value={employee.system_access_status.replaceAll('_', ' ')} />
+                        <Detail label="System role" value={employee.system_role?.name} />
+                        <Detail label="Login email" value={employee.login_email} />
+                        <Detail label="Linked user" value={employee.linked_user ? `${employee.linked_user.name}${employee.linked_user.email ? ` (${employee.linked_user.email})` : ''}` : null} />
+                        <Detail label="Invite delivery" value={employee.invite?.delivery_status ?? null} />
+                        <Detail label="Invite attempts" value={employee.invite ? employee.invite.delivery_attempts.toString() : null} />
+                        <Detail label="Invite expires" value={employee.invite?.expires_at ? new Date(employee.invite.expires_at).toLocaleString() : null} />
+                        <Detail label="Last delivery" value={employee.invite?.last_delivery_at ? new Date(employee.invite.last_delivery_at).toLocaleString() : null} />
+                    </div>
+
+                    {employee.invite?.last_delivery_error && (
+                        <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                            {employee.invite.last_delivery_error}
+                        </div>
+                    )}
+                </div>
+
+                <div className="rounded-xl border p-4 xl:col-span-2">
                     <div className="flex items-center justify-between gap-2">
                         <h2 className="text-sm font-semibold">Contracts</h2>
                         {abilities.can_manage_private && (
@@ -283,7 +327,7 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                                 <Field label="Salary basis" error={contractForm.errors.salary_basis}><select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={contractForm.data.salary_basis} onChange={(event) => contractForm.setData('salary_basis', event.target.value)}>{salaryBases.map((basis) => <option key={basis} value={basis}>{basis}</option>)}</select></Field>
                                 <Field label="Base salary" error={contractForm.errors.base_salary_amount}><Input type="number" step="0.01" value={contractForm.data.base_salary_amount} onChange={(event) => contractForm.setData('base_salary_amount', event.target.value)} /></Field>
                                 <Field label="Hourly rate" error={contractForm.errors.hourly_rate}><Input type="number" step="0.01" value={contractForm.data.hourly_rate} onChange={(event) => contractForm.setData('hourly_rate', event.target.value)} /></Field>
-                                <Field label="Currency" error={contractForm.errors.currency_id}><select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={contractForm.data.currency_id} onChange={(event) => contractForm.setData('currency_id', event.target.value)}><option value="">No currency</option>{currencies.map((currency) => <option key={currency.id} value={currency.id}>{currency.code} · {currency.name}</option>)}</select></Field>
+                                <Field label="Currency" error={contractForm.errors.currency_id}><select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={contractForm.data.currency_id} onChange={(event) => contractForm.setData('currency_id', event.target.value)}><option value="">No currency</option>{currencies.map((currency) => <option key={currency.id} value={currency.id}>{currency.code} Â· {currency.name}</option>)}</select></Field>
                                 <Field label="Working days/week" error={contractForm.errors.working_days_per_week}><Input type="number" min="1" max="7" value={contractForm.data.working_days_per_week} onChange={(event) => contractForm.setData('working_days_per_week', event.target.value)} /></Field>
                                 <Field label="Hours/day" error={contractForm.errors.standard_hours_per_day}><Input type="number" step="0.25" value={contractForm.data.standard_hours_per_day} onChange={(event) => contractForm.setData('standard_hours_per_day', event.target.value)} /></Field>
                             </div>

@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -12,10 +13,11 @@ type Option = {
     code?: string | null;
     email?: string;
     employee_number?: string;
+    slug?: string;
 };
 
 type Props = {
-    employee: Record<string, string>;
+    employee: Record<string, string | boolean>;
     employeeId: string;
     statuses: string[];
     employmentTypes: string[];
@@ -23,11 +25,13 @@ type Props = {
     designations: Option[];
     managers: Option[];
     companyUsers: Option[];
+    accessRoles: Option[];
 };
 
-export default function HrEmployeeEdit({ employee, employeeId, statuses, employmentTypes, departments, designations, managers, companyUsers }: Props) {
+export default function HrEmployeeEdit({ employee, employeeId, statuses, employmentTypes, departments, designations, managers, companyUsers, accessRoles }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('hr.employees.manage');
+    const canManageAccess = hasPermission('hr.employee_access.manage');
     const form = useForm(employee);
 
     return (
@@ -44,7 +48,7 @@ export default function HrEmployeeEdit({ employee, employeeId, statuses, employm
                 <div>
                     <h1 className="text-xl font-semibold">Edit employee</h1>
                     <p className="text-sm text-muted-foreground">
-                        Update employee profile, structure, and approver defaults.
+                        Update employee profile, approver defaults, and optional system access.
                     </p>
                 </div>
                 <Button variant="ghost" asChild>
@@ -63,7 +67,7 @@ export default function HrEmployeeEdit({ employee, employeeId, statuses, employm
                     <Field label="First name" error={form.errors.first_name}><Input value={form.data.first_name} onChange={(event) => form.setData('first_name', event.target.value)} required /></Field>
                     <Field label="Last name" error={form.errors.last_name}><Input value={form.data.last_name} onChange={(event) => form.setData('last_name', event.target.value)} required /></Field>
                     <Field label="Employee number" error={form.errors.employee_number}><Input value={form.data.employee_number} onChange={(event) => form.setData('employee_number', event.target.value)} /></Field>
-                    <Field label="Linked user" error={form.errors.user_id}>
+                    <Field label="Linked existing user" error={form.errors.user_id}>
                         <select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={form.data.user_id} onChange={(event) => form.setData('user_id', event.target.value)}>
                             <option value="">No linked user</option>
                             {companyUsers.map((user) => <option key={user.id} value={user.id}>{user.name}{user.email ? ` (${user.email})` : ''}</option>)}
@@ -93,6 +97,51 @@ export default function HrEmployeeEdit({ employee, employeeId, statuses, employm
                     <Field label="Emergency phone" error={form.errors.emergency_contact_phone}><Input value={form.data.emergency_contact_phone} onChange={(event) => form.setData('emergency_contact_phone', event.target.value)} /></Field>
                     <Field label="Termination date" error={form.errors.termination_date}><Input type="date" value={form.data.termination_date} onChange={(event) => form.setData('termination_date', event.target.value)} /></Field>
                 </div>
+
+                {canManageAccess && (
+                    <div className="rounded-xl border p-4">
+                        <div className="flex items-start gap-3">
+                            <Checkbox
+                                checked={Boolean(form.data.requires_system_access)}
+                                onCheckedChange={(value) => {
+                                    const checked = Boolean(value);
+                                    form.setData((data) => ({
+                                        ...data,
+                                        requires_system_access: checked,
+                                        system_role_id: checked ? data.system_role_id : '',
+                                        login_email: checked ? data.login_email : '',
+                                    }));
+                                }}
+                            />
+                            <div className="space-y-1">
+                                <Label className="text-sm font-medium">System access required</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Use this when the employee needs a company role and app login. If no linked user is selected, saving will create or refresh a pending invite.
+                                </p>
+                                <InputError message={form.errors.requires_system_access} />
+                            </div>
+                        </div>
+
+                        {Boolean(form.data.requires_system_access) && (
+                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <Field label="System role" error={form.errors.system_role_id}>
+                                    <select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={form.data.system_role_id} onChange={(event) => form.setData('system_role_id', event.target.value)}>
+                                        <option value="">Select role</option>
+                                        {accessRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+                                    </select>
+                                </Field>
+                                <Field label="Login email" error={form.errors.login_email}>
+                                    <Input
+                                        type="email"
+                                        value={form.data.login_email}
+                                        onChange={(event) => form.setData('login_email', event.target.value)}
+                                        placeholder="Required when no linked user is selected"
+                                    />
+                                </Field>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <Field label="Notes" error={form.errors.notes}>
                     <textarea className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />

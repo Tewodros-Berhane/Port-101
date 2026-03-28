@@ -1,5 +1,6 @@
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -12,21 +13,24 @@ type Option = {
     code?: string | null;
     email?: string;
     employee_number?: string;
+    slug?: string;
 };
 
 type Props = {
-    employee: Record<string, string>;
+    employee: Record<string, string | boolean>;
     statuses: string[];
     employmentTypes: string[];
     departments: Option[];
     designations: Option[];
     managers: Option[];
     companyUsers: Option[];
+    accessRoles: Option[];
 };
 
-export default function HrEmployeeCreate({ employee, statuses, employmentTypes, departments, designations, managers, companyUsers }: Props) {
+export default function HrEmployeeCreate({ employee, statuses, employmentTypes, departments, designations, managers, companyUsers, accessRoles }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('hr.employees.manage');
+    const canManageAccess = hasPermission('hr.employee_access.manage');
     const form = useForm(employee);
 
     return (
@@ -43,7 +47,7 @@ export default function HrEmployeeCreate({ employee, statuses, employmentTypes, 
                 <div>
                     <h1 className="text-xl font-semibold">New employee</h1>
                     <p className="text-sm text-muted-foreground">
-                        Create the employee master record and optionally link the account later.
+                        Create the employee master record and optionally provision system access.
                     </p>
                 </div>
                 <Button variant="ghost" asChild>
@@ -68,7 +72,7 @@ export default function HrEmployeeCreate({ employee, statuses, employmentTypes, 
                     <Field label="Employee number" error={form.errors.employee_number}>
                         <Input value={form.data.employee_number} onChange={(event) => form.setData('employee_number', event.target.value)} placeholder="Auto-generated if blank" />
                     </Field>
-                    <Field label="Linked user" error={form.errors.user_id}>
+                    <Field label="Linked existing user" error={form.errors.user_id}>
                         <select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={form.data.user_id} onChange={(event) => form.setData('user_id', event.target.value)}>
                             <option value="">No linked user</option>
                             {companyUsers.map((user) => <option key={user.id} value={user.id}>{user.name}{user.email ? ` (${user.email})` : ''}</option>)}
@@ -166,6 +170,51 @@ export default function HrEmployeeCreate({ employee, statuses, employmentTypes, 
                         <Input type="date" value={form.data.termination_date} onChange={(event) => form.setData('termination_date', event.target.value)} />
                     </Field>
                 </div>
+
+                {canManageAccess && (
+                    <div className="rounded-xl border p-4">
+                        <div className="flex items-start gap-3">
+                            <Checkbox
+                                checked={Boolean(form.data.requires_system_access)}
+                                onCheckedChange={(value) => {
+                                    const checked = Boolean(value);
+                                    form.setData((data) => ({
+                                        ...data,
+                                        requires_system_access: checked,
+                                        system_role_id: checked ? data.system_role_id : '',
+                                        login_email: checked ? data.login_email : '',
+                                    }));
+                                }}
+                            />
+                            <div className="space-y-1">
+                                <Label className="text-sm font-medium">System access required</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Enable this when the employee needs to log in and work in the app. A linked existing company user becomes active immediately; otherwise an invite is sent to the login email.
+                                </p>
+                                <InputError message={form.errors.requires_system_access} />
+                            </div>
+                        </div>
+
+                        {Boolean(form.data.requires_system_access) && (
+                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <Field label="System role" error={form.errors.system_role_id}>
+                                    <select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={form.data.system_role_id} onChange={(event) => form.setData('system_role_id', event.target.value)}>
+                                        <option value="">Select role</option>
+                                        {accessRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+                                    </select>
+                                </Field>
+                                <Field label="Login email" error={form.errors.login_email}>
+                                    <Input
+                                        type="email"
+                                        value={form.data.login_email}
+                                        onChange={(event) => form.setData('login_email', event.target.value)}
+                                        placeholder="Required when no linked user is selected"
+                                    />
+                                </Field>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <Field label="Notes" error={form.errors.notes}>
                     <textarea className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />
