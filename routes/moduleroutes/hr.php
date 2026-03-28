@@ -10,6 +10,10 @@ use App\Http\Controllers\Hr\HrLeaveAllocationsController;
 use App\Http\Controllers\Hr\HrLeavePeriodsController;
 use App\Http\Controllers\Hr\HrLeaveRequestsController;
 use App\Http\Controllers\Hr\HrLeaveTypesController;
+use App\Http\Controllers\Hr\HrReimbursementCategoriesController;
+use App\Http\Controllers\Hr\HrReimbursementClaimsController;
+use App\Http\Controllers\Hr\HrReimbursementReceiptsController;
+use App\Http\Controllers\Hr\HrReimbursementsController;
 use App\Http\Controllers\Hr\HrShiftAssignmentsController;
 use App\Http\Controllers\Hr\HrShiftsController;
 use Illuminate\Support\Facades\Route;
@@ -134,4 +138,42 @@ Route::prefix('hr')->name('hr.')->group(function () {
         ->name('attendance.assignments.edit');
     Route::put('attendance/assignments/{assignment}', [HrShiftAssignmentsController::class, 'update'])
         ->name('attendance.assignments.update');
+
+    Route::get('reimbursements', [HrReimbursementsController::class, 'index'])
+        ->name('reimbursements.index');
+
+    Route::get('reimbursements/categories/create', [HrReimbursementCategoriesController::class, 'create'])
+        ->name('reimbursements.categories.create');
+    Route::post('reimbursements/categories', [HrReimbursementCategoriesController::class, 'store'])
+        ->name('reimbursements.categories.store');
+    Route::get('reimbursements/categories/{category}/edit', [HrReimbursementCategoriesController::class, 'edit'])
+        ->name('reimbursements.categories.edit');
+    Route::put('reimbursements/categories/{category}', [HrReimbursementCategoriesController::class, 'update'])
+        ->name('reimbursements.categories.update');
+
+    Route::get('reimbursements/claims/create', [HrReimbursementClaimsController::class, 'create'])
+        ->name('reimbursements.claims.create');
+    Route::post('reimbursements/claims', [HrReimbursementClaimsController::class, 'store'])
+        ->name('reimbursements.claims.store');
+    Route::get('reimbursements/claims/{claim}/edit', [HrReimbursementClaimsController::class, 'edit'])
+        ->name('reimbursements.claims.edit');
+    Route::put('reimbursements/claims/{claim}', [HrReimbursementClaimsController::class, 'update'])
+        ->name('reimbursements.claims.update');
+    Route::post('reimbursements/claims/{claim}/submit', [HrReimbursementClaimsController::class, 'submit'])
+        ->name('reimbursements.claims.submit');
+    Route::post('reimbursements/claims/{claim}/approve', [HrReimbursementClaimsController::class, 'approve'])
+        ->name('reimbursements.claims.approve');
+    Route::post('reimbursements/claims/{claim}/reject', [HrReimbursementClaimsController::class, 'reject'])
+        ->name('reimbursements.claims.reject');
+    Route::post('reimbursements/claims/{claim}/post', [HrReimbursementClaimsController::class, 'postToAccounting'])
+        ->name('reimbursements.claims.post');
+    Route::post('reimbursements/claims/{claim}/pay', [HrReimbursementClaimsController::class, 'recordPayment'])
+        ->name('reimbursements.claims.pay');
+
+    Route::post('reimbursements/lines/{line}/receipt', [HrReimbursementReceiptsController::class, 'store'])
+        ->name('reimbursements.receipts.store');
+    Route::get('reimbursements/lines/{line}/receipt/download', [HrReimbursementReceiptsController::class, 'download'])
+        ->name('reimbursements.receipts.download');
+    Route::delete('reimbursements/lines/{line}/receipt', [HrReimbursementReceiptsController::class, 'destroy'])
+        ->name('reimbursements.receipts.destroy');
 });
