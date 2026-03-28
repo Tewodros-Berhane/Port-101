@@ -32,6 +32,8 @@ class ApprovalRequest extends Model
 
     public const MODULE_PROJECTS = 'projects';
 
+    public const MODULE_HR = 'hr';
+
     /**
      * @var array<int, string>
      */
@@ -41,6 +43,7 @@ class ApprovalRequest extends Model
         self::MODULE_INVENTORY,
         self::MODULE_ACCOUNTING,
         self::MODULE_PROJECTS,
+        self::MODULE_HR,
     ];
 
     public const ACTION_SALES_QUOTE_APPROVAL = 'sales_quote_approval';
@@ -54,6 +57,8 @@ class ApprovalRequest extends Model
     public const ACTION_PROJECT_BILLABLE_APPROVAL = 'project_billable_approval';
 
     public const ACTION_INVENTORY_CYCLE_COUNT_APPROVAL = 'inventory_cycle_count_approval';
+
+    public const ACTION_HR_LEAVE_APPROVAL = 'hr_leave_approval';
 
     public const STATUS_PENDING = 'pending';
 

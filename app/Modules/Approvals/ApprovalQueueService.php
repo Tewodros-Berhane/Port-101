@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
+use App\Modules\Hr\HrLeaveService;
+use App\Modules\Hr\Models\HrLeaveRequest;
 use App\Modules\Inventory\InventoryCycleCountService;
 use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Projects\Models\ProjectBillable;
@@ -28,6 +30,7 @@ class ApprovalQueueService
         private readonly PurchasingOrderWorkflowService $purchasingOrderWorkflowService,
         private readonly ProjectBillableWorkflowService $projectBillableWorkflowService,
         private readonly InventoryCycleCountService $inventoryCycleCountService,
+        private readonly HrLeaveService $hrLeaveService,
     ) {}
 
     public function syncPendingRequests(Company $company, ?string $actorId = null): void
@@ -38,6 +41,7 @@ class ApprovalQueueService
         $this->syncAccountingManualJournalRequests($company, $actorId);
         $this->syncProjectBillableRequests($company, $actorId);
         $this->syncInventoryCycleCountRequests($company, $actorId);
+        $this->syncHrLeaveRequests($company, $actorId);
     }
 
     /**
@@ -198,6 +202,8 @@ class ApprovalQueueService
                 $source = $this->projectBillableWorkflowService->approve($source, $actor->id);
             } elseif ($source instanceof InventoryCycleCount) {
                 $source = $this->inventoryCycleCountService->approve($source, $actor->id);
+            } elseif ($source instanceof HrLeaveRequest) {
+                $source = $this->hrLeaveService->approve($source, $actor->id);
             }
 
             $this->markApproved(
@@ -290,6 +296,8 @@ class ApprovalQueueService
                 );
             } elseif ($source instanceof InventoryCycleCount) {
                 $source = $this->inventoryCycleCountService->reject($source, $reason, $actor->id);
+            } elseif ($source instanceof HrLeaveRequest) {
+                $source = $this->hrLeaveService->reject($source, $reason, $actor->id);
             }
 
             $this->markRejected(
@@ -544,6 +552,42 @@ class ApprovalQueueService
         );
     }
 
+    private function syncHrLeaveRequests(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = HrLeaveRequest::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $leaveRequests = HrLeaveRequest::query()
+            ->with(['leaveType:id,name,requires_approval'])
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->where('status', HrLeaveRequest::STATUS_SUBMITTED);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $leaveRequests,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_HR,
+            action: ApprovalRequest::ACTION_HR_LEAVE_APPROVAL,
+            isPending: fn (HrLeaveRequest $leaveRequest) => $leaveRequest->status === HrLeaveRequest::STATUS_SUBMITTED
+                && (bool) ($leaveRequest->leaveType?->requires_approval ?? true),
+            isApproved: fn (HrLeaveRequest $leaveRequest) => $leaveRequest->status === HrLeaveRequest::STATUS_APPROVED,
+            isRejected: fn (HrLeaveRequest $leaveRequest) => $leaveRequest->status === HrLeaveRequest::STATUS_REJECTED,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
     /**
      * @param  Collection<int, Model>  $sources
      * @param  callable(Model): bool  $isPending
@@ -780,7 +824,9 @@ class ApprovalQueueService
             'source_type' => $source::class,
             'source_id' => (string) $source->getKey(),
             'source_number' => $this->sourceNumber($source),
-            'requested_by_user_id' => $source->getAttribute('created_by') ?: null,
+            'requested_by_user_id' => $source instanceof HrLeaveRequest
+                ? ($source->requested_by_user_id ?: $source->getAttribute('created_by') ?: null)
+                : ($source->getAttribute('created_by') ?: null),
             'requested_at' => $source->getAttribute('created_at') ?: now(),
             'amount' => $amount,
             'currency_code' => (string) ($company->currency_code ?: 'USD'),
@@ -788,6 +834,7 @@ class ApprovalQueueService
             'metadata' => [
                 'source_status' => $this->sourceStatus($source),
                 'source_reference' => $this->sourceNumber($source),
+                'approver_user_id' => $source instanceof HrLeaveRequest ? $source->approver_user_id : null,
             ],
             'created_by' => $source->getAttribute('created_by') ?: $actorId,
             'updated_by' => $actorId,
@@ -820,6 +867,10 @@ class ApprovalQueueService
             return (string) $source->reference;
         }
 
+        if ($source instanceof HrLeaveRequest) {
+            return (string) $source->request_number;
+        }
+
         return null;
     }
 
@@ -847,6 +898,10 @@ class ApprovalQueueService
 
             if ($source instanceof InventoryCycleCount) {
                 return round((float) $source->total_absolute_variance_value, 2);
+            }
+
+            if ($source instanceof HrLeaveRequest) {
+                return round((float) $source->duration_amount, 2);
             }
 
             return null;
@@ -920,6 +975,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             InventoryCycleCount::class => InventoryCycleCount::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            HrLeaveRequest::class => HrLeaveRequest::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,

@@ -23,6 +23,10 @@ use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Hr\Models\HrEmployee;
 use App\Modules\Hr\Models\HrEmployeeContract;
 use App\Modules\Hr\Models\HrEmployeeDocument;
+use App\Modules\Hr\Models\HrLeaveAllocation;
+use App\Modules\Hr\Models\HrLeavePeriod;
+use App\Modules\Hr\Models\HrLeaveRequest;
+use App\Modules\Hr\Models\HrLeaveType;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Inventory\Models\InventoryCycleCount;
@@ -59,6 +63,10 @@ use App\Policies\CurrencyPolicy;
 use App\Policies\HrEmployeeContractPolicy;
 use App\Policies\HrEmployeeDocumentPolicy;
 use App\Policies\HrEmployeePolicy;
+use App\Policies\HrLeaveAllocationPolicy;
+use App\Policies\HrLeavePeriodPolicy;
+use App\Policies\HrLeaveRequestPolicy;
+use App\Policies\HrLeaveTypePolicy;
 use App\Policies\InventoryCycleCountPolicy;
 use App\Policies\InventoryLocationPolicy;
 use App\Policies\InventoryLotPolicy;
@@ -131,6 +139,10 @@ class AuthServiceProvider extends ServiceProvider
         HrEmployee::class => HrEmployeePolicy::class,
         HrEmployeeContract::class => HrEmployeeContractPolicy::class,
         HrEmployeeDocument::class => HrEmployeeDocumentPolicy::class,
+        HrLeaveType::class => HrLeaveTypePolicy::class,
+        HrLeavePeriod::class => HrLeavePeriodPolicy::class,
+        HrLeaveAllocation::class => HrLeaveAllocationPolicy::class,
+        HrLeaveRequest::class => HrLeaveRequestPolicy::class,
         InventoryCycleCount::class => InventoryCycleCountPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
