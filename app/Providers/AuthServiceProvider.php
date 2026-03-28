@@ -20,6 +20,9 @@ use App\Modules\Accounting\Models\AccountingInvoice;
 use App\Modules\Accounting\Models\AccountingManualJournal;
 use App\Modules\Accounting\Models\AccountingPayment;
 use App\Modules\Approvals\Models\ApprovalRequest;
+use App\Modules\Hr\Models\HrEmployee;
+use App\Modules\Hr\Models\HrEmployeeContract;
+use App\Modules\Hr\Models\HrEmployeeDocument;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Inventory\Models\InventoryCycleCount;
@@ -53,6 +56,9 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\CurrencyPolicy;
+use App\Policies\HrEmployeeContractPolicy;
+use App\Policies\HrEmployeeDocumentPolicy;
+use App\Policies\HrEmployeePolicy;
 use App\Policies\InventoryCycleCountPolicy;
 use App\Policies\InventoryLocationPolicy;
 use App\Policies\InventoryLotPolicy;
@@ -122,6 +128,9 @@ class AuthServiceProvider extends ServiceProvider
         AccountingInvoice::class => AccountingInvoicePolicy::class,
         AccountingManualJournal::class => AccountingManualJournalPolicy::class,
         AccountingPayment::class => AccountingPaymentPolicy::class,
+        HrEmployee::class => HrEmployeePolicy::class,
+        HrEmployeeContract::class => HrEmployeeContractPolicy::class,
+        HrEmployeeDocument::class => HrEmployeeDocumentPolicy::class,
         InventoryCycleCount::class => InventoryCycleCountPolicy::class,
         InventoryWarehouse::class => InventoryWarehousePolicy::class,
         InventoryLocation::class => InventoryLocationPolicy::class,
