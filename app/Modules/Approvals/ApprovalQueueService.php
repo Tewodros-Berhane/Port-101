@@ -10,8 +10,10 @@ use App\Modules\Approvals\Models\ApprovalRequest;
 use App\Modules\Approvals\Models\ApprovalStep;
 use App\Modules\Hr\HrAttendanceService;
 use App\Modules\Hr\HrLeaveService;
+use App\Modules\Hr\HrReimbursementService;
 use App\Modules\Hr\Models\HrAttendanceRequest;
 use App\Modules\Hr\Models\HrLeaveRequest;
+use App\Modules\Hr\Models\HrReimbursementClaim;
 use App\Modules\Inventory\InventoryCycleCountService;
 use App\Modules\Inventory\Models\InventoryCycleCount;
 use App\Modules\Projects\Models\ProjectBillable;
@@ -35,6 +37,7 @@ class ApprovalQueueService
         private readonly InventoryCycleCountService $inventoryCycleCountService,
         private readonly HrAttendanceService $hrAttendanceService,
         private readonly HrLeaveService $hrLeaveService,
+        private readonly HrReimbursementService $hrReimbursementService,
     ) {}
 
     public function syncPendingRequests(Company $company, ?string $actorId = null): void
@@ -47,6 +50,7 @@ class ApprovalQueueService
         $this->syncInventoryCycleCountRequests($company, $actorId);
         $this->syncHrLeaveRequests($company, $actorId);
         $this->syncHrAttendanceRequests($company, $actorId);
+        $this->syncHrReimbursementRequests($company, $actorId);
     }
 
     /**
@@ -211,6 +215,64 @@ class ApprovalQueueService
                 $source = $this->hrLeaveService->approve($source, $actor->id);
             } elseif ($source instanceof HrAttendanceRequest) {
                 $source = $this->hrAttendanceService->approve($source, $actor->id);
+            } elseif ($source instanceof HrReimbursementClaim) {
+                $source = $this->hrReimbursementService->approve($source, $actor->id);
+                $payload = $this->buildPayload(
+                    company: Company::query()->findOrFail($request->company_id),
+                    module: ApprovalRequest::MODULE_HR,
+                    action: ApprovalRequest::ACTION_HR_REIMBURSEMENT_APPROVAL,
+                    source: $source,
+                    actorId: $actor->id,
+                );
+
+                if (in_array($source->status, [
+                    HrReimbursementClaim::STATUS_SUBMITTED,
+                    HrReimbursementClaim::STATUS_MANAGER_APPROVED,
+                ], true)) {
+                    $this->recordDecisionStep(
+                        request: $request,
+                        status: ApprovalStep::STATUS_APPROVED,
+                        approverId: $actor->id,
+                        notes: null,
+                        actorId: $actor->id,
+                        actedAt: $now,
+                    );
+
+                    $request->update([
+                        ...$payload,
+                        'status' => ApprovalRequest::STATUS_PENDING,
+                        'approved_by_user_id' => null,
+                        'approved_at' => null,
+                        'rejected_by_user_id' => null,
+                        'rejected_at' => null,
+                        'rejection_reason' => null,
+                        'updated_by' => $actor->id,
+                    ]);
+
+                    $this->appendPendingStep($request, $actor->id);
+
+                    return;
+                }
+
+                $this->markApproved(
+                    request: $request,
+                    approverId: $actor->id,
+                    approvedAt: $source->approved_at ?? $now,
+                    actorId: $actor->id,
+                    preservePayload: false,
+                    payload: $payload,
+                );
+
+                $this->recordDecisionStep(
+                    request: $request,
+                    status: ApprovalStep::STATUS_APPROVED,
+                    approverId: $actor->id,
+                    notes: null,
+                    actorId: $actor->id,
+                    actedAt: $source->approved_at ?? $now,
+                );
+
+                return;
             }
 
             $this->markApproved(
@@ -307,6 +369,35 @@ class ApprovalQueueService
                 $source = $this->hrLeaveService->reject($source, $reason, $actor->id);
             } elseif ($source instanceof HrAttendanceRequest) {
                 $source = $this->hrAttendanceService->reject($source, $reason, $actor->id);
+            } elseif ($source instanceof HrReimbursementClaim) {
+                $source = $this->hrReimbursementService->reject($source, $reason, $actor->id);
+
+                $this->markRejected(
+                    request: $request,
+                    rejectorId: $actor->id,
+                    rejectedAt: $source->rejected_at ?? $now,
+                    reason: $reason,
+                    actorId: $actor->id,
+                    preservePayload: false,
+                    payload: $this->buildPayload(
+                        company: Company::query()->findOrFail($request->company_id),
+                        module: ApprovalRequest::MODULE_HR,
+                        action: ApprovalRequest::ACTION_HR_REIMBURSEMENT_APPROVAL,
+                        source: $source,
+                        actorId: $actor->id,
+                    ),
+                );
+
+                $this->recordDecisionStep(
+                    request: $request,
+                    status: ApprovalStep::STATUS_REJECTED,
+                    approverId: $actor->id,
+                    notes: $reason,
+                    actorId: $actor->id,
+                    actedAt: $source->rejected_at ?? $now,
+                );
+
+                return;
             }
 
             $this->markRejected(
@@ -631,6 +722,50 @@ class ApprovalQueueService
         );
     }
 
+    private function syncHrReimbursementRequests(Company $company, ?string $actorId = null): void
+    {
+        $sourceType = HrReimbursementClaim::class;
+
+        $trackedSourceIds = ApprovalRequest::query()
+            ->where('company_id', $company->id)
+            ->where('source_type', $sourceType)
+            ->pluck('source_id');
+
+        $claims = HrReimbursementClaim::query()
+            ->where('company_id', $company->id)
+            ->where(function ($query) use ($trackedSourceIds): void {
+                $query->whereIn('status', [
+                    HrReimbursementClaim::STATUS_SUBMITTED,
+                    HrReimbursementClaim::STATUS_MANAGER_APPROVED,
+                ]);
+
+                if ($trackedSourceIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $trackedSourceIds->all());
+                }
+            })
+            ->get();
+
+        $this->syncRequestsForSources(
+            company: $company,
+            sources: $claims,
+            sourceType: $sourceType,
+            module: ApprovalRequest::MODULE_HR,
+            action: ApprovalRequest::ACTION_HR_REIMBURSEMENT_APPROVAL,
+            isPending: fn (HrReimbursementClaim $claim) => in_array($claim->status, [
+                HrReimbursementClaim::STATUS_SUBMITTED,
+                HrReimbursementClaim::STATUS_MANAGER_APPROVED,
+            ], true),
+            isApproved: fn (HrReimbursementClaim $claim) => in_array($claim->status, [
+                HrReimbursementClaim::STATUS_FINANCE_APPROVED,
+                HrReimbursementClaim::STATUS_POSTED,
+                HrReimbursementClaim::STATUS_PAID,
+            ], true),
+            isRejected: fn (HrReimbursementClaim $claim) => $claim->status === HrReimbursementClaim::STATUS_REJECTED,
+            allowRejectedReopen: true,
+            actorId: $actorId,
+        );
+    }
+
     /**
      * @param  Collection<int, Model>  $sources
      * @param  callable(Model): bool  $isPending
@@ -867,17 +1002,21 @@ class ApprovalQueueService
             'source_type' => $source::class,
             'source_id' => (string) $source->getKey(),
             'source_number' => $this->sourceNumber($source),
-            'requested_by_user_id' => $source instanceof HrLeaveRequest || $source instanceof HrAttendanceRequest
+            'requested_by_user_id' => $source instanceof HrLeaveRequest
+                || $source instanceof HrAttendanceRequest
+                || $source instanceof HrReimbursementClaim
                 ? ($source->requested_by_user_id ?: $source->getAttribute('created_by') ?: null)
                 : ($source->getAttribute('created_by') ?: null),
             'requested_at' => $source->getAttribute('created_at') ?: now(),
             'amount' => $amount,
-            'currency_code' => (string) ($company->currency_code ?: 'USD'),
+            'currency_code' => (string) ($source->getAttribute('currency_code') ?: $company->currency_code ?: 'USD'),
             'risk_level' => $this->riskLevelForAmount($amount),
             'metadata' => [
                 'source_status' => $this->sourceStatus($source),
                 'source_reference' => $this->sourceNumber($source),
-                'approver_user_id' => $source instanceof HrLeaveRequest || $source instanceof HrAttendanceRequest
+                'approver_user_id' => $source instanceof HrLeaveRequest
+                    || $source instanceof HrAttendanceRequest
+                    || $source instanceof HrReimbursementClaim
                     ? $source->approver_user_id
                     : null,
             ],
@@ -920,6 +1059,10 @@ class ApprovalQueueService
             return (string) $source->request_number;
         }
 
+        if ($source instanceof HrReimbursementClaim) {
+            return (string) $source->claim_number;
+        }
+
         return null;
     }
 
@@ -955,6 +1098,10 @@ class ApprovalQueueService
 
             if ($source instanceof HrAttendanceRequest) {
                 return (float) Carbon::parse($source->from_date)->diffInDays(Carbon::parse($source->to_date)) + 1.0;
+            }
+
+            if ($source instanceof HrReimbursementClaim) {
+                return round((float) $source->total_amount, 2);
             }
 
             return null;
@@ -1052,6 +1199,9 @@ class ApprovalQueueService
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             HrAttendanceRequest::class => HrAttendanceRequest::query()
+                ->where('company_id', $request->company_id)
+                ->find($request->source_id),
+            HrReimbursementClaim::class => HrReimbursementClaim::query()
                 ->where('company_id', $request->company_id)
                 ->find($request->source_id),
             default => null,

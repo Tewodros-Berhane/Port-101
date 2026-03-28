@@ -62,6 +62,8 @@ class ApprovalRequest extends Model
 
     public const ACTION_HR_ATTENDANCE_APPROVAL = 'hr_attendance_approval';
 
+    public const ACTION_HR_REIMBURSEMENT_APPROVAL = 'hr_reimbursement_approval';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_APPROVED = 'approved';

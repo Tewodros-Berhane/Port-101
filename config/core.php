@@ -179,6 +179,21 @@ return [
             'address' => [],
             'product' => [],
             'project' => [],
+            'hr_reimbursement_receipt' => [
+                'mime_types' => [
+                    'application/pdf',
+                    'image/png',
+                    'image/jpeg',
+                    'image/webp',
+                ],
+                'extensions' => [
+                    'pdf',
+                    'png',
+                    'jpg',
+                    'jpeg',
+                    'webp',
+                ],
+            ],
             'manual_journal' => [
                 'mime_types' => [
                     'application/pdf',

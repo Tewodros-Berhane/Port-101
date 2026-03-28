@@ -8,6 +8,7 @@ use App\Modules\Hr\Models\HrAttendanceRequest;
 use App\Modules\Hr\Models\HrEmployee;
 use App\Modules\Hr\Models\HrLeaveAllocation;
 use App\Modules\Hr\Models\HrLeaveRequest;
+use App\Modules\Hr\Models\HrReimbursementClaim;
 
 trait InteractsWithHrAccess
 {
@@ -106,6 +107,41 @@ trait InteractsWithHrAccess
         }
 
         $employee = $attendanceRequest->employee;
+
+        if (! $employee instanceof HrEmployee) {
+            return false;
+        }
+
+        return $this->isManagerOfEmployee($user, $employee)
+            || $user->canAccessDataScopedRecord($employee);
+    }
+
+    protected function canViewReimbursementClaim(User $user, HrReimbursementClaim $claim): bool
+    {
+        $employee = $claim->employee;
+
+        return ($employee instanceof HrEmployee && $this->canViewEmployeeRecord($user, $employee))
+            || (string) $claim->requested_by_user_id === (string) $user->id
+            || (string) $claim->approver_user_id === (string) $user->id
+            || (string) $claim->manager_approver_user_id === (string) $user->id
+            || (string) $claim->finance_approver_user_id === (string) $user->id;
+    }
+
+    protected function canApproveReimbursementClaim(User $user, HrReimbursementClaim $claim): bool
+    {
+        if ((string) $claim->requested_by_user_id === (string) $user->id) {
+            return false;
+        }
+
+        if (in_array((string) $user->id, [
+            (string) $claim->approver_user_id,
+            (string) $claim->manager_approver_user_id,
+            (string) $claim->finance_approver_user_id,
+        ], true)) {
+            return true;
+        }
+
+        $employee = $claim->employee;
 
         if (! $employee instanceof HrEmployee) {
             return false;

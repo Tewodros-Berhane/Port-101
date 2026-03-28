@@ -29,6 +29,8 @@ use App\Modules\Hr\Models\HrLeaveAllocation;
 use App\Modules\Hr\Models\HrLeavePeriod;
 use App\Modules\Hr\Models\HrLeaveRequest;
 use App\Modules\Hr\Models\HrLeaveType;
+use App\Modules\Hr\Models\HrReimbursementCategory;
+use App\Modules\Hr\Models\HrReimbursementClaim;
 use App\Modules\Hr\Models\HrShift;
 use App\Modules\Hr\Models\HrShiftAssignment;
 use App\Modules\Integrations\Models\WebhookDelivery;
@@ -73,6 +75,8 @@ use App\Policies\HrLeaveAllocationPolicy;
 use App\Policies\HrLeavePeriodPolicy;
 use App\Policies\HrLeaveRequestPolicy;
 use App\Policies\HrLeaveTypePolicy;
+use App\Policies\HrReimbursementCategoryPolicy;
+use App\Policies\HrReimbursementClaimPolicy;
 use App\Policies\HrShiftAssignmentPolicy;
 use App\Policies\HrShiftPolicy;
 use App\Policies\InventoryCycleCountPolicy;
@@ -151,6 +155,8 @@ class AuthServiceProvider extends ServiceProvider
         HrLeavePeriod::class => HrLeavePeriodPolicy::class,
         HrLeaveAllocation::class => HrLeaveAllocationPolicy::class,
         HrLeaveRequest::class => HrLeaveRequestPolicy::class,
+        HrReimbursementCategory::class => HrReimbursementCategoryPolicy::class,
+        HrReimbursementClaim::class => HrReimbursementClaimPolicy::class,
         HrShift::class => HrShiftPolicy::class,
         HrShiftAssignment::class => HrShiftAssignmentPolicy::class,
         HrAttendanceRecord::class => HrAttendanceRecordPolicy::class,
