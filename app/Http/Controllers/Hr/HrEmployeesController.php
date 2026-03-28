@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\HrEmployeeStoreRequest;
 use App\Http\Requests\Hr\HrEmployeeUpdateRequest;
 use App\Models\User;
+use App\Modules\Hr\HrEmployeeAccessService;
 use App\Modules\Hr\HrEmployeeService;
 use App\Modules\Hr\HrWorkspaceService;
 use App\Modules\Hr\Models\HrEmployee;
@@ -226,6 +227,7 @@ class HrEmployeesController extends Controller
                 'code' => $currency->code,
                 'name' => $currency->name,
             ])->values()->all(),
+            'accessRoles' => $workspaceService->accessRoleOptions($request->user()?->current_company_id),
             'employeeFormOptions' => [
                 'departments' => $workspaceService->departmentOptions(),
                 'designations' => $workspaceService->designationOptions(),
@@ -307,6 +309,65 @@ class HrEmployeesController extends Controller
         return redirect()
             ->route('company.hr.employees.index')
             ->with('success', 'Employee deleted.');
+    }
+
+    public function resendInvite(HrEmployee $employee, Request $request, HrEmployeeAccessService $employeeAccessService): RedirectResponse
+    {
+        $this->authorize('manageAccess', $employee);
+
+        $employeeAccessService->resendInvite($employee, $request->user());
+
+        return redirect()
+            ->route('company.hr.employees.show', $employee)
+            ->with('success', 'Employee invite resend queued.');
+    }
+
+    public function cancelInvite(HrEmployee $employee, Request $request, HrEmployeeAccessService $employeeAccessService): RedirectResponse
+    {
+        $this->authorize('manageAccess', $employee);
+
+        $employeeAccessService->cancelInvite($employee, $request->user());
+
+        return redirect()
+            ->route('company.hr.employees.show', $employee)
+            ->with('success', 'Employee invite canceled.');
+    }
+
+    public function deactivateAccess(HrEmployee $employee, Request $request, HrEmployeeAccessService $employeeAccessService): RedirectResponse
+    {
+        $this->authorize('manageAccess', $employee);
+
+        $employeeAccessService->deactivate($employee, $request->user());
+
+        return redirect()
+            ->route('company.hr.employees.show', $employee)
+            ->with('success', 'Employee system access deactivated.');
+    }
+
+    public function reactivateAccess(HrEmployee $employee, Request $request, HrEmployeeAccessService $employeeAccessService): RedirectResponse
+    {
+        $this->authorize('manageAccess', $employee);
+
+        $employeeAccessService->reactivate($employee, $request->user());
+
+        return redirect()
+            ->route('company.hr.employees.show', $employee)
+            ->with('success', 'Employee system access reactivated.');
+    }
+
+    public function updateAccessRole(HrEmployee $employee, Request $request, HrEmployeeAccessService $employeeAccessService): RedirectResponse
+    {
+        $this->authorize('manageAccess', $employee);
+
+        $validated = $request->validate([
+            'role_id' => ['required', 'uuid'],
+        ]);
+
+        $employeeAccessService->updateRole($employee, (string) $validated['role_id'], $request->user());
+
+        return redirect()
+            ->route('company.hr.employees.show', $employee)
+            ->with('success', 'Employee system role updated.');
     }
 
     private function employeeFormDefaults(Request $request): array

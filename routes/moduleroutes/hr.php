@@ -43,6 +43,16 @@ Route::prefix('hr')->name('hr.')->group(function () {
         ->name('employees.update');
     Route::delete('employees/{employee}', [HrEmployeesController::class, 'destroy'])
         ->name('employees.destroy');
+    Route::post('employees/{employee}/access/resend', [HrEmployeesController::class, 'resendInvite'])
+        ->name('employees.access.resend');
+    Route::delete('employees/{employee}/access/invite', [HrEmployeesController::class, 'cancelInvite'])
+        ->name('employees.access.cancel');
+    Route::patch('employees/{employee}/access/deactivate', [HrEmployeesController::class, 'deactivateAccess'])
+        ->name('employees.access.deactivate');
+    Route::post('employees/{employee}/access/reactivate', [HrEmployeesController::class, 'reactivateAccess'])
+        ->name('employees.access.reactivate');
+    Route::patch('employees/{employee}/access/role', [HrEmployeesController::class, 'updateAccessRole'])
+        ->name('employees.access.role');
 
     Route::post('employees/{employee}/contracts', [HrEmployeeContractsController::class, 'store'])
         ->name('contracts.store');

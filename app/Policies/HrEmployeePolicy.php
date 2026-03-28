@@ -37,6 +37,12 @@ class HrEmployeePolicy
         return $this->update($user, $employee);
     }
 
+    public function manageAccess(User $user, HrEmployee $employee): bool
+    {
+        return $this->update($user, $employee)
+            && $user->hasPermission('hr.employee_access.manage');
+    }
+
     public function viewPrivate(User $user, HrEmployee $employee): bool
     {
         return $this->view($user, $employee)
