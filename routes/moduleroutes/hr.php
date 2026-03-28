@@ -4,6 +4,10 @@ use App\Http\Controllers\Hr\HrDashboardController;
 use App\Http\Controllers\Hr\HrEmployeeContractsController;
 use App\Http\Controllers\Hr\HrEmployeeDocumentsController;
 use App\Http\Controllers\Hr\HrEmployeesController;
+use App\Http\Controllers\Hr\HrLeaveAllocationsController;
+use App\Http\Controllers\Hr\HrLeavePeriodsController;
+use App\Http\Controllers\Hr\HrLeaveRequestsController;
+use App\Http\Controllers\Hr\HrLeaveTypesController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('hr', [HrDashboardController::class, 'index'])
@@ -38,4 +42,50 @@ Route::prefix('hr')->name('hr.')->group(function () {
         ->name('documents.download');
     Route::delete('documents/{document}', [HrEmployeeDocumentsController::class, 'destroy'])
         ->name('documents.destroy');
+
+    Route::get('leave', [HrLeaveRequestsController::class, 'index'])
+        ->name('leave.index');
+    Route::get('leave/requests/create', [HrLeaveRequestsController::class, 'create'])
+        ->name('leave.requests.create');
+    Route::post('leave/requests', [HrLeaveRequestsController::class, 'store'])
+        ->name('leave.requests.store');
+    Route::get('leave/requests/{leaveRequest}/edit', [HrLeaveRequestsController::class, 'edit'])
+        ->name('leave.requests.edit');
+    Route::put('leave/requests/{leaveRequest}', [HrLeaveRequestsController::class, 'update'])
+        ->name('leave.requests.update');
+    Route::post('leave/requests/{leaveRequest}/submit', [HrLeaveRequestsController::class, 'submit'])
+        ->name('leave.requests.submit');
+    Route::post('leave/requests/{leaveRequest}/approve', [HrLeaveRequestsController::class, 'approve'])
+        ->name('leave.requests.approve');
+    Route::post('leave/requests/{leaveRequest}/reject', [HrLeaveRequestsController::class, 'reject'])
+        ->name('leave.requests.reject');
+    Route::post('leave/requests/{leaveRequest}/cancel', [HrLeaveRequestsController::class, 'cancel'])
+        ->name('leave.requests.cancel');
+
+    Route::get('leave/types/create', [HrLeaveTypesController::class, 'create'])
+        ->name('leave.types.create');
+    Route::post('leave/types', [HrLeaveTypesController::class, 'store'])
+        ->name('leave.types.store');
+    Route::get('leave/types/{leaveType}/edit', [HrLeaveTypesController::class, 'edit'])
+        ->name('leave.types.edit');
+    Route::put('leave/types/{leaveType}', [HrLeaveTypesController::class, 'update'])
+        ->name('leave.types.update');
+
+    Route::get('leave/periods/create', [HrLeavePeriodsController::class, 'create'])
+        ->name('leave.periods.create');
+    Route::post('leave/periods', [HrLeavePeriodsController::class, 'store'])
+        ->name('leave.periods.store');
+    Route::get('leave/periods/{leavePeriod}/edit', [HrLeavePeriodsController::class, 'edit'])
+        ->name('leave.periods.edit');
+    Route::put('leave/periods/{leavePeriod}', [HrLeavePeriodsController::class, 'update'])
+        ->name('leave.periods.update');
+
+    Route::get('leave/allocations/create', [HrLeaveAllocationsController::class, 'create'])
+        ->name('leave.allocations.create');
+    Route::post('leave/allocations', [HrLeaveAllocationsController::class, 'store'])
+        ->name('leave.allocations.store');
+    Route::get('leave/allocations/{allocation}/edit', [HrLeaveAllocationsController::class, 'edit'])
+        ->name('leave.allocations.edit');
+    Route::put('leave/allocations/{allocation}', [HrLeaveAllocationsController::class, 'update'])
+        ->name('leave.allocations.update');
 });

@@ -157,6 +157,7 @@
 - Projects/Services project files and activity feed implemented: project detail pages now expose project-scoped file upload/download/delete actions, file events are written into project audit activity, and the project detail UI now surfaces both recent activity and project files without relying on the broader core attachment routes.
 - Projects/Services project notifications implemented: project provisioning, task assignment, timesheet submission/approval/rejection, and recurring billing failure notifications now flow through the in-app notifications system with project-aware deep links and severity/context metadata.
 - HR / People Ops Phase 1 implemented: employee foundation schema now covers departments, designations, employee profiles, contracts, and employee documents; company HR roles and permissions are seeded; and `/company/hr` now exposes the initial employee dashboard plus employee, contract, and document workflows with policy coverage.
+- HR / People Ops Phase 2 implemented: leave management now covers leave types, leave periods, allocations, leave requests, self-service submission, overlap and balance validation, manager/HR approval routing, approval-queue sync, allocation balance updates, cancellation handling, and the dedicated `/company/hr/leave` workspace.
 
 ## Deferred / Out of Scope
 
@@ -223,7 +224,7 @@
 - Full demo-company seed data is now available via `php artisan db:seed --class=Database\\Seeders\\DemoCompanyWorkflowSeeder` for presentation and end-to-end workflow demos, including accounting ledger/account/journal setup and financial-statement-ready postings.
 - Company settings and API settings payloads now expose a dedicated manual-journal approval threshold override alongside the shared approval defaults.
 - Projects module is now live at `/company/projects` with a dashboard, searchable workspace list, recurring billing management, project detail pages, project/task CRUD, timesheet approvals, milestone tracking, billables review, and draft invoice handoff for delivery teams with role-aware access.
-- HR module is now live at `/company/hr` with the initial people-ops dashboard, employee profile CRUD, private employee-data gating, contract management, employee document upload/download flows, and company-scoped HR roles for HR managers, HR officers, line managers, payroll managers, and self-service employees.
+- HR module is now live at `/company/hr` with the people-ops dashboard, employee profile CRUD, private employee-data gating, contract management, employee document upload/download flows, leave types/periods/allocations, self-service leave requests, approval-routed leave decisions, and company-scoped HR roles for HR managers, HR officers, line managers, payroll managers, and self-service employees.
 - Confirmed service orders now provision a linked project workspace automatically, so service delivery can move from Sales into Projects without manual project setup.
 - API v1 now exposes the Projects workspace for integrations with project CRUD plus nested task and timesheet workflow endpoints under `/api/v1/projects`.
 - API v1 now exposes the Sales workspace for integrations under `/api/v1/sales`, including approval-aware quote/order actions and downstream project provisioning on confirmed service orders.
@@ -242,8 +243,8 @@
 - Command executed: `php -d memory_limit=512M vendor/bin/pest`.
 - Test runtime uses PostgreSQL test DB (`phpunit.xml` sets `DB_CONNECTION=pgsql`, `DB_DATABASE=port_101_test`).
 - Local verification status: suite executes on PostgreSQL and is fully passing.
-- Latest full-suite count: `286 passed`, `0 failed`.
-- Result summary after latest implementation: HR Phase 1 now adds employee, contract, and employee-document foundations with company-scoped HR roles and the initial `/company/hr` workspace; attachment uploads/downloads continue to enforce context-aware allowlists, queued malware-scan state, and quarantine-aware download blocking; API v1 adds authenticated rate limiting and webhook target restrictions for HTTPS/local/private-address safety; and production hardening includes structured logging plus end-to-end request correlation IDs across HTTP, queue, and scheduler paths, a platform queue-health dashboard with failed-job retry/forget tooling, backlog visibility, dead-letter webhook recovery, failed report-export retry operations, operational alerting with configurable thresholds and persisted incidents, backup/recovery foundations with restore smoke checks, clean-environment sign-off tooling, seeded local restore-signoff rehearsal, hot-path performance-index and audit tooling, explicit `default` versus `rehearsal` load-validation profiles, a passing seeded local k6 rehearsal with retained sign-off evidence, a dedicated load-test token helper for company-scoped Sanctum issuance, nightly and long-running integration CI automation, and poison-message triage/discard handling on the full PostgreSQL-backed suite.
+- Latest full-suite count: `289 passed`, `0 failed`.
+- Result summary after latest implementation: HR Phase 2 now adds leave-management foundations with leave types, periods, allocations, self-service leave requests, approval-routed HR leave decisions, approval-queue synchronization, allocation balance updates, and the dedicated `/company/hr/leave` workspace; the PostgreSQL-backed suite remains fully passing across the broader platform, module, API, integration, and operational-hardening coverage.
 
 ## Suggestions
 

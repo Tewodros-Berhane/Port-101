@@ -67,6 +67,9 @@ export default function HrIndex({ summary, recentEmployees, contractsEndingSoon,
                         </Button>
                     )}
                     <Button variant="outline" asChild>
+                        <Link href="/company/hr/leave">Leave workspace</Link>
+                    </Button>
+                    <Button variant="outline" asChild>
                         <Link href="/company/hr/employees">Employee workspace</Link>
                     </Button>
                 </div>
