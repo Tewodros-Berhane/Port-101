@@ -65,8 +65,6 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
             Route::get('users', [CompanyUsersController::class, 'index'])
                 ->name('users.index');
-            Route::put('users/{membership}/role', [CompanyUsersController::class, 'updateRole'])
-                ->name('users.update-role');
 
             Route::get('roles', [CompanyRolesController::class, 'index'])
                 ->name('roles.index');
