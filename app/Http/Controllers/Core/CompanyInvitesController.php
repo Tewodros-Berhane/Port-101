@@ -70,14 +70,14 @@ class CompanyInvitesController extends Controller
         abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
 
         $data = $request->validated();
-        $expiresAt = $data['expires_at']
+        $expiresAt = ($data['expires_at'] ?? null)
             ? Carbon::parse($data['expires_at'])->endOfDay()
             : now()->addDays(14);
 
         $invite = Invite::create([
             'email' => $data['email'],
             'name' => $data['name'] ?? null,
-            'role' => $data['role'],
+            'role' => 'company_owner',
             'company_id' => $request->user()?->current_company_id,
             'token' => Str::random(40),
             'expires_at' => $expiresAt,
@@ -91,7 +91,7 @@ class CompanyInvitesController extends Controller
 
         return redirect()
             ->route('core.invites.index')
-            ->with('success', 'Invite created and queued for delivery.');
+            ->with('success', 'Owner invite created and queued for delivery.');
     }
 
     public function resend(Request $request, Invite $invite): RedirectResponse

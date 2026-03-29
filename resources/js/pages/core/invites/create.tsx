@@ -9,7 +9,6 @@ export default function CompanyInviteCreate() {
     const form = useForm({
         email: '',
         name: '',
-        role: 'company_member',
         expires_at: '',
     });
 
@@ -17,22 +16,37 @@ export default function CompanyInviteCreate() {
         <AppLayout
             breadcrumbs={[
                 { title: 'Company', href: '/company/dashboard' },
-                { title: 'Invites', href: '/core/invites' },
+                { title: 'Owner Invites', href: '/core/invites' },
                 { title: 'Create', href: '/core/invites/create' },
             ]}
         >
-            <Head title="New Invite" />
+            <Head title="New Owner Invite" />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-semibold">New invite</h1>
+                    <h1 className="text-xl font-semibold">New owner invite</h1>
                     <p className="text-sm text-muted-foreground">
-                        Invite a team member into this company.
+                        Use this screen only for additional company-owner
+                        access.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/invites">Back</Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/company/hr/employees/create">
+                            Add employee instead
+                        </Link>
+                    </Button>
+                    <Button variant="ghost" asChild>
+                        <Link href="/core/invites">Back</Link>
+                    </Button>
+                </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
+                Employee and non-owner app access is now created from HR
+                employees. Create the employee record first, enable system
+                access there, and let the employee flow issue the invite with
+                the correct app role.
             </div>
 
             <form
@@ -43,7 +57,7 @@ export default function CompanyInviteCreate() {
                 }}
             >
                 <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Owner email</Label>
                     <Input
                         id="email"
                         type="email"
@@ -57,7 +71,7 @@ export default function CompanyInviteCreate() {
                 </div>
 
                 <div className="grid gap-2">
-                    <Label htmlFor="name">Name (optional)</Label>
+                    <Label htmlFor="name">Owner name (optional)</Label>
                     <Input
                         id="name"
                         value={form.data.name}
@@ -66,22 +80,6 @@ export default function CompanyInviteCreate() {
                         }
                     />
                     <InputError message={form.errors.name} />
-                </div>
-
-                <div className="grid gap-2">
-                    <Label htmlFor="role">Role</Label>
-                    <select
-                        id="role"
-                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                        value={form.data.role}
-                        onChange={(event) =>
-                            form.setData('role', event.target.value)
-                        }
-                    >
-                        <option value="company_member">Company member</option>
-                        <option value="company_owner">Company owner</option>
-                    </select>
-                    <InputError message={form.errors.role} />
                 </div>
 
                 <div className="grid gap-2">
@@ -99,7 +97,7 @@ export default function CompanyInviteCreate() {
 
                 <div className="flex items-center gap-3">
                     <Button type="submit" disabled={form.processing}>
-                        Create invite
+                        Create owner invite
                     </Button>
                 </div>
             </form>

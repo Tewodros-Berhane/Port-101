@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\post;
@@ -147,7 +148,6 @@ test('company invites require manage users permission', function () {
         ->post(route('core.invites.store'), [
             'email' => 'new.'.Str::lower(Str::random(5)).'@example.com',
             'name' => 'New Invite',
-            'role' => 'company_member',
         ])
         ->assertForbidden();
 
@@ -169,7 +169,6 @@ test('company invites allow create resend and revoke with permission', function 
         ->post(route('core.invites.store'), [
             'email' => 'allowed.'.Str::lower(Str::random(5)).'@example.com',
             'name' => 'Allowed Invite',
-            'role' => 'company_member',
             'expires_at' => now()->addDays(5)->format('Y-m-d'),
         ])
         ->assertRedirect(route('core.invites.index'));
@@ -180,6 +179,7 @@ test('company invites allow create resend and revoke with permission', function 
         ->first();
 
     expect($invite)->not->toBeNull();
+    expect($invite->role)->toBe('company_owner');
 
     Mail::assertSent(InviteLinkMail::class);
     Mail::assertSentCount(1);
@@ -197,4 +197,26 @@ test('company invites allow create resend and revoke with permission', function 
     expect(
         DB::table('invites')->where('id', $invite->id)->exists()
     )->toBeFalse();
+});
+
+test('company invite store ignores non owner role payloads', function () {
+    Mail::fake();
+
+    [$user, $company] = makeCompanyUserWithInvitePermission(true);
+
+    actingAs($user)
+        ->post(route('core.invites.store'), [
+            'email' => 'owner.'.Str::lower(Str::random(5)).'@example.com',
+            'name' => 'Owner Invite',
+            'role' => 'company_member',
+        ])
+        ->assertRedirect(route('core.invites.index'));
+
+    $invite = Invite::query()
+        ->where('company_id', $company->id)
+        ->latest('created_at')
+        ->first();
+
+    expect($invite)->not->toBeNull();
+    expect($invite->role)->toBe('company_owner');
 });

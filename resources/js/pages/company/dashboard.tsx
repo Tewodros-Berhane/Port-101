@@ -98,15 +98,22 @@ type QuickAction = {
 
 const quickActions: QuickAction[] = [
     {
-        title: 'Invite teammate',
-        description: 'Send a company invite for owner or member onboarding.',
-        href: '/core/invites/create',
-        permission: 'core.users.manage',
+        title: 'Add employee',
+        description: 'Create an employee record and provision system access from HR.',
+        href: '/company/hr/employees/create',
+        permission: 'hr.employees.manage',
         icon: UserPlus,
     },
     {
+        title: 'Invite owner',
+        description: 'Send an owner-only invite for workspace ownership access.',
+        href: '/core/invites/create',
+        permission: 'core.users.manage',
+        icon: MailPlus,
+    },
+    {
         title: 'Manage users',
-        description: 'Assign roles and review current company members.',
+        description: 'Review current active system users and linked employees.',
         href: '/company/users',
         permission: 'core.users.manage',
         icon: Users,

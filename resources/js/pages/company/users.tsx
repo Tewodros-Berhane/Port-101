@@ -43,7 +43,7 @@ export default function CompanyUsers({ members }: Props) {
                         href="/core/invites"
                         className="text-sm font-medium text-primary"
                     >
-                        Manage invites
+                        Manage owner invites
                     </Link>
                 </div>
             </div>

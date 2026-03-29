@@ -27,7 +27,7 @@ const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
 const formatDate = (value?: string | null) =>
-    value ? new Date(value).toLocaleString() : '—';
+    value ? new Date(value).toLocaleString() : '-';
 
 export default function CompanyInvitesIndex({ invites }: Props) {
     const deleteForm = useForm({});
@@ -54,21 +54,36 @@ export default function CompanyInvitesIndex({ invites }: Props) {
         <AppLayout
             breadcrumbs={[
                 { title: 'Company', href: '/company/dashboard' },
-                { title: 'Invites', href: '/core/invites' },
+                { title: 'Owner Invites', href: '/core/invites' },
             ]}
         >
-            <Head title="Invites" />
+            <Head title="Owner Invites" />
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-semibold">Invites</h1>
+                    <h1 className="text-xl font-semibold">Owner invites</h1>
                     <p className="text-sm text-muted-foreground">
-                        Invite team members to your company.
+                        Use this screen for company-owner onboarding only.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/core/invites/create">New invite</Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/company/hr/employees/create">
+                            Add employee instead
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href="/core/invites/create">New owner invite</Link>
+                    </Button>
+                </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
+                Employee and non-owner app access now starts from HR employees.
+                Use the employee record to provision system access, assign app
+                roles, and manage resend, deactivation, reactivation, and role
+                changes. Existing legacy member invites remain visible here
+                until they are accepted or revoked.
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">
@@ -106,7 +121,7 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                                         {invite.email}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        {invite.name ?? '—'}
+                                        {invite.name ?? '-'}
                                     </div>
                                 </td>
                                 <td className="px-4 py-3">
@@ -212,7 +227,11 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                                 link.active
                                     ? 'border-primary text-primary'
                                     : 'text-muted-foreground'
-                            } ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
+                            } ${
+                                !link.url
+                                    ? 'pointer-events-none opacity-50'
+                                    : ''
+                            }`}
                             dangerouslySetInnerHTML={{ __html: link.label }}
                         />
                     ))}

@@ -63,7 +63,7 @@ const companyNavItems: NavItem[] = [
         permission: 'core.roles.view',
     },
     {
-        title: 'Invites',
+        title: 'Owner Invites',
         href: '/core/invites',
         icon: Mail,
         permission: 'core.users.manage',
