@@ -1,12 +1,14 @@
 <?php
 
 use App\Core\Access\Models\Invite;
+use App\Core\Company\Models\Company;
 use App\Mail\InviteLinkMail;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\get;
 use function Pest\Laravel\post;
 
 test('platform admin creation sends invite and shows pending invite on the admins page', function () {
@@ -97,6 +99,51 @@ test('platform admins page can cancel pending platform admin invites in place', 
         ->assertRedirect(route('platform.admin-users.index'));
 
     expect(Invite::query()->whereKey($invite->id)->exists())->toBeFalse();
+});
+
+test('generic platform invite pages are not available to superadmins', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    actingAs($superAdmin)
+        ->get('/platform/invites')
+        ->assertNotFound();
+
+    actingAs($superAdmin)
+        ->get('/platform/invites/create')
+        ->assertNotFound();
+});
+
+test('platform invite management endpoints reject company owner invites', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    $company = Company::create([
+        'name' => 'Owner Invite Company '.Str::upper(Str::random(4)),
+        'slug' => 'owner-invite-company-'.Str::lower(Str::random(8)),
+        'timezone' => config('app.timezone', 'UTC'),
+        'owner_id' => $superAdmin->id,
+    ]);
+
+    $invite = Invite::create([
+        'email' => 'owner-invite@example.com',
+        'name' => 'Owner Invite',
+        'role' => 'company_owner',
+        'company_id' => $company->id,
+        'token' => Str::random(40),
+        'expires_at' => now()->addDays(7),
+        'created_by' => $superAdmin->id,
+    ]);
+
+    actingAs($superAdmin)
+        ->post(route('platform.invites.resend', $invite))
+        ->assertNotFound();
+
+    actingAs($superAdmin)
+        ->delete(route('platform.invites.destroy', $invite))
+        ->assertNotFound();
 });
 
 test('accepting a platform admin invite promotes the recipient to superadmin', function () {

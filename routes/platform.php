@@ -58,10 +58,13 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->only(['index', 'create', 'store', 'show', 'update']);
         Route::resource('admin-users', PlatformAdminUsersController::class)
             ->only(['index', 'create', 'store']);
-        Route::resource('invites', PlatformInvitesController::class)
-            ->only(['index', 'create', 'store', 'destroy']);
+        Route::delete('invites/{invite}', [PlatformInvitesController::class, 'destroy'])
+            ->whereUuid('invite')
+            ->name('invites.destroy');
         Route::post('invites/{invite}/resend', [PlatformInvitesController::class, 'resend'])
+            ->whereUuid('invite')
             ->name('invites.resend');
         Route::post('invites/{invite}/retry-delivery', [PlatformInvitesController::class, 'retryDelivery'])
+            ->whereUuid('invite')
             ->name('invites.retry-delivery');
     });

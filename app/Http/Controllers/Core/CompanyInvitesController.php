@@ -17,7 +17,7 @@ class CompanyInvitesController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
+        $this->authorizeOwnerInviteManagement($request);
 
         $companyId = $request->user()?->current_company_id;
 
@@ -60,14 +60,14 @@ class CompanyInvitesController extends Controller
 
     public function create(Request $request): Response
     {
-        abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
+        $this->authorizeOwnerInviteManagement($request);
 
         return Inertia::render('core/invites/create');
     }
 
     public function store(CompanyInviteStoreRequest $request): RedirectResponse
     {
-        abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
+        $this->authorizeOwnerInviteManagement($request);
 
         $data = $request->validated();
         $expiresAt = ($data['expires_at'] ?? null)
@@ -96,7 +96,7 @@ class CompanyInvitesController extends Controller
 
     public function resend(Request $request, Invite $invite): RedirectResponse
     {
-        abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
+        $this->authorizeOwnerInviteManagement($request);
 
         if ($invite->company_id !== $request->user()?->current_company_id) {
             abort(403);
@@ -117,7 +117,7 @@ class CompanyInvitesController extends Controller
 
     public function retryDelivery(Request $request, Invite $invite): RedirectResponse
     {
-        abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
+        $this->authorizeOwnerInviteManagement($request);
 
         if ($invite->company_id !== $request->user()?->current_company_id) {
             abort(403);
@@ -138,7 +138,7 @@ class CompanyInvitesController extends Controller
 
     public function destroy(Request $request, Invite $invite): RedirectResponse
     {
-        abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
+        $this->authorizeOwnerInviteManagement($request);
 
         if ($invite->company_id !== $request->user()?->current_company_id) {
             abort(403);
@@ -160,5 +160,21 @@ class CompanyInvitesController extends Controller
         ])->save();
 
         SendInviteLinkMail::dispatch($invite->id);
+    }
+
+    private function authorizeOwnerInviteManagement(Request $request): void
+    {
+        $user = $request->user();
+
+        abort_unless($user?->hasPermission('core.users.manage'), 403);
+        abort_if($user?->is_super_admin, 403);
+        abort_unless($user?->current_company_id, 403);
+        abort_unless(
+            $user?->memberships()
+                ->where('company_id', $user->current_company_id)
+                ->where('is_owner', true)
+                ->exists(),
+            403,
+        );
     }
 }

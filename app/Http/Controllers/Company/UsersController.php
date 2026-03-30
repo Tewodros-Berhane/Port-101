@@ -15,6 +15,10 @@ class UsersController extends Controller
         abort_unless($request->user()?->hasPermission('core.users.manage'), 403);
 
         $company = $request->user()?->currentCompany;
+        $canManageOwnerInvites = (bool) $request->user()?->memberships()
+            ->where('company_id', $company?->id)
+            ->where('is_owner', true)
+            ->exists();
         $employeesByUserId = $company
             ? HrEmployee::query()
                 ->where('company_id', $company->id)
@@ -47,6 +51,7 @@ class UsersController extends Controller
 
         return Inertia::render('company/users', [
             'members' => $members,
+            'canManageOwnerInvites' => $canManageOwnerInvites,
         ]);
     }
 }

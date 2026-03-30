@@ -33,7 +33,7 @@ class InviteDeliveryFailedNotification extends Notification
         return [
             'title' => 'Invite delivery failed',
             'message' => "Invite email to {$this->inviteEmail} failed for {$this->contextLabel}.",
-            'url' => $this->isPlatformInvite ? '/platform/invites' : '/core/invites',
+            'url' => $this->isPlatformInvite ? '/platform/admin-users' : '/core/invites',
             'severity' => 'high',
             'meta' => [
                 'invite_email' => $this->inviteEmail,

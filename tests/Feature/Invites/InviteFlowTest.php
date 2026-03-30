@@ -63,6 +63,36 @@ function makeCompanyUserWithInvitePermission(bool $canManage): array
     return [$user, $company, $owner];
 }
 
+function makeCompanyOwnerUser(): array
+{
+    [$company, $owner] = makeCompanyWithCreator();
+
+    Permission::firstOrCreate(
+        ['slug' => 'core.users.manage'],
+        ['name' => 'Manage Users', 'group' => 'core']
+    );
+
+    $ownerRole = Role::firstOrCreate(
+        ['slug' => 'owner'],
+        [
+            'name' => 'Owner',
+            'description' => 'Owner role',
+            'company_id' => null,
+        ],
+    );
+
+    $company->users()->attach($owner->id, [
+        'role_id' => $ownerRole->id,
+        'is_owner' => true,
+    ]);
+
+    $owner->forceFill([
+        'current_company_id' => $company->id,
+    ])->save();
+
+    return [$owner, $company];
+}
+
 test('invite token acceptance provisions account and company membership', function () {
     [$company, $creator] = makeCompanyWithCreator();
 
@@ -163,7 +193,7 @@ test('company invites require manage users permission', function () {
 test('company invites allow create resend and revoke with permission', function () {
     Mail::fake();
 
-    [$user, $company] = makeCompanyUserWithInvitePermission(true);
+    [$user, $company] = makeCompanyOwnerUser();
 
     actingAs($user)
         ->post(route('core.invites.store'), [
@@ -199,10 +229,63 @@ test('company invites allow create resend and revoke with permission', function 
     )->toBeFalse();
 });
 
+test('company invites require owner membership even when the user can manage users', function () {
+    [$user, $company, $owner] = makeCompanyUserWithInvitePermission(true);
+
+    $invite = Invite::create([
+        'email' => 'non-owner-blocked.'.Str::lower(Str::random(5)).'@example.com',
+        'name' => 'Non Owner Blocked',
+        'role' => 'company_owner',
+        'company_id' => $company->id,
+        'token' => Str::random(40),
+        'expires_at' => now()->addDays(7),
+        'created_by' => $owner->id,
+    ]);
+
+    actingAs($user)
+        ->get(route('core.invites.index'))
+        ->assertForbidden();
+
+    actingAs($user)
+        ->post(route('core.invites.store'), [
+            'email' => 'blocked.'.Str::lower(Str::random(5)).'@example.com',
+            'name' => 'Blocked Invite',
+        ])
+        ->assertForbidden();
+
+    actingAs($user)
+        ->post(route('core.invites.resend', $invite))
+        ->assertForbidden();
+
+    actingAs($user)
+        ->delete(route('core.invites.destroy', $invite))
+        ->assertForbidden();
+});
+
+test('superadmins cannot access company owner invite management', function () {
+    [$company] = makeCompanyWithCreator();
+
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+        'current_company_id' => $company->id,
+    ]);
+
+    actingAs($superAdmin)
+        ->get(route('core.invites.index'))
+        ->assertForbidden();
+
+    actingAs($superAdmin)
+        ->post(route('core.invites.store'), [
+            'email' => 'superadmin-blocked.'.Str::lower(Str::random(5)).'@example.com',
+            'name' => 'Superadmin Blocked',
+        ])
+        ->assertForbidden();
+});
+
 test('company invite store ignores non owner role payloads', function () {
     Mail::fake();
 
-    [$user, $company] = makeCompanyUserWithInvitePermission(true);
+    [$user, $company] = makeCompanyOwnerUser();
 
     actingAs($user)
         ->post(route('core.invites.store'), [

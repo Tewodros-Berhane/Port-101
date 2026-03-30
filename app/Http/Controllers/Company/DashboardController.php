@@ -174,6 +174,7 @@ class DashboardController extends Controller
                 $membership,
                 $company->currency_code
             ),
+            'canManageOwnerInvites' => (bool) $membership?->is_owner,
             'recentActivity' => $recentActivity,
         ]);
     }
