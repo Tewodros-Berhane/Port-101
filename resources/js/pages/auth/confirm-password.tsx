@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
+import AuthCardLayout from '@/layouts/auth/auth-card-layout';
 import { store } from '@/routes/password/confirm';
 
 export default function ConfirmPassword() {
     return (
-        <AuthLayout
+        <AuthCardLayout
             title="Confirm your password"
             description="This is a secure area of the application. Please confirm your password before continuing."
         >
@@ -45,6 +45,6 @@ export default function ConfirmPassword() {
                     </div>
                 )}
             </Form>
-        </AuthLayout>
+        </AuthCardLayout>
     );
 }

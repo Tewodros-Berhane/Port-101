@@ -1,4 +1,6 @@
-import AppLogoIcon from '@/components/app-logo-icon';
+import { Link } from '@inertiajs/react';
+import type { PropsWithChildren } from 'react';
+import AppLogo from '@/components/app-logo';
 import {
     Card,
     CardContent,
@@ -7,8 +9,6 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { home } from '@/routes';
-import { Link } from '@inertiajs/react';
-import type { PropsWithChildren } from 'react';
 
 export default function AuthCardLayout({
     children,
@@ -20,28 +20,29 @@ export default function AuthCardLayout({
     description?: string;
 }>) {
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
-            <div className="flex w-full max-w-md flex-col gap-6">
-                <Link
-                    href={home()}
-                    className="flex items-center gap-2 self-center font-medium"
-                >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md">
-                        <AppLogoIcon className="h-5 w-5 text-white" />
-                    </div>
-                </Link>
-
-                <div className="flex flex-col gap-6">
-                    <Card className="rounded-xl">
-                        <CardHeader className="px-10 pt-8 pb-0 text-center">
-                            <CardTitle className="text-xl">{title}</CardTitle>
-                            <CardDescription>{description}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="px-10 py-8">
-                            {children}
-                        </CardContent>
-                    </Card>
-                </div>
+        <div className="flex min-h-svh items-center justify-center bg-background px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+            <div className="w-full max-w-[30rem]">
+                <Card className="rounded-[var(--radius-hero)] border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-elevated)] shadow-[var(--shadow-md)]">
+                    <CardHeader className="gap-3 px-6 pt-6 pb-1 sm:px-7 sm:pt-7">
+                        <Link
+                            href={home()}
+                            className="inline-flex w-fit items-center"
+                        >
+                            <AppLogo />
+                        </Link>
+                        <CardTitle className="text-[1.55rem] leading-8 tracking-[-0.03em] text-foreground">
+                            {title}
+                        </CardTitle>
+                        {description ? (
+                            <CardDescription className="max-w-sm text-[13.5px] leading-6 text-[color:var(--text-secondary)]">
+                                {description}
+                            </CardDescription>
+                        ) : null}
+                    </CardHeader>
+                    <CardContent className="px-6 pt-1 pb-6 sm:px-7 sm:pb-7">
+                        {children}
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
