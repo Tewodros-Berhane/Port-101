@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     category: {
@@ -21,11 +23,8 @@ export default function HrReimbursementCategoryEdit({ category }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Reimbursements', href: '/company/hr/reimbursements' },
-                { title: 'Edit category', href: `/company/hr/reimbursements/categories/${category.id}/edit` },
-            ]}
+            breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Reimbursements', href: '/company/hr/reimbursements' },
+                { title: 'Edit category', href: `/company/hr/reimbursements/categories/${category.id}/edit` },)}
         >
             <Head title={`Edit ${category.name}`} />
 
@@ -36,9 +35,7 @@ export default function HrReimbursementCategoryEdit({ category }: Props) {
                         Update receipt requirements and default accounting references for this expense category.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/hr/reimbursements">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/hr/reimbursements" label="Back to reimbursements" variant="ghost" />
             </div>
 
             <form

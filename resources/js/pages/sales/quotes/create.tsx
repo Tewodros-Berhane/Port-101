@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import SalesLineItemsEditor, {
     type SalesLineItem,
 } from '@/components/sales/line-items-editor';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -49,12 +51,8 @@ export default function SalesQuoteCreate({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Sales', href: '/company/sales' },
-                { title: 'Quotes', href: '/company/sales/quotes' },
-                { title: 'Create', href: '/company/sales/quotes/create' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.sales, { title: 'Quotes', href: '/company/sales/quotes' },
+                { title: 'Create', href: '/company/sales/quotes/create' },)}
         >
             <Head title="New Quote" />
 
@@ -65,9 +63,7 @@ export default function SalesQuoteCreate({
                         Build quote lines and trigger approval based on policy.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/sales/quotes">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/sales/quotes" label="Back to quotes" variant="ghost" />
             </div>
 
             <form

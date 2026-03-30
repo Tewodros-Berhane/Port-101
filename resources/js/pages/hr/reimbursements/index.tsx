@@ -1,8 +1,13 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { ModalFormShell } from '@/components/modals/modal-form-shell';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Summary = {
     open_claims: number;
@@ -85,6 +90,23 @@ export default function HrReimbursementsIndex({
     abilities,
 }: Props) {
     const form = useForm(filters);
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const categoryForm = useForm({
+        name: '',
+        code: '',
+        default_expense_account_reference: '',
+        requires_receipt: false,
+        is_project_rebillable: false,
+    });
+
+    const closeCategoryModal = (open: boolean) => {
+        setShowCategoryModal(open);
+
+        if (!open) {
+            categoryForm.reset();
+            categoryForm.clearErrors();
+        }
+    };
 
     const rejectClaim = (claimId: string) => {
         const reason = window.prompt('Rejection reason (optional)', '');
@@ -98,11 +120,7 @@ export default function HrReimbursementsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Reimbursements', href: '/company/hr/reimbursements' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Reimbursements', href: '/company/hr/reimbursements' },)}
         >
             <Head title="Reimbursements workspace" />
 
@@ -115,12 +133,14 @@ export default function HrReimbursementsIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/hr">HR dashboard</Link>
-                        </Button>
+                        <BackLinkAction href="/company/hr" label="Back to HR" variant="outline" />
                         {abilities.can_manage_categories && (
-                            <Button variant="outline" asChild>
-                                <Link href="/company/hr/reimbursements/categories/create">New category</Link>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowCategoryModal(true)}
+                            >
+                                New category
                             </Button>
                         )}
                         {abilities.can_create_claim && (
@@ -130,6 +150,112 @@ export default function HrReimbursementsIndex({
                         )}
                     </div>
                 </div>
+
+                <ModalFormShell
+                    open={showCategoryModal}
+                    onOpenChange={closeCategoryModal}
+                    title="New reimbursement category"
+                    description="Create expense categories for travel, meals, subscriptions, and other reimbursable costs."
+                    className="sm:max-w-xl"
+                >
+                    <form
+                        className="grid gap-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            categoryForm.post(
+                                '/company/hr/reimbursements/categories',
+                                {
+                                    onSuccess: () => closeCategoryModal(false),
+                                },
+                            );
+                        }}
+                    >
+                        <Field label="Name" error={categoryForm.errors.name}>
+                            <Input
+                                value={categoryForm.data.name}
+                                onChange={(event) =>
+                                    categoryForm.setData(
+                                        'name',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </Field>
+                        <Field label="Code" error={categoryForm.errors.code}>
+                            <Input
+                                value={categoryForm.data.code}
+                                onChange={(event) =>
+                                    categoryForm.setData(
+                                        'code',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="Optional short code"
+                            />
+                        </Field>
+                        <Field
+                            label="Default expense account reference"
+                            error={
+                                categoryForm.errors
+                                    .default_expense_account_reference
+                            }
+                        >
+                            <Input
+                                value={
+                                    categoryForm.data
+                                        .default_expense_account_reference
+                                }
+                                onChange={(event) =>
+                                    categoryForm.setData(
+                                        'default_expense_account_reference',
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="Optional accounting reference"
+                            />
+                        </Field>
+                        <label className="flex items-center gap-2 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={categoryForm.data.requires_receipt}
+                                onChange={(event) =>
+                                    categoryForm.setData(
+                                        'requires_receipt',
+                                        event.target.checked,
+                                    )
+                                }
+                            />
+                            Receipt required
+                        </label>
+                        <label className="flex items-center gap-2 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={
+                                    categoryForm.data.is_project_rebillable
+                                }
+                                onChange={(event) =>
+                                    categoryForm.setData(
+                                        'is_project_rebillable',
+                                        event.target.checked,
+                                    )
+                                }
+                            />
+                            Allow project rebilling
+                        </label>
+                        <div className="flex items-center justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => closeCategoryModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={categoryForm.processing}>
+                                Create category
+                            </Button>
+                        </div>
+                    </form>
+                </ModalFormShell>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <Metric label="Open claims" value={summary.open_claims} />

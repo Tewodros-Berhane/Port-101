@@ -1,7 +1,9 @@
-﻿import { Badge } from '@/components/ui/badge';
+﻿import { Head, Link, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type AdminRow = {
     id: string;
@@ -70,10 +72,7 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Platform Admins', href: '/platform/admin-users' },
-            ]}
+            breadcrumbs={platformBreadcrumbs({ title: 'Platform Admins', href: '/platform/admin-users' },)}
         >
             <Head title="Platform Admins" />
 
@@ -86,11 +85,7 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/platform/invites?role=platform_admin">
-                            Open invites
-                        </Link>
-                    </Button>
+                    <BackLinkAction href="/platform/dashboard" label="Back to platform" variant="outline" />
                     <Button asChild>
                         <Link href="/platform/admin-users/create">
                             Invite platform admin

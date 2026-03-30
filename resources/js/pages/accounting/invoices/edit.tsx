@@ -1,13 +1,15 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import AccountingInvoiceLineItemsEditor, {
     type AccountingInvoiceLineInput,
 } from '@/components/accounting/invoice-line-items-editor';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Partner = {
     id: string;
@@ -93,15 +95,11 @@ export default function AccountingInvoiceEdit({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                { title: 'Invoices', href: '/company/accounting/invoices' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, { title: 'Invoices', href: '/company/accounting/invoices' },
                 {
                     title: invoice.invoice_number,
                     href: `/company/accounting/invoices/${invoice.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={invoice.invoice_number} />
 
@@ -119,9 +117,7 @@ export default function AccountingInvoiceEdit({
                             Register payment
                         </Link>
                     </Button>
-                    <Button variant="ghost" asChild>
-                        <Link href="/company/accounting/invoices">Back</Link>
-                    </Button>
+                    <BackLinkAction href="/company/accounting/invoices" label="Back to invoices" variant="ghost" />
                 </div>
             </div>
 

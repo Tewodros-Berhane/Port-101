@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -53,11 +55,8 @@ export default function ProductCreate({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Products', href: '/core/products' },
-                { title: 'Create', href: '/core/products/create' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Products', href: '/core/products' },
+                { title: 'Create', href: '/core/products/create' },)}
         >
             <Head title="New Product" />
 
@@ -68,9 +67,7 @@ export default function ProductCreate({
                         Add a product or service.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/products">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/products" label="Back to products" variant="ghost" />
             </div>
 
             <form

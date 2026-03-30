@@ -1,7 +1,9 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type DepartmentOption = {
     id: string;
@@ -53,10 +55,7 @@ export default function HrEmployeesIndex({ filters, statuses, departments, emplo
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Employees', href: '/company/hr/employees' },
-            ]}
+            breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Employees', href: '/company/hr/employees' },)}
         >
             <Head title="Employees" />
 
@@ -68,9 +67,7 @@ export default function HrEmployeesIndex({ filters, statuses, departments, emplo
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/hr">Dashboard</Link>
-                    </Button>
+                    <BackLinkAction href="/company/hr" label="Back to HR" variant="outline" />
                     {abilities.can_create_employee && (
                         <Button asChild>
                             <Link href="/company/hr/employees/create">New employee</Link>

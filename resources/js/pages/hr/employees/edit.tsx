@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -36,11 +38,8 @@ export default function HrEmployeeEdit({ employee, employeeId, statuses, employm
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Employees', href: '/company/hr/employees' },
-                { title: 'Edit', href: `/company/hr/employees/${employeeId}/edit` },
-            ]}
+            breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Employees', href: '/company/hr/employees' },
+                { title: 'Edit', href: `/company/hr/employees/${employeeId}/edit` },)}
         >
             <Head title="Edit employee" />
 
@@ -51,9 +50,11 @@ export default function HrEmployeeEdit({ employee, employeeId, statuses, employm
                         Update employee profile, approver defaults, and optional system access.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href={`/company/hr/employees/${employeeId}`}>Back</Link>
-                </Button>
+                <BackLinkAction
+                    href={`/company/hr/employees/${employeeId}`}
+                    label="Back to employee"
+                    variant="ghost"
+                />
             </div>
 
             <form

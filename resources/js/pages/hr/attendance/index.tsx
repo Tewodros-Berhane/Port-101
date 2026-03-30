@@ -1,8 +1,13 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { ModalFormShell } from '@/components/modals/modal-form-shell';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Summary = {
     records_today: number;
@@ -136,11 +141,29 @@ export default function HrAttendanceIndex({
     abilities,
 }: Props) {
     const filterForm = useForm(filters);
+    const [showShiftModal, setShowShiftModal] = useState(false);
     const punchForm = useForm({
         employee_id: linkedEmployeeId ?? '',
         recorded_at: todayIso,
         source: 'web',
     });
+    const shiftForm = useForm({
+        name: '',
+        code: '',
+        start_time: '',
+        end_time: '',
+        grace_minutes: '',
+        auto_attendance_enabled: false,
+    });
+
+    const closeShiftModal = (open: boolean) => {
+        setShowShiftModal(open);
+
+        if (!open) {
+            shiftForm.reset();
+            shiftForm.clearErrors();
+        }
+    };
 
     const rejectWithReason = (requestId: string) => {
         const reason = window.prompt('Rejection reason (optional)', '');
@@ -160,11 +183,7 @@ export default function HrAttendanceIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Attendance', href: '/company/hr/attendance' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Attendance', href: '/company/hr/attendance' },)}
         >
             <Head title="Attendance workspace" />
 
@@ -177,13 +196,15 @@ export default function HrAttendanceIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/hr">HR dashboard</Link>
-                        </Button>
+                        <BackLinkAction href="/company/hr" label="Back to HR" variant="outline" />
                         {abilities.can_manage_attendance && (
                             <>
-                                <Button variant="outline" asChild>
-                                    <Link href="/company/hr/attendance/shifts/create">New shift</Link>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setShowShiftModal(true)}
+                                >
+                                    New shift
                                 </Button>
                                 <Button variant="outline" asChild>
                                     <Link href="/company/hr/attendance/assignments/create">New assignment</Link>
@@ -197,6 +218,117 @@ export default function HrAttendanceIndex({
                         )}
                     </div>
                 </div>
+
+                <ModalFormShell
+                    open={showShiftModal}
+                    onOpenChange={closeShiftModal}
+                    title="New shift"
+                    description="Define the expected shift window for attendance tracking."
+                    className="sm:max-w-xl"
+                >
+                    <form
+                        className="grid gap-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            shiftForm.post('/company/hr/attendance/shifts', {
+                                onSuccess: () => closeShiftModal(false),
+                            });
+                        }}
+                    >
+                        <Field label="Name" error={shiftForm.errors.name}>
+                            <Input
+                                value={shiftForm.data.name}
+                                onChange={(event) =>
+                                    shiftForm.setData(
+                                        'name',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </Field>
+                        <Field label="Code" error={shiftForm.errors.code}>
+                            <Input
+                                value={shiftForm.data.code}
+                                onChange={(event) =>
+                                    shiftForm.setData(
+                                        'code',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </Field>
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <Field
+                                label="Start"
+                                error={shiftForm.errors.start_time}
+                            >
+                                <Input
+                                    type="time"
+                                    value={shiftForm.data.start_time}
+                                    onChange={(event) =>
+                                        shiftForm.setData(
+                                            'start_time',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </Field>
+                            <Field label="End" error={shiftForm.errors.end_time}>
+                                <Input
+                                    type="time"
+                                    value={shiftForm.data.end_time}
+                                    onChange={(event) =>
+                                        shiftForm.setData(
+                                            'end_time',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </Field>
+                            <Field
+                                label="Grace minutes"
+                                error={shiftForm.errors.grace_minutes}
+                            >
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={shiftForm.data.grace_minutes}
+                                    onChange={(event) =>
+                                        shiftForm.setData(
+                                            'grace_minutes',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </Field>
+                        </div>
+                        <label className="flex items-center gap-2 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={shiftForm.data.auto_attendance_enabled}
+                                onChange={(event) =>
+                                    shiftForm.setData(
+                                        'auto_attendance_enabled',
+                                        event.target.checked,
+                                    )
+                                }
+                            />
+                            Enable auto-attendance processing
+                        </label>
+                        <div className="flex items-center justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => closeShiftModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={shiftForm.processing}>
+                                Create shift
+                            </Button>
+                        </div>
+                    </form>
+                </ModalFormShell>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
                     <Metric label="Records today" value={summary.records_today} />

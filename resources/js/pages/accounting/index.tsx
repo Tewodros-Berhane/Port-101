@@ -1,6 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Invoice = {
     id: string;
@@ -57,10 +58,7 @@ export default function AccountingDashboard({
 }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, )}
         >
             <Head title="Accounting" />
 

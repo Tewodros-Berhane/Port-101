@@ -1,7 +1,9 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Order = {
     id: string;
@@ -29,11 +31,7 @@ export default function SalesOrdersIndex({ orders }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Sales', href: '/company/sales' },
-                { title: 'Orders', href: '/company/sales/orders' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.sales, { title: 'Orders', href: '/company/sales/orders' },)}
         >
             <Head title="Sales Orders" />
 
@@ -44,11 +42,14 @@ export default function SalesOrdersIndex({ orders }: Props) {
                         Confirm and track downstream order execution.
                     </p>
                 </div>
-                {canManage && (
-                    <Button asChild>
-                        <Link href="/company/sales/orders/create">New order</Link>
-                    </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/sales" label="Back to sales" variant="outline" />
+                    {canManage && (
+                        <Button asChild>
+                            <Link href="/company/sales/orders/create">New order</Link>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 export default function TaxCreate() {
     const { hasPermission } = usePermissions();
@@ -19,11 +21,8 @@ export default function TaxCreate() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Taxes', href: '/core/taxes' },
-                { title: 'Create', href: '/core/taxes/create' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Taxes', href: '/core/taxes' },
+                { title: 'Create', href: '/core/taxes/create' },)}
         >
             <Head title="New Tax" />
 
@@ -34,9 +33,7 @@ export default function TaxCreate() {
                         Add a tax rule for pricing.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/taxes">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/taxes" label="Back to taxes" variant="ghost" />
             </div>
 
             <form

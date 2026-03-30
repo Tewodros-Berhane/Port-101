@@ -1,8 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type ProjectRow = {
     id: string;
@@ -58,11 +60,7 @@ export default function ProjectsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                { title: 'Workspace', href: '/company/projects/workspace' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, { title: 'Workspace', href: '/company/projects/workspace' },)}
         >
             <Head title="Projects Workspace" />
 
@@ -74,9 +72,7 @@ export default function ProjectsIndex({
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/projects">Dashboard</Link>
-                    </Button>
+                    <BackLinkAction href="/company/projects" label="Back to projects" variant="outline" />
                     {abilities.can_view_billables && (
                         <Button variant="outline" asChild>
                             <Link href="/company/projects/billables">

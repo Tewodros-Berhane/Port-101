@@ -91,6 +91,7 @@ class HrLeaveRequestsController extends Controller
                 'employee_id' => $filters['employee_id'] ?? '',
             ],
             'statuses' => HrLeaveRequest::STATUSES,
+            'leaveTypeUnits' => HrLeaveType::UNITS,
             'leaveTypes' => $leaveTypes->map(fn (HrLeaveType $leaveType) => [
                 'id' => $leaveType->id,
                 'name' => $leaveType->name,

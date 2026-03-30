@@ -1,8 +1,10 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type EmployeeOption = { id: string; name: string; employee_number?: string | null };
 
@@ -27,7 +29,7 @@ export default function HrAttendanceRequestCreate({ employeeOptions, statuses, f
     const form = useForm(defaults);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Company', href: '/company/dashboard' }, { title: 'HR', href: '/company/hr' }, { title: 'Attendance', href: '/company/hr/attendance' }, { title: 'New Correction', href: '/company/hr/attendance/requests/create' }]}>
+        <AppLayout breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Attendance', href: '/company/hr/attendance' }, { title: 'New Correction', href: '/company/hr/attendance/requests/create' })}>
             <Head title="New attendance correction" />
             <div className="max-w-3xl space-y-6">
                 <div className="flex items-center justify-between gap-3">
@@ -35,7 +37,7 @@ export default function HrAttendanceRequestCreate({ employeeOptions, statuses, f
                         <h1 className="text-xl font-semibold">New attendance correction</h1>
                         <p className="text-sm text-muted-foreground">Submit a correction request for missing or incorrect attendance.</p>
                     </div>
-                    <Button variant="outline" asChild><Link href="/company/hr/attendance">Back to attendance</Link></Button>
+                    <BackLinkAction href="/company/hr/attendance" label="Back to attendance" variant="outline" />
                 </div>
 
                 <form className="space-y-4 rounded-xl border p-4" onSubmit={(event) => { event.preventDefault(); form.post('/company/hr/attendance/requests'); }}>

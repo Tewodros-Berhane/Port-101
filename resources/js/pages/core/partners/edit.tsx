@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
 import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Partner = {
     id: string;
@@ -48,14 +50,11 @@ export default function PartnerEdit({ partner, attachments }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Partners', href: '/core/partners' },
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Partners', href: '/core/partners' },
                 {
                     title: partner.name,
                     href: `/core/partners/${partner.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={partner.name} />
 
@@ -66,9 +65,7 @@ export default function PartnerEdit({ partner, attachments }: Props) {
                         Update customer or vendor details.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/partners">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/partners" label="Back to partners" variant="ghost" />
             </div>
 
             <form

@@ -1,9 +1,11 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type ReportCatalogItem = {
     key: string;
@@ -38,11 +40,7 @@ export default function HrReportsIndex({ filters, reportCatalog, canExport }: Pr
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Reports', href: '/company/hr/reports' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Reports', href: '/company/hr/reports' },)}
         >
             <Head title="HR Reports" />
 
@@ -54,9 +52,7 @@ export default function HrReportsIndex({ filters, reportCatalog, canExport }: Pr
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/hr">HR dashboard</Link>
-                    </Button>
+                    <BackLinkAction href="/company/hr" label="Back to HR" variant="outline" />
                     <Button variant="outline" asChild>
                         <Link href="/company/hr/payroll">Payroll workspace</Link>
                     </Button>

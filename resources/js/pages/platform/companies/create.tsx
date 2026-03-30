@@ -1,10 +1,12 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     defaultTimezone: string;
@@ -23,11 +25,8 @@ export default function PlatformCompanyCreate({ defaultTimezone }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Companies', href: '/platform/companies' },
-                { title: 'Create', href: '/platform/companies/create' },
-            ]}
+            breadcrumbs={platformBreadcrumbs({ title: 'Companies', href: '/platform/companies' },
+                { title: 'Create', href: '/platform/companies/create' },)}
         >
             <Head title="Create Company" />
 
@@ -38,9 +37,7 @@ export default function PlatformCompanyCreate({ defaultTimezone }: Props) {
                         Create a company and assign an owner.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/platform/companies">Back</Link>
-                </Button>
+                <BackLinkAction href="/platform/companies" label="Back to companies" variant="ghost" />
             </div>
 
             <form

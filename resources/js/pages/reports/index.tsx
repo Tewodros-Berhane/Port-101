@@ -1,9 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type ReportCatalogItem = {
     key: string;
@@ -119,10 +120,7 @@ export default function CompanyReportsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Reports', href: '/company/reports' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Reports', href: '/company/reports' })}
         >
             <Head title="Reports" />
 

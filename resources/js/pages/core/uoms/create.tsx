@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 export default function UomCreate() {
     const { hasPermission } = usePermissions();
@@ -18,11 +20,8 @@ export default function UomCreate() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Units', href: '/core/uoms' },
-                { title: 'Create', href: '/core/uoms/create' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Units', href: '/core/uoms' },
+                { title: 'Create', href: '/core/uoms/create' },)}
         >
             <Head title="New Unit" />
 
@@ -33,9 +32,7 @@ export default function UomCreate() {
                         Add a unit of measure.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/uoms">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/uoms" label="Back to UOMs" variant="ghost" />
             </div>
 
             <form

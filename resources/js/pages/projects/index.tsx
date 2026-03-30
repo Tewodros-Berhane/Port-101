@@ -1,6 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type ProjectRow = {
     id: string;
@@ -84,10 +85,7 @@ export default function ProjectsDashboard({
 }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, )}
         >
             <Head title="Projects" />
 

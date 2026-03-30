@@ -1,6 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type JournalRow = {
     id: string;
@@ -32,14 +34,10 @@ type Props = {
 export default function AccountingManualJournalsIndex({ journals }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, {
                     title: 'Manual Journals',
                     href: '/company/accounting/manual-journals',
-                },
-            ]}
+                },)}
         >
             <Head title="Manual Journals" />
 
@@ -51,6 +49,7 @@ export default function AccountingManualJournalsIndex({ journals }: Props) {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/accounting" label="Back to accounting" variant="outline" />
                     <Button variant="outline" asChild>
                         <Link href="/company/accounting/ledger">Ledger</Link>
                     </Button>

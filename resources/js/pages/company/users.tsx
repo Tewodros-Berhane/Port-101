@@ -1,5 +1,6 @@
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     members: {
@@ -13,15 +14,16 @@ type Props = {
             display_name?: string | null;
         } | null;
     }[];
+    canManageOwnerInvites: boolean;
 };
 
-export default function CompanyUsers({ members }: Props) {
+export default function CompanyUsers({
+    members,
+    canManageOwnerInvites,
+}: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Users', href: '/company/users' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Users', href: '/company/users' })}
         >
             <Head title="Company Users" />
 
@@ -39,12 +41,14 @@ export default function CompanyUsers({ members }: Props) {
                     >
                         Open employee directory
                     </Link>
-                    <Link
-                        href="/core/invites"
-                        className="text-sm font-medium text-primary"
-                    >
-                        Manage owner invites
-                    </Link>
+                    {canManageOwnerInvites && (
+                        <Link
+                            href="/core/invites"
+                            className="text-sm font-medium text-primary"
+                        >
+                            Manage owner invites
+                        </Link>
+                    )}
                 </div>
             </div>
 

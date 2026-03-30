@@ -1,9 +1,10 @@
-import { Button } from '@/components/ui/button';
-import AppLayout from '@/layouts/app-layout';
-import { logout } from '@/routes';
-import type { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { AlertTriangle, Building2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
+import { logout } from '@/routes';
+import type { SharedData } from '@/types';
 
 export default function CompanyInactive() {
     const { auth, companies } = usePage<SharedData>().props;
@@ -11,9 +12,7 @@ export default function CompanyInactive() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company Access', href: '/company/inactive' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Inactive', href: '/company/inactive' })}
         >
             <Head title="Company Access Inactive" />
 

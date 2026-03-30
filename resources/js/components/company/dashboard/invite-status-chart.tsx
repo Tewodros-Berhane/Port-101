@@ -6,15 +6,21 @@ type Props = {
     expired: number;
 };
 
+export const inviteStatusColors = {
+    pending: 'var(--chart-3)',
+    accepted: 'var(--chart-2)',
+    expired: 'var(--chart-5)',
+} as const;
+
 export default function InviteStatusChart({
     pending,
     accepted,
     expired,
 }: Props) {
     const rows = [
-        { name: 'Pending', value: pending, fill: 'var(--chart-3)' },
-        { name: 'Accepted', value: accepted, fill: 'var(--chart-2)' },
-        { name: 'Expired', value: expired, fill: 'var(--chart-5)' },
+        { name: 'Pending', value: pending, fill: inviteStatusColors.pending },
+        { name: 'Accepted', value: accepted, fill: inviteStatusColors.accepted },
+        { name: 'Expired', value: expired, fill: inviteStatusColors.expired },
     ].filter((row) => row.value > 0);
 
     if (rows.length === 0) {

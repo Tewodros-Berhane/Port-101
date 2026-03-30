@@ -42,6 +42,7 @@ class ContactsController extends Controller
                     'is_primary' => $contact->is_primary,
                 ];
             }),
+            'partners' => Partner::query()->orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 

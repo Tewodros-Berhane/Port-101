@@ -1,7 +1,14 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { DrawerFormShell } from '@/components/drawers/drawer-form-shell';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Partner = {
     id: string;
@@ -24,13 +31,28 @@ export default function PartnersIndex({ partners }: Props) {
     const { hasPermission } = usePermissions();
     const canView = hasPermission('core.partners.view');
     const canManage = hasPermission('core.partners.manage');
+    const [showCreateDrawer, setShowCreateDrawer] = useState(false);
+    const createForm = useForm({
+        name: '',
+        code: '',
+        type: 'customer',
+        email: '',
+        phone: '',
+        is_active: true,
+    });
+
+    const closeCreateDrawer = (open: boolean) => {
+        setShowCreateDrawer(open);
+
+        if (!open) {
+            createForm.reset();
+            createForm.clearErrors();
+        }
+    };
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Partners', href: '/core/partners' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Partners', href: '/core/partners' },)}
         >
             <Head title="Partners" />
 
@@ -42,11 +64,137 @@ export default function PartnersIndex({ partners }: Props) {
                     </p>
                 </div>
                 {canManage && (
-                    <Button asChild>
-                        <Link href="/core/partners/create">New partner</Link>
+                    <Button
+                        type="button"
+                        onClick={() => setShowCreateDrawer(true)}
+                    >
+                        New partner
                     </Button>
                 )}
             </div>
+
+            {canManage && (
+                <DrawerFormShell
+                    open={showCreateDrawer}
+                    onOpenChange={closeCreateDrawer}
+                    title="New partner"
+                    description="Add a customer or vendor without leaving the master-data list."
+                    footer={
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => closeCreateDrawer(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                form="partner-create-drawer-form"
+                                disabled={createForm.processing}
+                            >
+                                Create partner
+                            </Button>
+                        </>
+                    }
+                >
+                    <form
+                        id="partner-create-drawer-form"
+                        className="grid gap-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            createForm.post('/core/partners', {
+                                onSuccess: () => closeCreateDrawer(false),
+                            });
+                        }}
+                    >
+                        <div className="grid gap-2">
+                            <Label htmlFor="partner-create-name">Name</Label>
+                            <Input
+                                id="partner-create-name"
+                                value={createForm.data.name}
+                                onChange={(event) =>
+                                    createForm.setData('name', event.target.value)
+                                }
+                                required
+                            />
+                            <InputError message={createForm.errors.name} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="partner-create-code">Code</Label>
+                            <Input
+                                id="partner-create-code"
+                                value={createForm.data.code}
+                                onChange={(event) =>
+                                    createForm.setData('code', event.target.value)
+                                }
+                            />
+                            <InputError message={createForm.errors.code} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="partner-create-type">Type</Label>
+                            <select
+                                id="partner-create-type"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={createForm.data.type}
+                                onChange={(event) =>
+                                    createForm.setData('type', event.target.value)
+                                }
+                            >
+                                <option value="customer">Customer</option>
+                                <option value="vendor">Vendor</option>
+                                <option value="both">Both</option>
+                            </select>
+                            <InputError message={createForm.errors.type} />
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="partner-create-email">Email</Label>
+                                <Input
+                                    id="partner-create-email"
+                                    type="email"
+                                    value={createForm.data.email}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'email',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError message={createForm.errors.email} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="partner-create-phone">Phone</Label>
+                                <Input
+                                    id="partner-create-phone"
+                                    value={createForm.data.phone}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'phone',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError message={createForm.errors.phone} />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3">
+                            <Checkbox
+                                id="partner-create-active"
+                                checked={createForm.data.is_active}
+                                onCheckedChange={(value) =>
+                                    createForm.setData('is_active', Boolean(value))
+                                }
+                            />
+                            <Label htmlFor="partner-create-active">Active</Label>
+                        </div>
+                    </form>
+                </DrawerFormShell>
+            )}
 
             {canView ? (
                 <>
@@ -96,16 +244,16 @@ export default function PartnersIndex({ partners }: Props) {
                                             {partner.name}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
-                                            {partner.code ?? '—'}
+                                            {partner.code ?? '-'}
                                         </td>
                                         <td className="px-4 py-3 capitalize">
                                             {partner.type}
                                         </td>
                                         <td className="px-4 py-3">
-                                            {partner.email ?? '—'}
+                                            {partner.email ?? '-'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            {partner.phone ?? '—'}
+                                            {partner.phone ?? '-'}
                                         </td>
                                         <td className="px-4 py-3">
                                             {partner.is_active

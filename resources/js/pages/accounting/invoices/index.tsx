@@ -1,6 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Invoice = {
     id: string;
@@ -28,11 +30,7 @@ type Props = {
 export default function AccountingInvoicesIndex({ invoices }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                { title: 'Invoices', href: '/company/accounting/invoices' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, { title: 'Invoices', href: '/company/accounting/invoices' },)}
         >
             <Head title="Accounting Invoices" />
 
@@ -43,11 +41,14 @@ export default function AccountingInvoicesIndex({ invoices }: Props) {
                         Customer invoices and vendor bills with posting states.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/company/accounting/invoices/create">
-                        New invoice
-                    </Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/accounting" label="Back to accounting" variant="outline" />
+                    <Button asChild>
+                        <Link href="/company/accounting/invoices/create">
+                            New invoice
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

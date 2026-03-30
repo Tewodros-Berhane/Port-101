@@ -1,8 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -35,12 +37,8 @@ export default function InventoryReorderingCreate({ rule, products, locations, v
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Reordering', href: '/company/inventory/reordering' },
-                { title: 'Create', href: '/company/inventory/reordering/create' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Reordering', href: '/company/inventory/reordering' },
+                { title: 'Create', href: '/company/inventory/reordering/create' },)}
         >
             <Head title="New Reordering Rule" />
 
@@ -51,9 +49,7 @@ export default function InventoryReorderingCreate({ rule, products, locations, v
                         Configure the stock threshold and replenishment target for a product/location pair.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory/reordering">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/inventory/reordering" label="Back to reordering" variant="ghost" />
             </div>
 
             <form

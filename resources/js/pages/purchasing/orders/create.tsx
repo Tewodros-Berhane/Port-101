@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import PurchasingLineItemsEditor, {
     type PurchasingLineItemInput,
 } from '@/components/purchasing/line-items-editor';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Partner = {
     id: string;
@@ -59,15 +61,11 @@ export default function PurchaseOrderCreate({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Purchasing', href: '/company/purchasing' },
-                { title: 'Purchase Orders', href: '/company/purchasing/orders' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.purchasing, { title: 'Purchase Orders', href: '/company/purchasing/orders' },
                 {
                     title: 'Create',
                     href: '/company/purchasing/orders/create',
-                },
-            ]}
+                },)}
         >
             <Head title="New Purchase Order" />
 
@@ -78,9 +76,7 @@ export default function PurchaseOrderCreate({
                         Create a PO directly or from an RFQ.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/purchasing/orders">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/purchasing/orders" label="Back to purchase orders" variant="ghost" />
             </div>
 
             <form

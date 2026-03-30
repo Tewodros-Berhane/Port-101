@@ -1,8 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -39,12 +41,8 @@ export default function InventoryCycleCountsCreate({ warehouses, locations, prod
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Cycle Counts', href: '/company/inventory/cycle-counts' },
-                { title: 'Create', href: '/company/inventory/cycle-counts/create' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Cycle Counts', href: '/company/inventory/cycle-counts' },
+                { title: 'Create', href: '/company/inventory/cycle-counts/create' },)}
         >
             <Head title="New Cycle Count" />
 
@@ -55,9 +53,7 @@ export default function InventoryCycleCountsCreate({ warehouses, locations, prod
                         Freeze current stock positions for a warehouse or location and record counted quantities.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory/cycle-counts">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/inventory/cycle-counts" label="Back to cycle counts" variant="ghost" />
             </div>
 
             <form
@@ -137,7 +133,7 @@ export default function InventoryCycleCountsCreate({ warehouses, locations, prod
                                 {product.name}
                                 {product.sku ? ` (${product.sku})` : ''}
                                 {product.tracking_mode && product.tracking_mode !== 'none'
-                                    ? ` · ${product.tracking_mode}`
+                                    ? ` ï¿½ ${product.tracking_mode}`
                                     : ''}
                             </option>
                         ))}

@@ -1,7 +1,9 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Line = {
     id: string;
@@ -81,12 +83,8 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Cycle Counts', href: '/company/inventory/cycle-counts' },
-                { title: cycleCount.reference, href: `/company/inventory/cycle-counts/${cycleCount.id}` },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Cycle Counts', href: '/company/inventory/cycle-counts' },
+                { title: cycleCount.reference, href: `/company/inventory/cycle-counts/${cycleCount.id}` },)}
         >
             <Head title={cycleCount.reference} />
 
@@ -94,13 +92,11 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                 <div>
                     <h1 className="text-xl font-semibold">{cycleCount.reference}</h1>
                     <p className="text-sm text-muted-foreground">
-                        {cycleCount.warehouse_name ?? 'No warehouse scope'} · {cycleCount.location_name ?? 'All scoped locations'}
+                        {cycleCount.warehouse_name ?? 'No warehouse scope'} ï¿½ {cycleCount.location_name ?? 'All scoped locations'}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/inventory/cycle-counts">Back</Link>
-                    </Button>
+                    <BackLinkAction href="/company/inventory/cycle-counts" label="Back to cycle counts" variant="outline" />
                     {permissions.can_start && (
                         <Button
                             variant="outline"

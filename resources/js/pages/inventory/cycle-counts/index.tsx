@@ -1,6 +1,8 @@
+import { Head, Link, router } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type CycleCount = {
     id: string;
@@ -42,11 +44,7 @@ type Props = {
 export default function InventoryCycleCountsIndex({ filters, metrics, cycleCounts }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Cycle Counts', href: '/company/inventory/cycle-counts' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Cycle Counts', href: '/company/inventory/cycle-counts' },)}
         >
             <Head title="Cycle Counts" />
 
@@ -58,9 +56,7 @@ export default function InventoryCycleCountsIndex({ filters, metrics, cycleCount
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/inventory">Back</Link>
-                    </Button>
+                    <BackLinkAction href="/company/inventory" label="Back to inventory" variant="outline" />
                     <Button asChild>
                         <Link href="/company/inventory/cycle-counts/create">New cycle count</Link>
                     </Button>

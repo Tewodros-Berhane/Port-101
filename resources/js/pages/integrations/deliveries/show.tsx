@@ -1,7 +1,19 @@
-import { Button } from '@/components/ui/button';
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { DetailHero } from '@/components/shell/detail-hero';
+import { TabbedDetailShell } from '@/components/shell/tabbed-detail-shell';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import AppLayout from '@/layouts/app-layout';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Delivery = {
     id: string;
@@ -54,248 +66,292 @@ export default function ShowWebhookDelivery({
     delivery,
     securityPolicy,
 }: Props) {
+    const tabs = [
+        {
+            id: 'overview',
+            label: 'Overview',
+            content: (
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Delivery timeline</CardTitle>
+                            <CardDescription>
+                                Operational timestamps and retry lifecycle for this outbound event delivery.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                <DetailField label="Endpoint" value={delivery.endpoint_name ?? '-'} />
+                                <DetailField label="Event" value={delivery.event_label} />
+                                <DetailField label="Event type" value={delivery.event_type} />
+                                <DetailField label="Occurred at" value={formatDateTime(delivery.occurred_at)} />
+                                <DetailField label="First attempt" value={formatDateTime(delivery.first_attempt_at)} />
+                                <DetailField label="Last attempt" value={formatDateTime(delivery.last_attempt_at)} />
+                                <DetailField label="Next retry" value={formatDateTime(delivery.next_retry_at)} />
+                                <DetailField label="Delivered at" value={formatDateTime(delivery.delivered_at)} />
+                                <DetailField label="Dead lettered at" value={formatDateTime(delivery.dead_lettered_at)} />
+                                <DetailField label="Created at" value={formatDateTime(delivery.created_at)} />
+                                <DetailField label="Updated at" value={formatDateTime(delivery.updated_at)} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Endpoint context</CardTitle>
+                            <CardDescription>
+                                Routing target and current delivery state for this record.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <DetailBlock label="Status">
+                                <StatusBadge
+                                    status={delivery.status}
+                                    label={delivery.status_label}
+                                />
+                            </DetailBlock>
+                            <DetailBlock label="Endpoint URL">
+                                <span className="break-all">{delivery.endpoint_url ?? '-'}</span>
+                            </DetailBlock>
+                            <DetailBlock label="Integration event ID">
+                                <span className="font-mono text-xs">{delivery.integration_event_id}</span>
+                            </DetailBlock>
+                        </CardContent>
+                    </Card>
+                </div>
+            ),
+        },
+        {
+            id: 'payload',
+            label: 'Payload',
+            content: (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Event payload</CardTitle>
+                        <CardDescription>
+                            Exact outbound JSON body recorded for this delivery.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <pre className="overflow-x-auto rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] p-4 font-mono text-xs leading-6 whitespace-pre-wrap text-[color:var(--text-secondary)]">
+                            {JSON.stringify(delivery.event_payload, null, 2)}
+                        </pre>
+                    </CardContent>
+                </Card>
+            ),
+        },
+        {
+            id: 'response',
+            label: 'Response',
+            content: (
+                <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Response summary</CardTitle>
+                            <CardDescription>
+                                HTTP response and transport timing captured from the receiver.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <DetailField
+                                label="HTTP status"
+                                value={delivery.response_status ? `HTTP ${delivery.response_status}` : '-'}
+                            />
+                            <DetailField
+                                label="Duration"
+                                value={delivery.duration_ms ? `${delivery.duration_ms} ms` : '-'}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Failure message</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] p-4 text-sm text-foreground">
+                                    {delivery.failure_message ?? 'None'}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Response excerpt</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] p-4 text-sm whitespace-pre-wrap text-foreground">
+                                    {delivery.response_body_excerpt ?? 'No response excerpt stored.'}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            id: 'security',
+            label: 'Security',
+            content: (
+                <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Security policy</CardTitle>
+                            <CardDescription>
+                                Signature and replay guarantees applied to every webhook delivery.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <DetailField label="Signature version" value={securityPolicy.signature_version} />
+                            <DetailField label="Algorithm" value={securityPolicy.signature_algorithm} />
+                            <DetailField label="Replay window" value={`${securityPolicy.replay_window_seconds} sec`} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Verification contract</CardTitle>
+                            <CardDescription>
+                                Headers and signed content expected by downstream consumers.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4 text-sm text-foreground">
+                                <DetailBlock label="Signed content">
+                                    <code>{securityPolicy.signed_content}</code>
+                                </DetailBlock>
+                                <div>
+                                    <p className="text-[11px] font-semibold tracking-[0.08em] text-[color:var(--text-secondary)] uppercase">
+                                        Headers
+                                    </p>
+                                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                        <HeaderCode>{securityPolicy.event_header}</HeaderCode>
+                                        <HeaderCode>{securityPolicy.event_id_header}</HeaderCode>
+                                        <HeaderCode>{securityPolicy.timestamp_header}</HeaderCode>
+                                        <HeaderCode>{securityPolicy.signature_header}</HeaderCode>
+                                        <HeaderCode>{securityPolicy.signature_version_header}</HeaderCode>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            ),
+        },
+    ];
+
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Integrations', href: '/company/integrations' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.integrations, {
                     title: 'Delivery queue',
                     href: '/company/integrations/deliveries',
                 },
                 {
                     title: delivery.id,
                     href: `/company/integrations/deliveries/${delivery.id}`,
-                },
-            ]}
+                },)}
         >
             <Head title={`Delivery ${delivery.id}`} />
 
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Delivery {delivery.id}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {delivery.event_label} to{' '}
-                            {delivery.endpoint_name ?? 'Unknown endpoint'}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {delivery.endpoint_name && (
-                            <Button variant="outline" asChild>
-                                <Link
-                                    href={`/company/integrations/webhooks/${delivery.webhook_endpoint_id}`}
-                                >
-                                    Open endpoint
-                                </Link>
-                            </Button>
-                        )}
-                        <Button variant="outline" asChild>
-                            <Link href="/company/integrations/deliveries">
-                                Back to queue
-                            </Link>
-                        </Button>
-                        {delivery.can_retry && (
-                            <Button
-                                onClick={() =>
-                                    router.post(
-                                        `/company/integrations/deliveries/${delivery.id}/retry`,
-                                    )
-                                }
-                            >
-                                Retry delivery
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-                    <section className="space-y-6">
-                        <div className="rounded-xl border p-5">
-                            <h2 className="text-sm font-semibold">
-                                Event payload
-                            </h2>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                Exact outbound payload body recorded for this
-                                delivery.
-                            </p>
-
-                            <pre className="mt-4 overflow-x-auto rounded-xl bg-muted/30 p-4 text-xs leading-6 whitespace-pre-wrap">
-                                {JSON.stringify(delivery.event_payload, null, 2)}
-                            </pre>
-                        </div>
-
-                        <div className="rounded-xl border p-5">
-                            <h2 className="text-sm font-semibold">
-                                Endpoint response
-                            </h2>
-                            <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <MetricCard
-                                    label="HTTP status"
-                                    value={
-                                        delivery.response_status
-                                            ? String(delivery.response_status)
-                                            : '-'
-                                    }
-                                />
-                                <MetricCard
-                                    label="Duration"
-                                    value={
-                                        delivery.duration_ms
-                                            ? `${delivery.duration_ms} ms`
-                                            : '-'
-                                    }
-                                />
-                            </div>
-
-                            <div className="mt-4 space-y-4">
-                                <div>
-                                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        Failure message
-                                    </p>
-                                    <div className="mt-2 rounded-xl bg-muted/30 p-4 text-sm">
-                                        {delivery.failure_message ?? 'None'}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        Response excerpt
-                                    </p>
-                                    <div className="mt-2 rounded-xl bg-muted/30 p-4 text-sm whitespace-pre-wrap">
-                                        {delivery.response_body_excerpt ?? 'No response excerpt stored.'}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border p-5">
-                            <h2 className="text-sm font-semibold">
-                                Signature and replay guidance
-                            </h2>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                These headers are part of the outbound contract
-                                for every webhook delivery.
-                            </p>
-
-                            <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                <MetricCard
-                                    label="Signature version"
-                                    value={securityPolicy.signature_version}
-                                />
-                                <MetricCard
-                                    label="Replay window"
-                                    value={`${securityPolicy.replay_window_seconds} sec`}
-                                />
-                            </div>
-
-                            <div className="mt-4 rounded-xl bg-muted/20 p-4 text-sm">
-                                <p>
-                                    Algorithm:{' '}
-                                    <code>{securityPolicy.signature_algorithm}</code>
-                                </p>
-                                <p className="mt-2">
-                                    Signed content:{' '}
-                                    <code>{securityPolicy.signed_content}</code>
-                                </p>
-                                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                                    <code>{securityPolicy.event_header}</code>
-                                    <code>{securityPolicy.event_id_header}</code>
-                                    <code>
-                                        {securityPolicy.timestamp_header}
-                                    </code>
-                                    <code>
-                                        {securityPolicy.signature_header}
-                                    </code>
-                                    <code>
-                                        {
-                                            securityPolicy.signature_version_header
+            <TabbedDetailShell
+                hero={
+                    <DetailHero
+                        title={`Delivery ${delivery.id}`}
+                        description="Outbound webhook delivery detail with payload, response, retry, and signature context."
+                        status={
+                            <StatusBadge
+                                status={delivery.status}
+                                label={delivery.status_label}
+                            />
+                        }
+                        meta={
+                            <>
+                                <span>{delivery.event_label}</span>
+                                <span>|</span>
+                                <span>{delivery.endpoint_name ?? 'Unknown endpoint'}</span>
+                            </>
+                        }
+                        actions={
+                            <>
+                                {delivery.endpoint_name && (
+                                    <Button variant="outline" asChild>
+                                        <Link href={`/company/integrations/webhooks/${delivery.webhook_endpoint_id}`}>
+                                            Open endpoint
+                                        </Link>
+                                    </Button>
+                                )}
+                                <BackLinkAction href="/company/integrations/deliveries" label="Back to queue
+                                    " variant="outline" />
+                                {delivery.can_retry && (
+                                    <Button
+                                        onClick={() =>
+                                            router.post(
+                                                `/company/integrations/deliveries/${delivery.id}/retry`,
+                                            )
                                         }
-                                    </code>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <aside className="space-y-6">
-                        <div className="rounded-xl border p-5">
-                            <h2 className="text-sm font-semibold">
-                                Delivery details
-                            </h2>
-
-                            <dl className="mt-4 space-y-3">
-                                <DetailItem label="Status">
-                                    <StatusPill
-                                        status={delivery.status}
-                                        label={delivery.status_label}
-                                    />
-                                </DetailItem>
-                                <DetailItem label="Endpoint">
-                                    <div className="space-y-1">
-                                        <p>{delivery.endpoint_name ?? '-'}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {delivery.endpoint_url ?? '-'}
-                                        </p>
-                                    </div>
-                                </DetailItem>
-                                <DetailItem label="Event">
-                                    <div className="space-y-1">
-                                        <p>{delivery.event_label}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {delivery.event_type}
-                                        </p>
-                                    </div>
-                                </DetailItem>
-                                <DetailItem label="Attempt count">
-                                    {String(delivery.attempt_count)}
-                                </DetailItem>
-                                <DetailItem label="First attempt">
-                                    {formatDateTime(delivery.first_attempt_at)}
-                                </DetailItem>
-                                <DetailItem label="Occurred at">
-                                    {formatDateTime(delivery.occurred_at)}
-                                </DetailItem>
-                                <DetailItem label="Last attempt">
-                                    {formatDateTime(delivery.last_attempt_at)}
-                                </DetailItem>
-                                <DetailItem label="Next retry">
-                                    {formatDateTime(delivery.next_retry_at)}
-                                </DetailItem>
-                                <DetailItem label="Delivered at">
-                                    {formatDateTime(delivery.delivered_at)}
-                                </DetailItem>
-                                <DetailItem label="Dead lettered at">
-                                    {formatDateTime(delivery.dead_lettered_at)}
-                                </DetailItem>
-                                <DetailItem label="Created at">
-                                    {formatDateTime(delivery.created_at)}
-                                </DetailItem>
-                                <DetailItem label="Updated at">
-                                    {formatDateTime(delivery.updated_at)}
-                                </DetailItem>
-                            </dl>
-                        </div>
-                    </aside>
-                </div>
-            </div>
+                                    >
+                                        Retry delivery
+                                    </Button>
+                                )}
+                            </>
+                        }
+                        metrics={[
+                            {
+                                label: 'Attempts',
+                                value: delivery.attempt_count,
+                                tone: delivery.attempt_count > 1 ? 'warning' : 'default',
+                            },
+                            {
+                                label: 'HTTP status',
+                                value: delivery.response_status
+                                    ? `HTTP ${delivery.response_status}`
+                                    : '-',
+                                tone:
+                                    delivery.response_status && delivery.response_status >= 400
+                                        ? 'danger'
+                                        : 'default',
+                            },
+                            {
+                                label: 'Latency',
+                                value: delivery.duration_ms
+                                    ? `${delivery.duration_ms} ms`
+                                    : '-',
+                            },
+                            {
+                                label: 'Next retry',
+                                value: delivery.next_retry_at
+                                    ? new Date(delivery.next_retry_at).toLocaleDateString()
+                                    : '-',
+                            },
+                        ]}
+                    />
+                }
+                tabs={tabs}
+                defaultTab="overview"
+            />
         </AppLayout>
     );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function DetailField({
+    label,
+    value,
+}: {
+    label: string;
+    value: string;
+}) {
     return (
-        <div className="rounded-xl border px-4 py-3">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <div className="rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-4 py-3">
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-[color:var(--text-secondary)] uppercase">
                 {label}
             </p>
-            <p className="mt-2 text-xl font-semibold">{value}</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
         </div>
     );
 }
 
-function DetailItem({
+function DetailBlock({
     label,
     children,
 }: {
@@ -303,34 +359,21 @@ function DetailItem({
     children: ReactNode;
 }) {
     return (
-        <div className="rounded-xl bg-muted/20 px-4 py-3">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-1 text-sm font-medium">{children}</dd>
+        <div>
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-[color:var(--text-secondary)] uppercase">
+                {label}
+            </p>
+            <div className="mt-2 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-4 py-3 text-sm">
+                {children}
+            </div>
         </div>
     );
 }
 
-function StatusPill({
-    status,
-    label,
-}: {
-    status: string;
-    label: string;
-}) {
-    const toneClass =
-        status === 'delivered'
-            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
-            : status === 'dead'
-              ? 'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300'
-              : status === 'failed'
-                ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300'
-                : 'border-border bg-muted text-muted-foreground';
-
+function HeaderCode({ children }: { children: ReactNode }) {
     return (
-        <span
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-        >
-            {label}
-        </span>
+        <code className="rounded-[var(--radius-control)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3 py-2 text-xs text-foreground">
+            {children}
+        </code>
     );
 }

@@ -43,6 +43,7 @@ class AddressesController extends Controller
                     'is_primary' => $address->is_primary,
                 ];
             }),
+            'partners' => Partner::query()->orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 

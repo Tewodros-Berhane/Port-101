@@ -1,9 +1,10 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, useForm } from '@inertiajs/react';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     company: {
@@ -67,10 +68,7 @@ export default function CompanySettings({ company, settings }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Settings', href: '/company/settings' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Settings', href: '/company/settings' })}
         >
             <Head title="Company Settings" />
 

@@ -1,6 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type MoveRow = {
     id: string;
@@ -43,10 +44,7 @@ type Props = {
 export default function InventoryIndex({ kpis, recentMoves, stockAlerts }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, )}
         >
             <Head title="Inventory" />
 

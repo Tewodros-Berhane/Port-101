@@ -1,8 +1,10 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type ShiftForm = { id: string; name: string; code: string; start_time: string; end_time: string; grace_minutes: string; auto_attendance_enabled: boolean };
 
@@ -11,10 +13,10 @@ type Props = { shift: ShiftForm };
 export default function HrShiftEdit({ shift }: Props) {
     const form = useForm(shift);
     return (
-        <AppLayout breadcrumbs={[{ title: 'Company', href: '/company/dashboard' }, { title: 'HR', href: '/company/hr' }, { title: 'Attendance', href: '/company/hr/attendance' }, { title: 'Edit Shift', href: `/company/hr/attendance/shifts/${shift.id}/edit` }]}>
+        <AppLayout breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Attendance', href: '/company/hr/attendance' }, { title: 'Edit Shift', href: `/company/hr/attendance/shifts/${shift.id}/edit` })}>
             <Head title="Edit shift" />
             <div className="max-w-2xl space-y-6">
-                <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Edit shift</h1><p className="text-sm text-muted-foreground">Update the shift schedule and grace policy.</p></div><Button variant="outline" asChild><Link href="/company/hr/attendance">Back to attendance</Link></Button></div>
+                <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Edit shift</h1><p className="text-sm text-muted-foreground">Update the shift schedule and grace policy.</p></div><BackLinkAction href="/company/hr/attendance" label="Back to attendance" variant="outline" /></div>
                 <form className="space-y-4 rounded-xl border p-4" onSubmit={(event) => { event.preventDefault(); form.put(`/company/hr/attendance/shifts/${shift.id}`); }}>
                     <Field label="Name" error={form.errors.name}><input className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} /></Field>
                     <Field label="Code" error={form.errors.code}><input className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.code} onChange={(event) => form.setData('code', event.target.value)} /></Field>

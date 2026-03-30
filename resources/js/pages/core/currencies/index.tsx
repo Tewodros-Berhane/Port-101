@@ -1,7 +1,14 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import InputError from '@/components/input-error';
+import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Currency = {
     id: string;
@@ -23,13 +30,27 @@ export default function CurrenciesIndex({ currencies }: Props) {
     const { hasPermission } = usePermissions();
     const canView = hasPermission('core.currencies.view');
     const canManage = hasPermission('core.currencies.manage');
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const createForm = useForm({
+        code: '',
+        name: '',
+        symbol: '',
+        decimal_places: 2,
+        is_active: true,
+    });
+
+    const closeCreateModal = (open: boolean) => {
+        setShowCreateModal(open);
+
+        if (!open) {
+            createForm.reset();
+            createForm.clearErrors();
+        }
+    };
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Currencies', href: '/core/currencies' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Currencies', href: '/core/currencies' },)}
         >
             <Head title="Currencies" />
 
@@ -41,11 +62,126 @@ export default function CurrenciesIndex({ currencies }: Props) {
                     </p>
                 </div>
                 {canManage && (
-                    <Button asChild>
-                        <Link href="/core/currencies/create">New currency</Link>
+                    <Button type="button" onClick={() => setShowCreateModal(true)}>
+                        New currency
                     </Button>
                 )}
             </div>
+            {canManage && (
+                <ModalFormShell
+                    open={showCreateModal}
+                    onOpenChange={closeCreateModal}
+                    title="New currency"
+                    description="Add currency and formatting details."
+                >
+                    <form
+                        className="grid gap-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            createForm.post('/core/currencies', {
+                                onSuccess: () => closeCreateModal(false),
+                            });
+                        }}
+                    >
+                        <div className="grid gap-2 md:grid-cols-2 md:gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="currency-create-code">Code</Label>
+                                <Input
+                                    id="currency-create-code"
+                                    value={createForm.data.code}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'code',
+                                            event.target.value.toUpperCase(),
+                                        )
+                                    }
+                                    maxLength={3}
+                                    required
+                                />
+                                <InputError message={createForm.errors.code} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="currency-create-symbol">Symbol</Label>
+                                <Input
+                                    id="currency-create-symbol"
+                                    value={createForm.data.symbol}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'symbol',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError message={createForm.errors.symbol} />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="currency-create-name">Name</Label>
+                            <Input
+                                id="currency-create-name"
+                                value={createForm.data.name}
+                                onChange={(event) =>
+                                    createForm.setData('name', event.target.value)
+                                }
+                                required
+                            />
+                            <InputError message={createForm.errors.name} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="currency-create-decimals">
+                                Decimal places
+                            </Label>
+                            <Input
+                                id="currency-create-decimals"
+                                type="number"
+                                min={0}
+                                max={6}
+                                value={createForm.data.decimal_places}
+                                onChange={(event) =>
+                                    createForm.setData(
+                                        'decimal_places',
+                                        Number(event.target.value),
+                                    )
+                                }
+                                required
+                            />
+                            <InputError
+                                message={createForm.errors.decimal_places}
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-3 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3">
+                            <Checkbox
+                                id="currency-create-active"
+                                checked={createForm.data.is_active}
+                                onCheckedChange={(value) =>
+                                    createForm.setData(
+                                        'is_active',
+                                        Boolean(value),
+                                    )
+                                }
+                            />
+                            <Label htmlFor="currency-create-active">Active</Label>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => closeCreateModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={createForm.processing}>
+                                Create currency
+                            </Button>
+                        </div>
+                    </form>
+                </ModalFormShell>
+            )}
             {canView ? (
                 <>
                     <div className="mt-6 overflow-x-auto rounded-xl border">

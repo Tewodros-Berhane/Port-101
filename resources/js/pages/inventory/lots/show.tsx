@@ -1,6 +1,25 @@
-import { Button } from '@/components/ui/button';
+import { Head } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { DetailHero } from '@/components/shell/detail-hero';
+import { TabbedDetailShell } from '@/components/shell/tabbed-detail-shell';
+import { Badge } from '@/components/ui/badge';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type HistoryRow = {
     id: string;
@@ -33,99 +52,193 @@ type Props = {
     history: HistoryRow[];
 };
 
+const formatDateTime = (value?: string | null) =>
+    value ? new Date(value).toLocaleString() : '-';
+
+const formatTrackingLabel = (value: string) =>
+    value.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+
 export default function InventoryLotShow({ lot, history }: Props) {
+    const tabs = [
+        {
+            id: 'overview',
+            label: 'Overview',
+            content: (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Tracked unit overview</CardTitle>
+                        <CardDescription>
+                            Inventory identity, storage location, and traceability timestamps for this lot or serial.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <DetailField label="Product" value={lot.product_name ?? '-'} />
+                            <DetailField label="SKU" value={lot.product_sku ?? '-'} />
+                            <DetailField
+                                label="Tracking mode"
+                                value={formatTrackingLabel(lot.tracking_mode)}
+                            />
+                            <DetailField label="Location" value={lot.location_name ?? '-'} />
+                            <DetailField label="Location type" value={lot.location_type ?? '-'} />
+                            <DetailField label="Received" value={formatDateTime(lot.received_at)} />
+                            <DetailField label="Last moved" value={formatDateTime(lot.last_moved_at)} />
+                        </div>
+                    </CardContent>
+                </Card>
+            ),
+        },
+        {
+            id: 'movement-history',
+            label: 'Movement History',
+            content: (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Movement history</CardTitle>
+                        <CardDescription>
+                            Receipt, delivery, and transfer activity recorded against this tracked unit.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table className="min-w-[920px]">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Reference</TableHead>
+                                    <TableHead>Direction</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>From</TableHead>
+                                    <TableHead>To</TableHead>
+                                    <TableHead className="text-right">Qty</TableHead>
+                                    <TableHead>Created</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {history.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={8}
+                                            className="py-6 text-center text-muted-foreground"
+                                        >
+                                            No movement history yet.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+
+                                {history.map((row) => (
+                                    <TableRow key={row.id}>
+                                        <TableCell>{row.reference ?? '-'}</TableCell>
+                                        <TableCell className="capitalize">
+                                            {row.direction}
+                                        </TableCell>
+                                        <TableCell className="capitalize">
+                                            {row.move_type ?? '-'}
+                                        </TableCell>
+                                        <TableCell className="capitalize">
+                                            {row.status ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.source_location_name ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {row.destination_location_name ?? '-'}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium tabular-nums">
+                                            {row.quantity.toFixed(4)}
+                                        </TableCell>
+                                        <TableCell>
+                                            {formatDateTime(row.created_at)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            ),
+        },
+    ];
+
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Lots & Serials', href: '/company/inventory/lots' },
-                { title: lot.code, href: `/company/inventory/lots/${lot.id}` },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Lots & Serials', href: '/company/inventory/lots' },
+                { title: lot.code, href: `/company/inventory/lots/${lot.id}` },)}
         >
             <Head title={lot.code} />
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-xl font-semibold">{lot.code}</h1>
-                    <p className="text-sm text-muted-foreground">
-                        {lot.product_name ?? '-'}
-                        {lot.product_sku ? ` (${lot.product_sku})` : ''} · {lot.location_name ?? '-'}
-                    </p>
-                </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory/lots">Back</Link>
-                </Button>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                <Metric label="Tracking" value={lot.tracking_mode} />
-                <Metric label="On hand" value={lot.quantity_on_hand.toFixed(4)} />
-                <Metric label="Reserved" value={lot.quantity_reserved.toFixed(4)} />
-                <Metric label="Available" value={lot.available_quantity.toFixed(4)} />
-                <Metric label="Received" value={lot.received_at ? new Date(lot.received_at).toLocaleDateString() : '-'} />
-                <Metric label="Last moved" value={lot.last_moved_at ? new Date(lot.last_moved_at).toLocaleString() : '-'} />
-            </div>
-
-            <div className="mt-6 rounded-xl border p-4">
-                <div className="flex items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-sm font-semibold">Movement history</h2>
-                        <p className="text-xs text-muted-foreground">
-                            Receipt, delivery, and transfer activity for this tracked unit.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="mt-4 overflow-x-auto rounded-lg border">
-                    <table className="w-full min-w-[920px] text-sm">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-3 py-2 font-medium">Reference</th>
-                                <th className="px-3 py-2 font-medium">Direction</th>
-                                <th className="px-3 py-2 font-medium">Type</th>
-                                <th className="px-3 py-2 font-medium">Status</th>
-                                <th className="px-3 py-2 font-medium">From</th>
-                                <th className="px-3 py-2 font-medium">To</th>
-                                <th className="px-3 py-2 font-medium">Qty</th>
-                                <th className="px-3 py-2 font-medium">Created</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {history.length === 0 && (
-                                <tr>
-                                    <td className="px-3 py-6 text-center text-muted-foreground" colSpan={8}>
-                                        No movement history yet.
-                                    </td>
-                                </tr>
-                            )}
-                            {history.map((row) => (
-                                <tr key={row.id}>
-                                    <td className="px-3 py-2">{row.reference ?? '-'}</td>
-                                    <td className="px-3 py-2 capitalize">{row.direction}</td>
-                                    <td className="px-3 py-2 capitalize">{row.move_type ?? '-'}</td>
-                                    <td className="px-3 py-2 capitalize">{row.status ?? '-'}</td>
-                                    <td className="px-3 py-2">{row.source_location_name ?? '-'}</td>
-                                    <td className="px-3 py-2">{row.destination_location_name ?? '-'}</td>
-                                    <td className="px-3 py-2">{row.quantity.toFixed(4)}</td>
-                                    <td className="px-3 py-2">{row.created_at ? new Date(row.created_at).toLocaleString() : '-'}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <TabbedDetailShell
+                hero={
+                    <DetailHero
+                        title={lot.code}
+                        description="Traceability view for a tracked lot or serial record."
+                        status={
+                            <Badge variant="neutral">
+                                {formatTrackingLabel(lot.tracking_mode)}
+                            </Badge>
+                        }
+                        meta={
+                            <>
+                                <span>{lot.product_name ?? '-'}</span>
+                                {lot.product_sku && (
+                                    <>
+                                        <span>|</span>
+                                        <span>{lot.product_sku}</span>
+                                    </>
+                                )}
+                                <span>|</span>
+                                <span>{lot.location_name ?? '-'}</span>
+                            </>
+                        }
+                        actions={
+                            <BackLinkAction href="/company/inventory/lots" label="Back to lots & serials
+                                " variant="outline" />
+                        }
+                        metrics={[
+                            {
+                                label: 'On hand',
+                                value: lot.quantity_on_hand.toFixed(4),
+                            },
+                            {
+                                label: 'Reserved',
+                                value: lot.quantity_reserved.toFixed(4),
+                            },
+                            {
+                                label: 'Available',
+                                value: lot.available_quantity.toFixed(4),
+                                tone:
+                                    lot.available_quantity > 0
+                                        ? 'success'
+                                        : 'warning',
+                            },
+                            {
+                                label: 'Last moved',
+                                value: lot.last_moved_at
+                                    ? new Date(lot.last_moved_at).toLocaleDateString()
+                                    : '-',
+                            },
+                        ]}
+                    />
+                }
+                tabs={tabs}
+                defaultTab="overview"
+            />
         </AppLayout>
     );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function DetailField({
+    label,
+    value,
+}: {
+    label: string;
+    value: string;
+}) {
     return (
-        <div className="rounded-xl border p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-4 py-3">
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-[color:var(--text-secondary)] uppercase">
                 {label}
             </p>
-            <p className="mt-2 text-sm font-semibold">{value}</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
         </div>
     );
 }

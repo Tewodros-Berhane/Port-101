@@ -1,12 +1,14 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type JournalOption = {
     id: string;
@@ -201,14 +203,10 @@ export default function AccountingBankReconciliationIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, {
                     title: 'Bank Reconciliation',
                     href: '/company/accounting/bank-reconciliation',
-                },
-            ]}
+                },)}
         >
             <Head title="Bank Reconciliation" />
 
@@ -224,6 +222,7 @@ export default function AccountingBankReconciliationIndex({
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/accounting" label="Back to accounting" variant="outline" />
                     <Button variant="outline" asChild>
                         <Link href="/company/accounting/payments">Payments</Link>
                     </Button>

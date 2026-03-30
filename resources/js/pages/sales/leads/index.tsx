@@ -1,7 +1,9 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Lead = {
     id: string;
@@ -26,11 +28,7 @@ export default function SalesLeadsIndex({ leads }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Sales', href: '/company/sales' },
-                { title: 'Leads', href: '/company/sales/leads' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.sales, { title: 'Leads', href: '/company/sales/leads' },)}
         >
             <Head title="Sales Leads" />
 
@@ -41,11 +39,14 @@ export default function SalesLeadsIndex({ leads }: Props) {
                         Track lead progression from discovery to conversion.
                     </p>
                 </div>
-                {canManage && (
-                    <Button asChild>
-                        <Link href="/company/sales/leads/create">New lead</Link>
-                    </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/sales" label="Back to sales" variant="outline" />
+                    {canManage && (
+                        <Button asChild>
+                            <Link href="/company/sales/leads/create">New lead</Link>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

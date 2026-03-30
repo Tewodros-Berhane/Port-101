@@ -1,11 +1,13 @@
-﻿import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+﻿import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type Contract = {
     id: string;
@@ -162,11 +164,8 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Employees', href: '/company/hr/employees' },
-                { title: employee.display_name, href: `/company/hr/employees/${employee.id}` },
-            ]}
+            breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Employees', href: '/company/hr/employees' },
+                { title: employee.display_name, href: `/company/hr/employees/${employee.id}` },)}
         >
             <Head title={employee.display_name} />
 
@@ -178,9 +177,7 @@ export default function HrEmployeeShow({ employee, abilities, contractStatuses, 
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/hr/employees">Back to employees</Link>
-                    </Button>
+                    <BackLinkAction href="/company/hr/employees" label="Back to employees" variant="outline" />
                     {abilities.can_edit_employee && (
                         <Button asChild>
                             <Link href={`/company/hr/employees/${employee.id}/edit`}>Edit employee</Link>

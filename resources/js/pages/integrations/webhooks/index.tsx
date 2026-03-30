@@ -1,8 +1,28 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { DataTableShell } from '@/components/shell/data-table-shell';
+import {
+    FilterField,
+    FilterToolbar,
+    FilterToolbarActions,
+    FilterToolbarGrid,
+} from '@/components/shell/filter-toolbar';
+import { PageHeader } from '@/components/shell/page-header';
+import { PaginationBar } from '@/components/shell/pagination-bar';
+import { WorkspaceShell } from '@/components/shell/workspace-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type EventOption = {
     value: string;
@@ -76,391 +96,349 @@ export default function WebhookEndpointsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Integrations', href: '/company/integrations' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.integrations, {
                     title: 'Webhook endpoints',
                     href: '/company/integrations/webhooks',
-                },
-            ]}
+                },)}
         >
             <Head title="Webhook Endpoints" />
 
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Webhook endpoints
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Register outbound endpoints and track their delivery
-                            health.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {abilities.can_view_deliveries && (
-                            <Button variant="outline" asChild>
-                                <Link href="/company/integrations/deliveries">
-                                    Delivery queue
-                                </Link>
-                            </Button>
-                        )}
-                        {abilities.can_create && (
-                            <Button asChild>
-                                <Link href="/company/integrations/webhooks/create">
-                                    Add endpoint
-                                </Link>
-                            </Button>
-                        )}
-                    </div>
-                </div>
+            <WorkspaceShell
+                header={
+                    <PageHeader
+                        title="Webhook endpoints"
+                        description="Register outbound endpoints and track their delivery health."
+                        actions={
+                            <>
+                                <BackLinkAction href="/company/integrations" label="Back to integrations
+                                    " variant="outline" />
+                                {abilities.can_view_deliveries && (
+                                    <Button variant="outline" asChild>
+                                        <Link href="/company/integrations/deliveries">
+                                            Delivery queue
+                                        </Link>
+                                    </Button>
+                                )}
+                                {abilities.can_create && (
+                                    <Button asChild>
+                                        <Link href="/company/integrations/webhooks/create">
+                                            Add endpoint
+                                        </Link>
+                                    </Button>
+                                )}
+                            </>
+                        }
+                    />
+                }
+                table={
+                    <DataTableShell>
+                        <Table container={false} className="min-w-[1320px]">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Endpoint</TableHead>
+                                    <TableHead>Subscriptions</TableHead>
+                                    <TableHead>Secret preview</TableHead>
+                                    <TableHead>Deliveries</TableHead>
+                                    <TableHead>Latest delivery</TableHead>
+                                    <TableHead>Health</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {endpoints.data.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-12 text-center text-sm text-muted-foreground"
+                                        >
+                                            No webhook endpoints match the
+                                            current filters.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
 
-                <form
-                    className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-4"
+                                {endpoints.data.map((endpoint) => (
+                                    <TableRow key={endpoint.id}>
+                                        <TableCell>
+                                            <div className="space-y-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="font-medium">
+                                                        {endpoint.name}
+                                                    </p>
+                                                    <StatusBadge
+                                                        status={
+                                                            endpoint.is_active
+                                                                ? 'active'
+                                                                : 'inactive'
+                                                        }
+                                                    />
+                                                </div>
+                                                <p className="max-w-[320px] truncate text-xs text-muted-foreground">
+                                                    {endpoint.target_url}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="max-w-[260px] space-y-1">
+                                                {endpoint.subscribed_event_labels.map(
+                                                    (label) => (
+                                                        <p
+                                                            key={`${endpoint.id}-${label}`}
+                                                            className="truncate text-xs text-muted-foreground"
+                                                        >
+                                                            {label}
+                                                        </p>
+                                                    ),
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            {endpoint.secret_preview}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="grid gap-2 md:grid-cols-2">
+                                                <MiniStat
+                                                    label="Total"
+                                                    value={String(
+                                                        endpoint.deliveries_count,
+                                                    )}
+                                                />
+                                                <MiniStat
+                                                    label="Delivered"
+                                                    value={String(
+                                                        endpoint.delivered_deliveries_count,
+                                                    )}
+                                                />
+                                                <MiniStat
+                                                    label="Failed"
+                                                    value={String(
+                                                        endpoint.failed_deliveries_count,
+                                                    )}
+                                                />
+                                                <MiniStat
+                                                    label="Dead"
+                                                    value={String(
+                                                        endpoint.dead_deliveries_count,
+                                                    )}
+                                                />
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {endpoint.latest_delivery ? (
+                                                <div className="space-y-1">
+                                                    <p className="font-medium">
+                                                        {
+                                                            endpoint
+                                                                .latest_delivery
+                                                                .event_label
+                                                        }
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {
+                                                            endpoint
+                                                                .latest_delivery
+                                                                .status_label
+                                                        }
+                                                        {endpoint
+                                                            .latest_delivery
+                                                            .response_status
+                                                            ? ` � HTTP ${endpoint.latest_delivery.response_status}`
+                                                            : ''}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {formatDateTime(
+                                                            endpoint
+                                                                .latest_delivery
+                                                                .delivered_at ??
+                                                                endpoint
+                                                                    .latest_delivery
+                                                                    .created_at,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    No deliveries yet
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            <div className="space-y-1">
+                                                <p>
+                                                    Last success:{' '}
+                                                    {formatDateTime(
+                                                        endpoint.last_success_at,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    Last failure:{' '}
+                                                    {formatDateTime(
+                                                        endpoint.last_failure_at,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    Last tested:{' '}
+                                                    {formatDateTime(
+                                                        endpoint.last_tested_at,
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                                                {endpoint.can_test && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                `/company/integrations/webhooks/${endpoint.id}/test`,
+                                                                {},
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Test
+                                                    </Button>
+                                                )}
+                                                {endpoint.can_edit && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={`/company/integrations/webhooks/${endpoint.id}/edit`}
+                                                        >
+                                                            Edit
+                                                        </Link>
+                                                    </Button>
+                                                )}
+                                                {endpoint.can_view && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={`/company/integrations/webhooks/${endpoint.id}`}
+                                                        >
+                                                            Open
+                                                        </Link>
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </DataTableShell>
+                }
+                pagination={<PaginationBar links={endpoints.links} />}
+            >
+                <FilterToolbar
                     onSubmit={(event) => {
                         event.preventDefault();
-                        form.get('/company/integrations/webhooks', {
+                        router.get('/company/integrations/webhooks', form.data, {
                             preserveState: true,
                             replace: true,
                         });
                     }}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="search">Search</Label>
-                        <Input
-                            id="search"
-                            value={form.data.search}
-                            onChange={(event) =>
-                                form.setData('search', event.target.value)
-                            }
-                            placeholder="Endpoint name or URL"
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="event">Subscribed event</Label>
-                        <select
-                            id="event"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.event}
-                            onChange={(event) =>
-                                form.setData('event', event.target.value)
-                            }
-                        >
-                            <option value="">All events</option>
-                            {eventOptions.map((eventOption) => (
-                                <option
-                                    key={eventOption.value}
-                                    value={eventOption.value}
-                                >
-                                    {eventOption.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="is_active">State</Label>
-                        <select
-                            id="is_active"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.is_active}
-                            onChange={(event) =>
-                                form.setData('is_active', event.target.value)
-                            }
-                        >
-                            <option value="">All states</option>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
-                        </select>
-                    </div>
-
-                    <div className="flex flex-wrap items-end gap-2">
-                        <Button type="submit">Apply filters</Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                const reset = {
-                                    search: '',
-                                    event: '',
-                                    is_active: '',
-                                };
-
-                                form.setData(reset);
-                                form.get('/company/integrations/webhooks', {
-                                    data: reset,
-                                    preserveState: true,
-                                    replace: true,
-                                });
-                            }}
-                        >
-                            Reset
-                        </Button>
-                    </div>
-                </form>
-
-                <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-[1320px] text-sm">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-medium">
-                                    Endpoint
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Subscriptions
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Secret preview
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Deliveries
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Latest delivery
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Health
-                                </th>
-                                <th className="px-4 py-3 text-right font-medium">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {endpoints.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={7}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No webhook endpoints match the current
-                                        filters.
-                                    </td>
-                                </tr>
-                            )}
-
-                            {endpoints.data.map((endpoint) => (
-                                <tr key={endpoint.id}>
-                                    <td className="px-4 py-3">
-                                        <div className="space-y-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <p className="font-medium">
-                                                    {endpoint.name}
-                                                </p>
-                                                <StatusBadge
-                                                    label={
-                                                        endpoint.is_active
-                                                            ? 'Active'
-                                                            : 'Inactive'
-                                                    }
-                                                    tone={
-                                                        endpoint.is_active
-                                                            ? 'success'
-                                                            : 'muted'
-                                                    }
-                                                />
-                                            </div>
-                                            <p className="max-w-[320px] truncate text-xs text-muted-foreground">
-                                                {endpoint.target_url}
-                                            </p>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="max-w-[260px] space-y-1">
-                                            {endpoint.subscribed_event_labels.map(
-                                                (label) => (
-                                                    <p
-                                                        key={`${endpoint.id}-${label}`}
-                                                        className="truncate text-xs text-muted-foreground"
-                                                    >
-                                                        {label}
-                                                    </p>
-                                                ),
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-xs">
-                                        {endpoint.secret_preview}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="grid gap-2 md:grid-cols-2">
-                                            <MiniStat
-                                                label="Total"
-                                                value={String(
-                                                    endpoint.deliveries_count,
-                                                )}
-                                            />
-                                            <MiniStat
-                                                label="Delivered"
-                                                value={String(
-                                                    endpoint.delivered_deliveries_count,
-                                                )}
-                                            />
-                                            <MiniStat
-                                                label="Failed"
-                                                value={String(
-                                                    endpoint.failed_deliveries_count,
-                                                )}
-                                            />
-                                            <MiniStat
-                                                label="Dead"
-                                                value={String(
-                                                    endpoint.dead_deliveries_count,
-                                                )}
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {endpoint.latest_delivery ? (
-                                            <div className="space-y-1">
-                                                <p className="font-medium">
-                                                    {
-                                                        endpoint.latest_delivery
-                                                            .event_label
-                                                    }
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {
-                                                        endpoint.latest_delivery
-                                                            .status_label
-                                                    }
-                                                    {endpoint.latest_delivery.response_status
-                                                        ? ` · HTTP ${endpoint.latest_delivery.response_status}`
-                                                        : ''}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {formatDateTime(
-                                                        endpoint.latest_delivery
-                                                            .delivered_at ??
-                                                            endpoint
-                                                                .latest_delivery
-                                                                .created_at,
-                                                    )}
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                No deliveries yet
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                                        <div className="space-y-1">
-                                            <p>
-                                                Last success:{' '}
-                                                {formatDateTime(
-                                                    endpoint.last_success_at,
-                                                )}
-                                            </p>
-                                            <p>
-                                                Last failure:{' '}
-                                                {formatDateTime(
-                                                    endpoint.last_failure_at,
-                                                )}
-                                            </p>
-                                            <p>
-                                                Last tested:{' '}
-                                                {formatDateTime(
-                                                    endpoint.last_tested_at,
-                                                )}
-                                            </p>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="inline-flex flex-wrap items-center justify-end gap-3">
-                                            {endpoint.can_test && (
-                                                <button
-                                                    type="button"
-                                                    className="font-medium text-primary"
-                                                    onClick={() =>
-                                                        router.post(
-                                                            `/company/integrations/webhooks/${endpoint.id}/test`,
-                                                            {},
-                                                            {
-                                                                preserveScroll:
-                                                                    true,
-                                                            },
-                                                        )
-                                                    }
-                                                >
-                                                    Test
-                                                </button>
-                                            )}
-                                            {endpoint.can_edit && (
-                                                <Link
-                                                    href={`/company/integrations/webhooks/${endpoint.id}/edit`}
-                                                    className="font-medium text-primary"
-                                                >
-                                                    Edit
-                                                </Link>
-                                            )}
-                                            {endpoint.can_view && (
-                                                <Link
-                                                    href={`/company/integrations/webhooks/${endpoint.id}`}
-                                                    className="font-medium text-primary"
-                                                >
-                                                    Open
-                                                </Link>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {endpoints.links.length > 1 && (
-                    <div className="flex flex-wrap gap-2">
-                        {endpoints.links.map((link) => (
-                            <Link
-                                key={link.label}
-                                href={link.url ?? '#'}
-                                className={`rounded-md border px-3 py-1 text-sm ${
-                                    link.active
-                                        ? 'border-primary text-primary'
-                                        : 'text-muted-foreground'
-                                } ${
-                                    !link.url
-                                        ? 'pointer-events-none opacity-50'
-                                        : ''
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
+                    <FilterToolbarGrid className="xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]">
+                        <FilterField label="Search" htmlFor="search">
+                            <Input
+                                id="search"
+                                value={form.data.search}
+                                onChange={(event) =>
+                                    form.setData('search', event.target.value)
+                                }
+                                placeholder="Endpoint name or URL"
                             />
-                        ))}
-                    </div>
-                )}
-            </div>
+                        </FilterField>
+
+                        <FilterField
+                            label="Subscribed event"
+                            htmlFor="event"
+                        >
+                            <select
+                                id="event"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.event}
+                                onChange={(event) =>
+                                    form.setData('event', event.target.value)
+                                }
+                            >
+                                <option value="">All events</option>
+                                {eventOptions.map((eventOption) => (
+                                    <option
+                                        key={eventOption.value}
+                                        value={eventOption.value}
+                                    >
+                                        {eventOption.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
+
+                        <FilterField label="State" htmlFor="is_active">
+                            <select
+                                id="is_active"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.is_active}
+                                onChange={(event) =>
+                                    form.setData('is_active', event.target.value)
+                                }
+                            >
+                                <option value="">All states</option>
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </FilterField>
+
+                        <FilterToolbarActions>
+                            <Button type="submit">Apply filters</Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    const reset = {
+                                        search: '',
+                                        event: '',
+                                        is_active: '',
+                                    };
+
+                                    form.setData(reset);
+                                    router.get(
+                                        '/company/integrations/webhooks',
+                                        reset,
+                                        {
+                                            preserveState: true,
+                                            replace: true,
+                                        },
+                                    );
+                                }}
+                            >
+                                Reset
+                            </Button>
+                        </FilterToolbarActions>
+                    </FilterToolbarGrid>
+                </FilterToolbar>
+            </WorkspaceShell>
         </AppLayout>
-    );
-}
-
-function StatusBadge({
-    label,
-    tone,
-}: {
-    label: string;
-    tone: 'success' | 'muted';
-}) {
-    const toneClass = {
-        success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
-        muted: 'border-border bg-muted text-muted-foreground',
-    }[tone];
-
-    return (
-        <span
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-        >
-            {label}
-        </span>
     );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-lg bg-muted/30 px-2.5 py-2">
+        <div className="rounded-[calc(var(--radius-control)+2px)] border border-[color:var(--border-subtle)] bg-muted/35 px-2.5 py-2">
             <p className="text-[11px] text-muted-foreground">{label}</p>
             <p className="mt-1 font-medium">{value}</p>
         </div>

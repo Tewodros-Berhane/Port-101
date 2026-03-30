@@ -1,9 +1,11 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     operationsFilters: {
@@ -110,10 +112,7 @@ export default function PlatformReports({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Reports', href: '/platform/reports' },
-            ]}
+            breadcrumbs={platformBreadcrumbs({ title: 'Reports', href: '/platform/reports' },)}
         >
             <Head title="Platform Reports" />
 
@@ -125,9 +124,7 @@ export default function PlatformReports({
                         operations, admins, invites, and notification events.
                     </p>
                 </div>
-                <Button variant="outline" asChild>
-                    <Link href="/platform/dashboard">Back to dashboard</Link>
-                </Button>
+                <BackLinkAction href="/platform/dashboard" label="Back to platform" variant="outline" />
             </div>
 
             <form

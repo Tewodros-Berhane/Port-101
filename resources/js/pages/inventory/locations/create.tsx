@@ -1,10 +1,12 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type WarehouseOption = {
     id: string;
@@ -27,12 +29,8 @@ export default function InventoryLocationCreate({ warehouses, locationTypes }: P
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Locations', href: '/company/inventory/locations' },
-                { title: 'Create', href: '/company/inventory/locations/create' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Locations', href: '/company/inventory/locations' },
+                { title: 'Create', href: '/company/inventory/locations/create' },)}
         >
             <Head title="New Location" />
 
@@ -43,9 +41,7 @@ export default function InventoryLocationCreate({ warehouses, locationTypes }: P
                         Configure where stock is stored or moved.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory/locations">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/inventory/locations" label="Back to locations" variant="ghost" />
             </div>
 
             <form

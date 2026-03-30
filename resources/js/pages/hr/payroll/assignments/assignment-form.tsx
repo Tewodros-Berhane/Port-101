@@ -1,11 +1,13 @@
+import { useForm } from '@inertiajs/react';
+import { useMemo } from 'react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Link, useForm } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     mode: 'create' | 'edit';
@@ -26,15 +28,15 @@ export default function AssignmentForm({ mode, title, description, submitUrl, me
     const submit = () => method === 'put' ? form.put(submitUrl) : form.post(submitUrl);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'HR', href: '/company/hr' }, { title: 'Payroll', href: '/company/hr/payroll' }, { title, href: submitUrl }]}>
+        <AppLayout breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Payroll', href: '/company/hr/payroll' }, { title, href: submitUrl })}>
             <div className="max-w-5xl space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{title}</h1><p className="text-sm text-muted-foreground">{description}</p></div><Button variant="outline" asChild><Link href="/company/hr/payroll">Back to payroll</Link></Button></div>
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{title}</h1><p className="text-sm text-muted-foreground">{description}</p></div><BackLinkAction href="/company/hr/payroll" label="Back to payroll" variant="outline" /></div>
                 <form className="space-y-6 rounded-xl border p-4" onSubmit={(event) => { event.preventDefault(); submit(); }}>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <Field label="Employee" error={form.errors.employee_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.employee_id} onChange={(event) => form.setData('employee_id', event.target.value)}><option value="">Select employee</option>{employeeOptions.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.employee_number ? ` (${employee.employee_number})` : ''}</option>)}</select></Field>
-                        <Field label="Contract" error={form.errors.contract_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.contract_id} onChange={(event) => form.setData('contract_id', event.target.value)}><option value="">No linked contract</option>{filteredContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.contract_number} · {contract.pay_frequency} · {contract.salary_basis}</option>)}</select></Field>
+                        <Field label="Contract" error={form.errors.contract_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.contract_id} onChange={(event) => form.setData('contract_id', event.target.value)}><option value="">No linked contract</option>{filteredContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.contract_number} ï¿½ {contract.pay_frequency} ï¿½ {contract.salary_basis}</option>)}</select></Field>
                         <Field label="Structure" error={form.errors.salary_structure_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.salary_structure_id} onChange={(event) => form.setData('salary_structure_id', event.target.value)}><option value="">No structure</option>{salaryStructureOptions.map((structure) => <option key={structure.id} value={structure.id}>{structure.name} ({structure.code})</option>)}</select></Field>
-                        <Field label="Currency" error={form.errors.currency_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.currency_id} onChange={(event) => form.setData('currency_id', event.target.value)}><option value="">Use contract/default</option>{currencyOptions.map((currency) => <option key={currency.id} value={currency.id}>{currency.code} · {currency.name}</option>)}</select></Field>
+                        <Field label="Currency" error={form.errors.currency_id}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.currency_id} onChange={(event) => form.setData('currency_id', event.target.value)}><option value="">Use contract/default</option>{currencyOptions.map((currency) => <option key={currency.id} value={currency.id}>{currency.code} ï¿½ {currency.name}</option>)}</select></Field>
                         <Field label="Effective from" error={form.errors.effective_from}><Input type="date" value={form.data.effective_from} onChange={(event) => form.setData('effective_from', event.target.value)} /></Field>
                         <Field label="Effective to" error={form.errors.effective_to}><Input type="date" value={form.data.effective_to} onChange={(event) => form.setData('effective_to', event.target.value)} /></Field>
                         <Field label="Pay frequency" error={form.errors.pay_frequency}><select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={form.data.pay_frequency} onChange={(event) => form.setData('pay_frequency', event.target.value)}><option value="monthly">Monthly</option><option value="biweekly">Biweekly</option><option value="weekly">Weekly</option></select></Field>

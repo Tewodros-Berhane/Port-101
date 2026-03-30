@@ -1,7 +1,9 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type FilterOption = {
     id: string;
@@ -109,14 +111,10 @@ export default function ProjectRecurringBillingIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, {
                     title: 'Recurring Billing',
                     href: '/company/projects/recurring-billing',
-                },
-            ]}
+                },)}
         >
             <Head title="Project Recurring Billing" />
 
@@ -132,9 +130,7 @@ export default function ProjectRecurringBillingIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/projects">Dashboard</Link>
-                        </Button>
+                        <BackLinkAction href="/company/projects" label="Back to projects" variant="outline" />
                         {abilities.can_view_projects_workspace && (
                             <Button variant="outline" asChild>
                                 <Link href="/company/projects/workspace">

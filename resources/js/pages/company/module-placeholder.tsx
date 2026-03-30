@@ -1,5 +1,6 @@
-import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     module: string;
@@ -10,10 +11,10 @@ export default function CompanyModulePlaceholder({ module }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: module, href: `/company/${slug}` },
-            ]}
+            breadcrumbs={companyBreadcrumbs({
+                title: module,
+                href: `/company/${slug}`,
+            })}
         >
             <Head title={module} />
 

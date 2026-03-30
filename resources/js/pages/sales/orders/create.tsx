@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import SalesLineItemsEditor, {
     type SalesLineItem,
 } from '@/components/sales/line-items-editor';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -48,12 +50,8 @@ export default function SalesOrderCreate({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Sales', href: '/company/sales' },
-                { title: 'Orders', href: '/company/sales/orders' },
-                { title: 'Create', href: '/company/sales/orders/create' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.sales, { title: 'Orders', href: '/company/sales/orders' },
+                { title: 'Create', href: '/company/sales/orders/create' },)}
         >
             <Head title="New Sales Order" />
 
@@ -64,9 +62,7 @@ export default function SalesOrderCreate({
                         Build an order directly or from an approved quote.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/sales/orders">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/sales/orders" label="Back to orders" variant="ghost" />
             </div>
 
             <form

@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type EmployeeOption = { id: string; name: string; employee_number?: string | null };
 type LeaveTypeOption = { id: string; name: string; unit: string; requires_allocation: boolean; requires_approval: boolean };
@@ -30,7 +32,7 @@ export default function HrLeaveRequestCreate({ employeeOptions, leaveTypes, leav
     const form = useForm(initialForm);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'HR', href: '/company/hr' }, { title: 'Leave', href: '/company/hr/leave' }, { title: 'New request', href: '/company/hr/leave/requests/create' }]}>
+        <AppLayout breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Leave', href: '/company/hr/leave' }, { title: 'New request', href: '/company/hr/leave/requests/create' })}>
             <Head title="New leave request" />
 
             <div className="flex items-center justify-between gap-3">
@@ -38,9 +40,7 @@ export default function HrLeaveRequestCreate({ employeeOptions, leaveTypes, leav
                     <h1 className="text-xl font-semibold">New leave request</h1>
                     <p className="text-sm text-muted-foreground">Create a draft or submit the leave request for approval.</p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/hr/leave">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/hr/leave" label="Back to leave" variant="ghost" />
             </div>
 
             <form className="mt-6 grid gap-6" onSubmit={(event) => { event.preventDefault(); form.post('/company/hr/leave/requests'); }}>

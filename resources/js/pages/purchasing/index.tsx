@@ -1,6 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type RfqRow = {
     id: string;
@@ -39,10 +40,7 @@ type Props = {
 export default function PurchasingIndex({ kpis, recentRfqs, recentOrders }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Purchasing', href: '/company/purchasing' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.purchasing, )}
         >
             <Head title="Purchasing" />
 

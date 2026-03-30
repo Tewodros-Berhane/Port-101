@@ -1,9 +1,11 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type CustomerOption = {
     id: string;
@@ -78,18 +80,14 @@ export default function ProjectRecurringBillingEdit({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, {
                     title: 'Recurring Billing',
                     href: '/company/projects/recurring-billing',
                 },
                 {
                     title: recurringBilling.name,
                     href: `/company/projects/recurring-billing/${recurringBilling.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={recurringBilling.name} />
 
@@ -109,9 +107,7 @@ export default function ProjectRecurringBillingEdit({
                             Open project
                         </Link>
                     </Button>
-                    <Button variant="ghost" asChild>
-                        <Link href="/company/projects/recurring-billing">Back</Link>
-                    </Button>
+                    <BackLinkAction href="/company/projects/recurring-billing" label="Back to recurring billing" variant="ghost" />
                 </div>
             </div>
 

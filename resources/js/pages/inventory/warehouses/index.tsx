@@ -1,6 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Warehouse = {
     id: string;
@@ -20,11 +22,7 @@ type Props = {
 export default function InventoryWarehousesIndex({ warehouses }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Warehouses', href: '/company/inventory/warehouses' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Warehouses', href: '/company/inventory/warehouses' },)}
         >
             <Head title="Warehouses" />
 
@@ -35,9 +33,12 @@ export default function InventoryWarehousesIndex({ warehouses }: Props) {
                         Configure inventory storage sites.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/company/inventory/warehouses/create">New warehouse</Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/inventory" label="Back to inventory" variant="outline" />
+                    <Button asChild>
+                        <Link href="/company/inventory/warehouses/create">New warehouse</Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

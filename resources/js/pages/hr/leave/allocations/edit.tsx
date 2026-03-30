@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type EmployeeOption = { id: string; name: string; employee_number?: string | null };
 type LeaveTypeOption = { id: string; name: string; unit: string };
@@ -15,9 +17,9 @@ export default function HrLeaveAllocationEdit({ employeeOptions, leaveTypes, lea
     const form = useForm(allocation);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'HR', href: '/company/hr' }, { title: 'Leave', href: '/company/hr/leave' }, { title: 'Edit allocation', href: `/company/hr/leave/allocations/${allocation.id}/edit` }]}>
+        <AppLayout breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Leave', href: '/company/hr/leave' }, { title: 'Edit allocation', href: `/company/hr/leave/allocations/${allocation.id}/edit` })}>
             <Head title="Edit leave allocation" />
-            <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Edit leave allocation</h1><p className="text-sm text-muted-foreground">Adjust entitlement and carry-forward values for this employee.</p></div><Button variant="ghost" asChild><Link href="/company/hr/leave">Back</Link></Button></div>
+            <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">Edit leave allocation</h1><p className="text-sm text-muted-foreground">Adjust entitlement and carry-forward values for this employee.</p></div><BackLinkAction href="/company/hr/leave" label="Back to leave" variant="ghost" /></div>
             <form className="mt-6 grid gap-6" onSubmit={(event) => { event.preventDefault(); form.put(`/company/hr/leave/allocations/${allocation.id}`); }}>
                 <div className="grid gap-6 md:grid-cols-2">
                     <Field label="Employee" error={form.errors.employee_id}><select className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={form.data.employee_id} onChange={(event) => form.setData('employee_id', event.target.value)} required>{employeeOptions.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.employee_number ? ` (${employee.employee_number})` : ''}</option>)}</select></Field>

@@ -1,9 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { buildBreadcrumbs } from '@/lib/page-navigation';
 
 type AuditLog = {
     id: string;
@@ -125,10 +126,10 @@ export default function AuditLogsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
+            breadcrumbs={buildBreadcrumbs(
                 { title: 'Governance', href: '/core/audit-logs' },
                 { title: 'Audit Logs', href: '/core/audit-logs' },
-            ]}
+            )}
         >
             <Head title="Audit Logs" />
 

@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type TaskOption = {
     id: string;
@@ -66,10 +68,7 @@ export default function ProjectTimesheetCreate({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                { title: 'Workspace', href: '/company/projects/workspace' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, { title: 'Workspace', href: '/company/projects/workspace' },
                 {
                     title: project.project_code,
                     href: `/company/projects/${project.id}`,
@@ -77,8 +76,7 @@ export default function ProjectTimesheetCreate({
                 {
                     title: 'New Timesheet',
                     href: `/company/projects/${project.id}/timesheets/create`,
-                },
-            ]}
+                },)}
         >
             <Head title="New Project Timesheet" />
 
@@ -89,9 +87,11 @@ export default function ProjectTimesheetCreate({
                         Log delivery effort against {project.name}.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href={`/company/projects/${project.id}`}>Back</Link>
-                </Button>
+                <BackLinkAction
+                    href={`/company/projects/${project.id}`}
+                    label="Back to project"
+                    variant="ghost"
+                />
             </div>
 
             <form

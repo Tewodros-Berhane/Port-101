@@ -1,6 +1,7 @@
+import { Head, useForm } from '@inertiajs/react';
 import { WebhookEndpointForm } from '@/components/integrations/webhook-endpoint-form';
 import AppLayout from '@/layouts/app-layout';
-import { Head, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type EventOption = {
     value: string;
@@ -30,10 +31,7 @@ export default function EditWebhookEndpoint({ endpoint, eventOptions }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Integrations', href: '/company/integrations' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.integrations, {
                     title: 'Webhook endpoints',
                     href: '/company/integrations/webhooks',
                 },
@@ -44,8 +42,7 @@ export default function EditWebhookEndpoint({ endpoint, eventOptions }: Props) {
                 {
                     title: 'Edit',
                     href: `/company/integrations/webhooks/${endpoint.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={`Edit ${endpoint.name}`} />
 

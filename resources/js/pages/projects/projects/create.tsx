@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type CustomerOption = {
     id: string;
@@ -90,12 +92,8 @@ export default function ProjectCreate({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                { title: 'Workspace', href: '/company/projects/workspace' },
-                { title: 'Create', href: '/company/projects/create' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, { title: 'Workspace', href: '/company/projects/workspace' },
+                { title: 'Create', href: '/company/projects/create' },)}
         >
             <Head title="New Project" />
 
@@ -107,9 +105,7 @@ export default function ProjectCreate({
                         billing posture.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/projects/workspace">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/projects/workspace" label="Back to workspace" variant="ghost" />
             </div>
 
             <form

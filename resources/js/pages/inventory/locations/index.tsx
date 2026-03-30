@@ -1,6 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Location = {
     id: string;
@@ -21,11 +23,7 @@ type Props = {
 export default function InventoryLocationsIndex({ locations }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Locations', href: '/company/inventory/locations' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Locations', href: '/company/inventory/locations' },)}
         >
             <Head title="Locations" />
 
@@ -36,9 +34,12 @@ export default function InventoryLocationsIndex({ locations }: Props) {
                         Define internal and virtual stock locations.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/company/inventory/locations/create">New location</Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/inventory" label="Back to inventory" variant="outline" />
+                    <Button asChild>
+                        <Link href="/company/inventory/locations/create">New location</Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

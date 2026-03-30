@@ -1,7 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type PriceList = {
     id: string;
@@ -24,10 +25,7 @@ export default function PriceListsIndex({ priceLists }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Price Lists', href: '/core/price-lists' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Price Lists', href: '/core/price-lists' },)}
         >
             <Head title="Price Lists" />
 

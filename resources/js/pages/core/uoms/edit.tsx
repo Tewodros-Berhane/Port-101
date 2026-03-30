@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
 import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Uom = {
     id: string;
@@ -42,11 +44,8 @@ export default function UomEdit({ uom, attachments }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Units', href: '/core/uoms' },
-                { title: uom.name, href: `/core/uoms/${uom.id}/edit` },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Units', href: '/core/uoms' },
+                { title: uom.name, href: `/core/uoms/${uom.id}/edit` },)}
         >
             <Head title={uom.name} />
 
@@ -57,9 +56,7 @@ export default function UomEdit({ uom, attachments }: Props) {
                         Update unit of measure details.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/uoms">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/uoms" label="Back to UOMs" variant="ghost" />
             </div>
 
             <form

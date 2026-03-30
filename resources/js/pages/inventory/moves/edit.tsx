@@ -1,13 +1,15 @@
+import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
 import InventoryMoveLinesEditor, {
     type InventoryMoveLineInput,
 } from '@/components/inventory/inventory-move-lines-editor';
-import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type ProductOption = {
     id: string;
@@ -101,15 +103,11 @@ export default function InventoryMoveEdit({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Stock Moves', href: '/company/inventory/moves' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Stock Moves', href: '/company/inventory/moves' },
                 {
                     title: move.reference ?? move.id,
                     href: `/company/inventory/moves/${move.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={move.reference ?? 'Stock Move'} />
 
@@ -120,9 +118,7 @@ export default function InventoryMoveEdit({
                         {move.reference ?? 'Unreferenced move'} - {move.status}
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory/moves">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/inventory/moves" label="Back to stock moves" variant="ghost" />
             </div>
 
             <div className="mt-6 grid gap-4 rounded-xl border p-4 text-sm md:grid-cols-3">

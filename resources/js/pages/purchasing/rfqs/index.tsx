@@ -1,7 +1,9 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Rfq = {
     id: string;
@@ -28,11 +30,7 @@ export default function PurchaseRfqsIndex({ rfqs }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Purchasing', href: '/company/purchasing' },
-                { title: 'RFQs', href: '/company/purchasing/rfqs' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.purchasing, { title: 'RFQs', href: '/company/purchasing/rfqs' },)}
         >
             <Head title="Purchase RFQs" />
 
@@ -43,11 +41,14 @@ export default function PurchaseRfqsIndex({ rfqs }: Props) {
                         Manage vendor requests and convert selected RFQs to purchase orders.
                     </p>
                 </div>
-                {canManage && (
-                    <Button asChild>
-                        <Link href="/company/purchasing/rfqs/create">New RFQ</Link>
-                    </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/purchasing" label="Back to purchasing" variant="outline" />
+                    {canManage && (
+                        <Button asChild>
+                            <Link href="/company/purchasing/rfqs/create">New RFQ</Link>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

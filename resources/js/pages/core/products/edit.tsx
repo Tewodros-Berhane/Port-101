@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
 import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -89,14 +91,11 @@ export default function ProductEdit({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Products', href: '/core/products' },
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Products', href: '/core/products' },
                 {
                     title: product.name,
                     href: `/core/products/${product.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={product.name} />
 
@@ -107,9 +106,7 @@ export default function ProductEdit({
                         Update product or service details.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/products">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/products" label="Back to products" variant="ghost" />
             </div>
 
             <form

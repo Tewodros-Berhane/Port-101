@@ -1,10 +1,12 @@
+import { Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Link, router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type EmployeeOption = { id: string; name: string; employee_number?: string | null };
 type CategoryOption = {
@@ -132,11 +134,8 @@ export default function ClaimForm({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Reimbursements', href: '/company/hr/reimbursements' },
-                { title, href: backHref },
-            ]}
+            breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Reimbursements', href: '/company/hr/reimbursements' },
+                { title, href: backHref },)}
         >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -153,9 +152,7 @@ export default function ClaimForm({
                         </p>
                     )}
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/hr/reimbursements">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/hr/reimbursements" label="Back to reimbursements" variant="ghost" />
             </div>
 
             <form

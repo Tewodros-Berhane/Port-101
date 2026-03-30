@@ -1,5 +1,6 @@
-import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     roles: {
@@ -15,10 +16,7 @@ type Props = {
 export default function CompanyRoles({ roles }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Roles', href: '/company/roles' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Roles', href: '/company/roles' })}
         >
             <Head title="Company Roles" />
 

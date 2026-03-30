@@ -1,8 +1,9 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type Option = {
     value: string;
@@ -170,13 +171,10 @@ export default function PlatformQueueHealth({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                {
+            breadcrumbs={platformBreadcrumbs({
                     title: 'Queue Health',
                     href: '/platform/operations/queue-health',
-                },
-            ]}
+                },)}
         >
             <Head title="Queue Health" />
 

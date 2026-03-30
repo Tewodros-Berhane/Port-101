@@ -1,11 +1,12 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { Settings2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import DeliveryStatusDonut from '@/components/platform/dashboard/delivery-status-donut';
 import DeliveryTrendChart from '@/components/platform/dashboard/delivery-trend-chart';
 import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Settings2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type OperationsTab = 'companies' | 'invites' | 'admin_actions';
 type WidgetId =
@@ -249,7 +250,7 @@ export default function PlatformDashboard({
 
     return (
         <AppLayout
-            breadcrumbs={[{ title: 'Platform', href: '/platform/dashboard' }]}
+            breadcrumbs={platformBreadcrumbs()}
         >
             <Head title="Platform Dashboard" />
 

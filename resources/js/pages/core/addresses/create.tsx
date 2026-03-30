@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type PartnerOption = {
     id: string;
@@ -34,11 +36,8 @@ export default function AddressCreate({ partners }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Addresses', href: '/core/addresses' },
-                { title: 'Create', href: '/core/addresses/create' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Addresses', href: '/core/addresses' },
+                { title: 'Create', href: '/core/addresses/create' },)}
         >
             <Head title="New Address" />
 
@@ -49,9 +48,7 @@ export default function AddressCreate({ partners }: Props) {
                         Add an address for a partner.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/addresses">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/addresses" label="Back to addresses" variant="ghost" />
             </div>
 
             <form

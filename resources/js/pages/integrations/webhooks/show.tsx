@@ -1,8 +1,10 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import type { ReactNode } from 'react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type EventOption = {
     value: string;
@@ -139,18 +141,14 @@ export default function ShowWebhookEndpoint({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Integrations', href: '/company/integrations' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.integrations, {
                     title: 'Webhook endpoints',
                     href: '/company/integrations/webhooks',
                 },
                 {
                     title: endpoint.name,
                     href: `/company/integrations/webhooks/${endpoint.id}`,
-                },
-            ]}
+                },)}
         >
             <Head title={endpoint.name} />
 
@@ -165,11 +163,8 @@ export default function ShowWebhookEndpoint({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/integrations/webhooks">
-                                Back to endpoints
-                            </Link>
-                        </Button>
+                        <BackLinkAction href="/company/integrations/webhooks" label="Back to endpoints
+                            " variant="outline" />
                         {endpoint.can_edit && (
                             <Button variant="outline" asChild>
                                 <Link

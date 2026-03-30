@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
 import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Address = {
     id: string;
@@ -61,14 +63,11 @@ export default function AddressEdit({ address, partners, attachments }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Addresses', href: '/core/addresses' },
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Addresses', href: '/core/addresses' },
                 {
                     title: address.line1,
                     href: `/core/addresses/${address.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={address.line1} />
 
@@ -79,9 +78,7 @@ export default function AddressEdit({ address, partners, attachments }: Props) {
                         Update address details.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/addresses">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/addresses" label="Back to addresses" variant="ghost" />
             </div>
 
             <form

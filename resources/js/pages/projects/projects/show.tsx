@@ -1,8 +1,10 @@
-import AttachmentsPanel from '@/components/attachments-panel';
-import { Button } from '@/components/ui/button';
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
+import AttachmentsPanel from '@/components/attachments-panel';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type ProjectMember = {
     id: string;
@@ -265,15 +267,11 @@ export default function ProjectShow({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                { title: 'Workspace', href: '/company/projects/workspace' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, { title: 'Workspace', href: '/company/projects/workspace' },
                 {
                     title: project.project_code,
                     href: `/company/projects/${project.id}`,
-                },
-            ]}
+                },)}
         >
             <Head title={project.project_code} />
 
@@ -293,11 +291,8 @@ export default function ProjectShow({
                             </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" asChild>
-                                <Link href="/company/projects/workspace">
-                                    Back to workspace
-                                </Link>
-                            </Button>
+                            <BackLinkAction href="/company/projects/workspace" label="Back to workspace
+                                " variant="outline" />
                             {abilities.can_view_billables && (
                                 <Button variant="outline" asChild>
                                     <Link

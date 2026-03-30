@@ -1,8 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type AccountRow = {
     id: string;
@@ -45,11 +47,7 @@ export default function AccountingAccountsIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                { title: 'Accounts', href: '/company/accounting/accounts' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, { title: 'Accounts', href: '/company/accounting/accounts' },)}
         >
             <Head title="Chart of Accounts" />
 
@@ -61,6 +59,7 @@ export default function AccountingAccountsIndex({
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/accounting" label="Back to accounting" variant="outline" />
                     <Button variant="outline" asChild>
                         <Link href="/company/accounting/journals">
                             Journals

@@ -1,14 +1,16 @@
+import { Head, useForm } from '@inertiajs/react';
 import AccountingManualJournalLinesEditor, {
     type AccountingManualJournalLineInput,
 } from '@/components/accounting/manual-journal-lines-editor';
 import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type JournalOption = {
     id: string;
@@ -102,18 +104,14 @@ export default function AccountingManualJournalEdit({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, {
                     title: 'Manual Journals',
                     href: '/company/accounting/manual-journals',
                 },
                 {
                     title: manualJournal.entry_number,
                     href: `/company/accounting/manual-journals/${manualJournal.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={manualJournal.entry_number} />
 
@@ -126,9 +124,7 @@ export default function AccountingManualJournalEdit({
                         {manualJournal.entry_number} - {manualJournal.status}
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/accounting/manual-journals">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/accounting/manual-journals" label="Back to manual journals" variant="ghost" />
             </div>
 
             <form

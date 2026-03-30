@@ -1,6 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Summary = {
     employees: number;
@@ -48,10 +49,7 @@ type Props = {
 export default function HrIndex({ summary, recentEmployees, contractsEndingSoon, abilities }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'HR', href: '/company/hr' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, )}
         >
             <Head title="HR" />
 

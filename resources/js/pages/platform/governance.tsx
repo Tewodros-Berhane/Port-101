@@ -1,10 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import GovernanceTimeSeriesChart from '@/components/platform/dashboard/governance-time-series-chart';
 import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     analyticsFilters: {
@@ -238,10 +240,7 @@ export default function PlatformGovernance({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Governance', href: '/platform/governance' },
-            ]}
+            breadcrumbs={platformBreadcrumbs({ title: 'Governance', href: '/platform/governance' },)}
         >
             <Head title="Platform Governance" />
 
@@ -255,9 +254,7 @@ export default function PlatformGovernance({
                         digest governance.
                     </p>
                 </div>
-                <Button variant="outline" asChild>
-                    <Link href="/platform/dashboard">Back to dashboard</Link>
-                </Button>
+                <BackLinkAction href="/platform/dashboard" label="Back to platform" variant="outline" />
             </div>
 
             <form

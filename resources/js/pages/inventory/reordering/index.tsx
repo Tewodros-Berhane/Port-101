@@ -1,8 +1,10 @@
+import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -98,11 +100,7 @@ export default function InventoryReorderingIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Reordering', href: '/company/inventory/reordering' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Reordering', href: '/company/inventory/reordering' },)}
         >
             <Head title="Inventory Reordering" />
 
@@ -114,9 +112,7 @@ export default function InventoryReorderingIndex({
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/company/inventory">Back</Link>
-                    </Button>
+                    <BackLinkAction href="/company/inventory" label="Back to inventory" variant="outline" />
                     {permissions.can_scan && (
                         <Button
                             variant="outline"

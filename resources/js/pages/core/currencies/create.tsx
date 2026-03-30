@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 export default function CurrencyCreate() {
     const { hasPermission } = usePermissions();
@@ -20,11 +22,8 @@ export default function CurrencyCreate() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Currencies', href: '/core/currencies' },
-                { title: 'Create', href: '/core/currencies/create' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Currencies', href: '/core/currencies' },
+                { title: 'Create', href: '/core/currencies/create' },)}
         >
             <Head title="New Currency" />
 
@@ -35,9 +34,7 @@ export default function CurrencyCreate() {
                         Add currency and formatting details.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/currencies">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/currencies" label="Back to currencies" variant="ghost" />
             </div>
 
             <form

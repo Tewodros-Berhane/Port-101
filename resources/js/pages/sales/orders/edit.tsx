@@ -1,13 +1,15 @@
+import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import SalesLineItemsEditor, {
     type SalesLineItem,
 } from '@/components/sales/line-items-editor';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     id: string;
@@ -67,15 +69,11 @@ export default function SalesOrderEdit({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Sales', href: '/company/sales' },
-                { title: 'Orders', href: '/company/sales/orders' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.sales, { title: 'Orders', href: '/company/sales/orders' },
                 {
                     title: order.order_number,
                     href: `/company/sales/orders/${order.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={order.order_number} />
 
@@ -86,9 +84,7 @@ export default function SalesOrderEdit({
                         {order.order_number} - {order.status}
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/sales/orders">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/sales/orders" label="Back to orders" variant="ghost" />
             </div>
 
             {order.requires_approval && !order.approved_at && (

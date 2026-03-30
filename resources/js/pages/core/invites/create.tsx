@@ -1,9 +1,11 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 export default function CompanyInviteCreate() {
     const form = useForm({
@@ -14,11 +16,7 @@ export default function CompanyInviteCreate() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Owner Invites', href: '/core/invites' },
-                { title: 'Create', href: '/core/invites/create' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Owner Invites', href: '/core/invites' }, { title: 'Create', href: '/core/invites/create' })}
         >
             <Head title="New Owner Invite" />
 
@@ -36,9 +34,7 @@ export default function CompanyInviteCreate() {
                             Add employee instead
                         </Link>
                     </Button>
-                    <Button variant="ghost" asChild>
-                        <Link href="/core/invites">Back</Link>
-                    </Button>
+                    <BackLinkAction href="/core/invites" label="Back to invites" variant="ghost" />
                 </div>
             </div>
 

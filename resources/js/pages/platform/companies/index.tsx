@@ -1,8 +1,10 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 type Company = {
     id: string;
@@ -48,10 +50,7 @@ export default function PlatformCompaniesIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Companies', href: '/platform/companies' },
-            ]}
+            breadcrumbs={platformBreadcrumbs({ title: 'Companies', href: '/platform/companies' },)}
         >
             <Head title="Companies" />
 
@@ -62,9 +61,14 @@ export default function PlatformCompaniesIndex({
                         Manage company accounts and ownership.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/platform/companies/create">New company</Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/platform/dashboard" label="Back to platform" variant="outline" />
+                    <Button asChild>
+                        <Link href="/platform/companies/create">
+                            New company
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             <form

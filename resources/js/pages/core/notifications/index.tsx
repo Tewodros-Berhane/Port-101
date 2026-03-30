@@ -1,8 +1,9 @@
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
+import { buildBreadcrumbs } from '@/lib/page-navigation';
 import type { SharedData } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 type AppNotification = {
     id: string;
@@ -54,7 +55,7 @@ export default function NotificationsIndex({ notifications }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
+            breadcrumbs={buildBreadcrumbs(
                 {
                     title: isSuperAdmin ? 'Platform' : 'Company',
                     href: isSuperAdmin
@@ -62,7 +63,7 @@ export default function NotificationsIndex({ notifications }: Props) {
                         : '/company/dashboard',
                 },
                 { title: 'Notifications', href: '/core/notifications' },
-            ]}
+            )}
         >
             <Head title="Notifications" />
 

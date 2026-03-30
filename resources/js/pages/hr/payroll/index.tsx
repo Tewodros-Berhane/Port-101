@@ -1,6 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Props = {
     summary: {
@@ -23,7 +25,7 @@ const labelize = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, 
 
 export default function HrPayrollIndex({ summary, structures, assignments, periods, runs, payslips, abilities }: Props) {
     return (
-        <AppLayout breadcrumbs={[{ title: 'Company', href: '/company/dashboard' }, { title: 'HR', href: '/company/hr' }, { title: 'Payroll', href: '/company/hr/payroll' }]}>
+        <AppLayout breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Payroll', href: '/company/hr/payroll' })}>
             <Head title="Payroll workspace" />
             <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -32,7 +34,7 @@ export default function HrPayrollIndex({ summary, structures, assignments, perio
                         <p className="text-sm text-muted-foreground">Salary setup, payroll runs, approvals, postings, and employee payslips.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild><Link href="/company/hr">HR dashboard</Link></Button>
+                        <BackLinkAction href="/company/hr" label="Back to HR" variant="outline" />
                         {abilities.can_manage_payroll && <Button variant="outline" asChild><Link href="/company/hr/payroll/structures/create">New structure</Link></Button>}
                         {abilities.can_manage_payroll && <Button variant="outline" asChild><Link href="/company/hr/payroll/assignments/create">New assignment</Link></Button>}
                         {abilities.can_manage_payroll && <Button variant="outline" asChild><Link href="/company/hr/payroll/periods/create">New period</Link></Button>}

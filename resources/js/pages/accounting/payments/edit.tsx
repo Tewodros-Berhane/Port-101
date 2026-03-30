@@ -1,10 +1,12 @@
+import { Head, Link, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type InvoiceOption = {
     id: string;
@@ -69,15 +71,11 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                { title: 'Payments', href: '/company/accounting/payments' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, { title: 'Payments', href: '/company/accounting/payments' },
                 {
                     title: payment.payment_number,
                     href: `/company/accounting/payments/${payment.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={payment.payment_number} />
 
@@ -88,9 +86,7 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
                         {payment.payment_number} - {payment.status}
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/accounting/payments">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/accounting/payments" label="Back to payments" variant="ghost" />
             </div>
 
             <form

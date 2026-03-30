@@ -1,8 +1,13 @@
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { ModalFormShell } from '@/components/modals/modal-form-shell';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Summary = {
     open_requests: number;
@@ -95,6 +100,7 @@ type Props = {
         employee_id: string;
     };
     statuses: string[];
+    leaveTypeUnits: string[];
     leaveTypes: LeaveTypeRow[];
     leavePeriods: LeavePeriodRow[];
     employeeOptions: EmployeeOption[];
@@ -118,6 +124,7 @@ export default function HrLeaveIndex({
     summary,
     filters,
     statuses,
+    leaveTypeUnits,
     leaveTypes,
     leavePeriods,
     employeeOptions,
@@ -127,6 +134,43 @@ export default function HrLeaveIndex({
     abilities,
 }: Props) {
     const form = useForm(filters);
+    const [showLeaveTypeModal, setShowLeaveTypeModal] = useState(false);
+    const [showLeavePeriodModal, setShowLeavePeriodModal] = useState(false);
+    const leaveTypeForm = useForm({
+        name: '',
+        code: '',
+        unit: leaveTypeUnits[0] ?? 'days',
+        requires_allocation: true,
+        is_paid: true,
+        requires_approval: true,
+        allow_negative_balance: false,
+        max_consecutive_days: '',
+        color: '#2563eb',
+    });
+    const leavePeriodForm = useForm({
+        name: '',
+        start_date: '',
+        end_date: '',
+        is_closed: false,
+    });
+
+    const closeLeaveTypeModal = (open: boolean) => {
+        setShowLeaveTypeModal(open);
+
+        if (!open) {
+            leaveTypeForm.reset();
+            leaveTypeForm.clearErrors();
+        }
+    };
+
+    const closeLeavePeriodModal = (open: boolean) => {
+        setShowLeavePeriodModal(open);
+
+        if (!open) {
+            leavePeriodForm.reset();
+            leavePeriodForm.clearErrors();
+        }
+    };
 
     const rejectWithReason = (requestId: string) => {
         const reason = window.prompt('Rejection reason (optional)', '');
@@ -140,11 +184,7 @@ export default function HrLeaveIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Leave', href: '/company/hr/leave' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.hr, { title: 'Leave', href: '/company/hr/leave' },)}
         >
             <Head title="Leave workspace" />
 
@@ -157,16 +197,22 @@ export default function HrLeaveIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/hr">HR dashboard</Link>
-                        </Button>
+                        <BackLinkAction href="/company/hr" label="Back to HR" variant="outline" />
                         {abilities.can_manage_leave && (
                             <>
-                                <Button variant="outline" asChild>
-                                    <Link href="/company/hr/leave/types/create">New leave type</Link>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setShowLeaveTypeModal(true)}
+                                >
+                                    New leave type
                                 </Button>
-                                <Button variant="outline" asChild>
-                                    <Link href="/company/hr/leave/periods/create">New leave period</Link>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setShowLeavePeriodModal(true)}
+                                >
+                                    New leave period
                                 </Button>
                                 <Button variant="outline" asChild>
                                     <Link href="/company/hr/leave/allocations/create">New allocation</Link>
@@ -180,6 +226,228 @@ export default function HrLeaveIndex({
                         )}
                     </div>
                 </div>
+
+                <ModalFormShell
+                    open={showLeaveTypeModal}
+                    onOpenChange={closeLeaveTypeModal}
+                    title="New leave type"
+                    description="Configure approval and balance behavior for this leave type."
+                    className="sm:max-w-2xl"
+                >
+                    <form
+                        className="grid gap-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            leaveTypeForm.post('/company/hr/leave/types', {
+                                onSuccess: () => closeLeaveTypeModal(false),
+                            });
+                        }}
+                    >
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Name" error={leaveTypeForm.errors.name}>
+                                <Input
+                                    value={leaveTypeForm.data.name}
+                                    onChange={(event) =>
+                                        leaveTypeForm.setData(
+                                            'name',
+                                            event.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </Field>
+                            <Field label="Code" error={leaveTypeForm.errors.code}>
+                                <Input
+                                    value={leaveTypeForm.data.code}
+                                    onChange={(event) =>
+                                        leaveTypeForm.setData(
+                                            'code',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </Field>
+                            <Field label="Unit" error={leaveTypeForm.errors.unit}>
+                                <select
+                                    className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                    value={leaveTypeForm.data.unit}
+                                    onChange={(event) =>
+                                        leaveTypeForm.setData(
+                                            'unit',
+                                            event.target.value,
+                                        )
+                                    }
+                                >
+                                    {leaveTypeUnits.map((unit) => (
+                                        <option key={unit} value={unit}>
+                                            {unit}
+                                        </option>
+                                    ))}
+                                </select>
+                            </Field>
+                            <Field label="Color" error={leaveTypeForm.errors.color}>
+                                <Input
+                                    value={leaveTypeForm.data.color}
+                                    onChange={(event) =>
+                                        leaveTypeForm.setData(
+                                            'color',
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="#2563eb"
+                                />
+                            </Field>
+                            <Field
+                                label="Max consecutive days"
+                                error={leaveTypeForm.errors.max_consecutive_days}
+                            >
+                                <Input
+                                    value={leaveTypeForm.data.max_consecutive_days}
+                                    onChange={(event) =>
+                                        leaveTypeForm.setData(
+                                            'max_consecutive_days',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </Field>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <CheckboxRow
+                                label="Requires allocation"
+                                checked={leaveTypeForm.data.requires_allocation}
+                                onChange={(checked) =>
+                                    leaveTypeForm.setData(
+                                        'requires_allocation',
+                                        checked,
+                                    )
+                                }
+                            />
+                            <CheckboxRow
+                                label="Paid leave"
+                                checked={leaveTypeForm.data.is_paid}
+                                onChange={(checked) =>
+                                    leaveTypeForm.setData('is_paid', checked)
+                                }
+                            />
+                            <CheckboxRow
+                                label="Requires approval"
+                                checked={leaveTypeForm.data.requires_approval}
+                                onChange={(checked) =>
+                                    leaveTypeForm.setData(
+                                        'requires_approval',
+                                        checked,
+                                    )
+                                }
+                            />
+                            <CheckboxRow
+                                label="Allow negative balance"
+                                checked={leaveTypeForm.data.allow_negative_balance}
+                                onChange={(checked) =>
+                                    leaveTypeForm.setData(
+                                        'allow_negative_balance',
+                                        checked,
+                                    )
+                                }
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => closeLeaveTypeModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={leaveTypeForm.processing}>
+                                Create leave type
+                            </Button>
+                        </div>
+                    </form>
+                </ModalFormShell>
+
+                <ModalFormShell
+                    open={showLeavePeriodModal}
+                    onOpenChange={closeLeavePeriodModal}
+                    title="New leave period"
+                    description="Define the period employees can book and consume leave against."
+                >
+                    <form
+                        className="grid gap-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            leavePeriodForm.post('/company/hr/leave/periods', {
+                                onSuccess: () => closeLeavePeriodModal(false),
+                            });
+                        }}
+                    >
+                        <Field label="Name" error={leavePeriodForm.errors.name}>
+                            <Input
+                                value={leavePeriodForm.data.name}
+                                onChange={(event) =>
+                                    leavePeriodForm.setData(
+                                        'name',
+                                        event.target.value,
+                                    )
+                                }
+                                required
+                            />
+                        </Field>
+                        <Field
+                            label="Start date"
+                            error={leavePeriodForm.errors.start_date}
+                        >
+                            <Input
+                                type="date"
+                                value={leavePeriodForm.data.start_date}
+                                onChange={(event) =>
+                                    leavePeriodForm.setData(
+                                        'start_date',
+                                        event.target.value,
+                                    )
+                                }
+                                required
+                            />
+                        </Field>
+                        <Field label="End date" error={leavePeriodForm.errors.end_date}>
+                            <Input
+                                type="date"
+                                value={leavePeriodForm.data.end_date}
+                                onChange={(event) =>
+                                    leavePeriodForm.setData(
+                                        'end_date',
+                                        event.target.value,
+                                    )
+                                }
+                                required
+                            />
+                        </Field>
+                        <CheckboxRow
+                            label="Create as closed"
+                            checked={leavePeriodForm.data.is_closed}
+                            onChange={(checked) =>
+                                leavePeriodForm.setData('is_closed', checked)
+                            }
+                        />
+                        <div className="flex items-center justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => closeLeavePeriodModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={leavePeriodForm.processing}
+                            >
+                                Create period
+                            </Button>
+                        </div>
+                    </form>
+                </ModalFormShell>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <Metric label="Open requests" value={summary.open_requests} />
@@ -520,5 +788,26 @@ function Field({ label, error, children }: { label: string; error?: string; chil
             {children}
             <InputError message={error} />
         </div>
+    );
+}
+
+function CheckboxRow({
+    label,
+    checked,
+    onChange,
+}: {
+    label: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+}) {
+    return (
+        <label className="flex items-center gap-2 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3 text-sm">
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+            />
+            {label}
+        </label>
     );
 }

@@ -1,5 +1,7 @@
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import AppLayout from '@/layouts/app-layout';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type StockLevel = {
     id: string;
@@ -24,22 +26,21 @@ type Props = {
 export default function InventoryStockLevelsIndex({ stockLevels }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, {
                     title: 'Stock Levels',
                     href: '/company/inventory/stock-levels',
-                },
-            ]}
+                },)}
         >
             <Head title="Stock Levels" />
 
-            <div>
-                <h1 className="text-xl font-semibold">Stock levels</h1>
-                <p className="text-sm text-muted-foreground">
-                    Ledger view of on-hand and reserved quantities.
-                </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-xl font-semibold">Stock levels</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Ledger view of on-hand and reserved quantities.
+                    </p>
+                </div>
+                <BackLinkAction href="/company/inventory" label="Back to inventory" variant="outline" />
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

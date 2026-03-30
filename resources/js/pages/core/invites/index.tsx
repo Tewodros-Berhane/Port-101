@@ -1,6 +1,12 @@
-import { Button } from '@/components/ui/button';
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import InputError from '@/components/input-error';
+import { ModalFormShell } from '@/components/modals/modal-form-shell';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type Invite = {
     id: string;
@@ -33,6 +39,21 @@ export default function CompanyInvitesIndex({ invites }: Props) {
     const deleteForm = useForm({});
     const resendForm = useForm({});
     const retryDeliveryForm = useForm({});
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const createForm = useForm({
+        email: '',
+        name: '',
+        expires_at: '',
+    });
+
+    const closeCreateModal = (open: boolean) => {
+        setShowCreateModal(open);
+
+        if (!open) {
+            createForm.reset();
+            createForm.clearErrors();
+        }
+    };
 
     const handleDelete = (inviteId: string) => {
         if (!confirm('Revoke this invite?')) {
@@ -52,10 +73,7 @@ export default function CompanyInvitesIndex({ invites }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Owner Invites', href: '/core/invites' },
-            ]}
+            breadcrumbs={companyBreadcrumbs({ title: 'Owner Invites', href: '/core/invites' })}
         >
             <Head title="Owner Invites" />
 
@@ -72,11 +90,91 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                             Add employee instead
                         </Link>
                     </Button>
-                    <Button asChild>
-                        <Link href="/core/invites/create">New owner invite</Link>
+                    <Button type="button" onClick={() => setShowCreateModal(true)}>
+                        New owner invite
                     </Button>
                 </div>
             </div>
+
+            <ModalFormShell
+                open={showCreateModal}
+                onOpenChange={closeCreateModal}
+                title="New owner invite"
+                description="Use this only for additional company-owner access."
+            >
+                <div className="rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-4 py-3 text-sm text-muted-foreground">
+                    Employee and non-owner access starts from HR employees. Use this modal only for company-owner onboarding.
+                </div>
+
+                <form
+                    className="grid gap-5"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        createForm.post('/core/invites', {
+                            onSuccess: () => closeCreateModal(false),
+                        });
+                    }}
+                >
+                    <div className="grid gap-2">
+                        <Label htmlFor="owner-invite-email">Owner email</Label>
+                        <Input
+                            id="owner-invite-email"
+                            type="email"
+                            value={createForm.data.email}
+                            onChange={(event) =>
+                                createForm.setData('email', event.target.value)
+                            }
+                            required
+                        />
+                        <InputError message={createForm.errors.email} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="owner-invite-name">
+                            Owner name (optional)
+                        </Label>
+                        <Input
+                            id="owner-invite-name"
+                            value={createForm.data.name}
+                            onChange={(event) =>
+                                createForm.setData('name', event.target.value)
+                            }
+                        />
+                        <InputError message={createForm.errors.name} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="owner-invite-expires">
+                            Expires on
+                        </Label>
+                        <Input
+                            id="owner-invite-expires"
+                            type="date"
+                            value={createForm.data.expires_at}
+                            onChange={(event) =>
+                                createForm.setData(
+                                    'expires_at',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        <InputError message={createForm.errors.expires_at} />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => closeCreateModal(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={createForm.processing}>
+                            Create owner invite
+                        </Button>
+                    </div>
+                </form>
+            </ModalFormShell>
 
             <div className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
                 Employee and non-owner app access now starts from HR employees.

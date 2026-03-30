@@ -1,9 +1,11 @@
-﻿import InputError from '@/components/input-error';
+﻿import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { platformBreadcrumbs } from '@/lib/page-navigation';
 
 export default function PlatformAdminUserCreate() {
     const form = useForm({
@@ -13,11 +15,8 @@ export default function PlatformAdminUserCreate() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Platform', href: '/platform/dashboard' },
-                { title: 'Platform Admins', href: '/platform/admin-users' },
-                { title: 'Create', href: '/platform/admin-users/create' },
-            ]}
+            breadcrumbs={platformBreadcrumbs({ title: 'Platform Admins', href: '/platform/admin-users' },
+                { title: 'Create', href: '/platform/admin-users/create' },)}
         >
             <Head title="Invite Platform Admin" />
 
@@ -31,9 +30,7 @@ export default function PlatformAdminUserCreate() {
                         their account.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/platform/admin-users">Back</Link>
-                </Button>
+                <BackLinkAction href="/platform/admin-users" label="Back to platform admins" variant="ghost" />
             </div>
 
             <form

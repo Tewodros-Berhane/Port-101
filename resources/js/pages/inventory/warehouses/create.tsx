@@ -1,10 +1,12 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 export default function InventoryWarehouseCreate() {
     const form = useForm({
@@ -15,15 +17,11 @@ export default function InventoryWarehouseCreate() {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Warehouses', href: '/company/inventory/warehouses' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Warehouses', href: '/company/inventory/warehouses' },
                 {
                     title: 'Create',
                     href: '/company/inventory/warehouses/create',
-                },
-            ]}
+                },)}
         >
             <Head title="New Warehouse" />
 
@@ -34,9 +32,7 @@ export default function InventoryWarehouseCreate() {
                         Add a storage site for internal inventory.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory/warehouses">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/inventory/warehouses" label="Back to warehouses" variant="ghost" />
             </div>
 
             <form

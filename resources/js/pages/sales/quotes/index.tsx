@@ -1,7 +1,9 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Quote = {
     id: string;
@@ -29,11 +31,7 @@ export default function SalesQuotesIndex({ quotes }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Sales', href: '/company/sales' },
-                { title: 'Quotes', href: '/company/sales/quotes' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.sales, { title: 'Quotes', href: '/company/sales/quotes' },)}
         >
             <Head title="Sales Quotes" />
 
@@ -44,11 +42,14 @@ export default function SalesQuotesIndex({ quotes }: Props) {
                         Prepare quotes, route approvals, and confirm orders.
                     </p>
                 </div>
-                {canManage && (
-                    <Button asChild>
-                        <Link href="/company/sales/quotes/create">New quote</Link>
-                    </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/sales" label="Back to sales" variant="outline" />
+                    {canManage && (
+                        <Button asChild>
+                            <Link href="/company/sales/quotes/create">New quote</Link>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

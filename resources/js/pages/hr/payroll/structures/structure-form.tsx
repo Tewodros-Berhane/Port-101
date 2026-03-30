@@ -1,10 +1,12 @@
+import { useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type StructureLine = { id?: string; line_type: string; calculation_type: string; code: string; name: string; amount: string; percentage_rate: string; is_active: boolean };
 type Props = { mode: 'create' | 'edit'; title: string; description: string; submitUrl: string; method: 'post' | 'put'; form: { name: string; code: string; is_active: boolean; notes: string; lines: StructureLine[] } };
@@ -16,9 +18,9 @@ export default function StructureForm({ mode, title, description, submitUrl, met
     const submit = () => method === 'put' ? form.put(submitUrl) : form.post(submitUrl);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'HR', href: '/company/hr' }, { title: 'Payroll', href: '/company/hr/payroll' }, { title, href: submitUrl }]}>
+        <AppLayout breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Payroll', href: '/company/hr/payroll' }, { title, href: submitUrl })}>
             <div className="max-w-6xl space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{title}</h1><p className="text-sm text-muted-foreground">{description}</p></div><Button variant="outline" asChild><Link href="/company/hr/payroll">Back to payroll</Link></Button></div>
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{title}</h1><p className="text-sm text-muted-foreground">{description}</p></div><BackLinkAction href="/company/hr/payroll" label="Back to payroll" variant="outline" /></div>
                 <form className="space-y-6" onSubmit={(event) => { event.preventDefault(); submit(); }}>
                     <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-2">
                         <Field label="Name" error={form.errors.name}><Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} /></Field>

@@ -1,11 +1,13 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type PartnerOption = {
     id: string;
@@ -31,11 +33,8 @@ export default function ContactCreate({ partners }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Contacts', href: '/core/contacts' },
-                { title: 'Create', href: '/core/contacts/create' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Contacts', href: '/core/contacts' },
+                { title: 'Create', href: '/core/contacts/create' },)}
         >
             <Head title="New Contact" />
 
@@ -46,9 +45,7 @@ export default function ContactCreate({ partners }: Props) {
                         Add a contact for a partner.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/contacts">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/contacts" label="Back to contacts" variant="ghost" />
             </div>
 
             <form

@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type InvoiceOption = {
     id: string;
@@ -36,15 +38,11 @@ export default function AccountingPaymentCreate({ payment, invoices }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Accounting', href: '/company/accounting' },
-                { title: 'Payments', href: '/company/accounting/payments' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.accounting, { title: 'Payments', href: '/company/accounting/payments' },
                 {
                     title: 'Create',
                     href: '/company/accounting/payments/create',
-                },
-            ]}
+                },)}
         >
             <Head title="New Payment" />
 
@@ -55,9 +53,7 @@ export default function AccountingPaymentCreate({ payment, invoices }: Props) {
                         Create a draft payment against an open invoice.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/accounting/payments">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/accounting/payments" label="Back to payments" variant="ghost" />
             </div>
 
             <form

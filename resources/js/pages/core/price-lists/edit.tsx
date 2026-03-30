@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
 import AttachmentsPanel from '@/components/attachments-panel';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type CurrencyOption = {
     id: string;
@@ -49,14 +51,11 @@ export default function PriceListEdit({ priceList, currencies, attachments }: Pr
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Price Lists', href: '/core/price-lists' },
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Price Lists', href: '/core/price-lists' },
                 {
                     title: priceList.name,
                     href: `/core/price-lists/${priceList.id}/edit`,
-                },
-            ]}
+                },)}
         >
             <Head title={priceList.name} />
 
@@ -67,9 +66,7 @@ export default function PriceListEdit({ priceList, currencies, attachments }: Pr
                         Update pricing list details.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/core/price-lists">Back</Link>
-                </Button>
+                <BackLinkAction href="/core/price-lists" label="Back to price lists" variant="ghost" />
             </div>
 
             <form

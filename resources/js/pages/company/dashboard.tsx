@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import ActivityTrendChart from '@/components/company/dashboard/activity-trend-chart';
-import InviteStatusChart from '@/components/company/dashboard/invite-status-chart';
+import InviteStatusChart, {
+    inviteStatusColors,
+} from '@/components/company/dashboard/invite-status-chart';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
@@ -79,6 +81,7 @@ type Props = {
         label: string;
         value: number;
     }[];
+    canManageOwnerInvites: boolean;
     recentActivity: {
         id: string;
         action: string;
@@ -219,6 +222,7 @@ export default function CompanyDashboard({
     activityTrend,
     inviteStatusMix,
     masterDataBreakdown,
+    canManageOwnerInvites,
     recentActivity,
 }: Props) {
     const { hasPermission } = usePermissions();
@@ -234,7 +238,9 @@ export default function CompanyDashboard({
 
     const actionSource = isRoleFocusedView ? roleQuickActions : quickActions;
     const availableQuickActions = actionSource.filter(
-        (item) => !item.permission || hasPermission(item.permission),
+        (item) =>
+            (item.href !== '/core/invites/create' || canManageOwnerInvites)
+            && (!item.permission || hasPermission(item.permission)),
     );
 
     return (
@@ -436,19 +442,49 @@ export default function CompanyDashboard({
 
                         <div className="space-y-2 text-sm">
                             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                                <span>Pending</span>
+                                <span className="flex items-center gap-2">
+                                    <span
+                                        className="size-2.5 rounded-full"
+                                        style={{
+                                            backgroundColor:
+                                                inviteStatusColors.pending,
+                                        }}
+                                        aria-hidden="true"
+                                    />
+                                    <span>Pending</span>
+                                </span>
                                 <span className="font-medium">
                                     {inviteStatusMix.pending}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                                <span>Accepted</span>
+                                <span className="flex items-center gap-2">
+                                    <span
+                                        className="size-2.5 rounded-full"
+                                        style={{
+                                            backgroundColor:
+                                                inviteStatusColors.accepted,
+                                        }}
+                                        aria-hidden="true"
+                                    />
+                                    <span>Accepted</span>
+                                </span>
                                 <span className="font-medium">
                                     {inviteStatusMix.accepted}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                                <span>Expired</span>
+                                <span className="flex items-center gap-2">
+                                    <span
+                                        className="size-2.5 rounded-full"
+                                        style={{
+                                            backgroundColor:
+                                                inviteStatusColors.expired,
+                                        }}
+                                        aria-hidden="true"
+                                    />
+                                    <span>Expired</span>
+                                </span>
                                 <span className="font-medium">
                                     {inviteStatusMix.expired}
                                 </span>

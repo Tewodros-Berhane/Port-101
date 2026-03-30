@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     units: string[];
@@ -24,9 +26,9 @@ export default function HrLeaveTypeCreate({ units, form: initialForm }: Props) {
     const form = useForm(initialForm);
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'HR', href: '/company/hr' }, { title: 'Leave', href: '/company/hr/leave' }, { title: 'Create type', href: '/company/hr/leave/types/create' }]}>
+        <AppLayout breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Leave', href: '/company/hr/leave' }, { title: 'Create type', href: '/company/hr/leave/types/create' })}>
             <Head title="New leave type" />
-            <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">New leave type</h1><p className="text-sm text-muted-foreground">Configure approval and balance behavior for this leave type.</p></div><Button variant="ghost" asChild><Link href="/company/hr/leave">Back</Link></Button></div>
+            <div className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">New leave type</h1><p className="text-sm text-muted-foreground">Configure approval and balance behavior for this leave type.</p></div><BackLinkAction href="/company/hr/leave" label="Back to leave" variant="ghost" /></div>
             <form className="mt-6 grid gap-6" onSubmit={(event) => { event.preventDefault(); form.post('/company/hr/leave/types'); }}>
                 <div className="grid gap-6 md:grid-cols-2">
                     <Field label="Name" error={form.errors.name}><Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} required /></Field>

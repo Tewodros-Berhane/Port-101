@@ -1,7 +1,9 @@
+import { Head, Link } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Order = {
     id: string;
@@ -29,11 +31,7 @@ export default function PurchaseOrdersIndex({ orders }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Purchasing', href: '/company/purchasing' },
-                { title: 'Purchase Orders', href: '/company/purchasing/orders' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.purchasing, { title: 'Purchase Orders', href: '/company/purchasing/orders' },)}
         >
             <Head title="Purchase Orders" />
 
@@ -44,11 +42,14 @@ export default function PurchaseOrdersIndex({ orders }: Props) {
                         Track approvals, ordering, receipts, and vendor bill handoffs.
                     </p>
                 </div>
-                {canManage && (
-                    <Button asChild>
-                        <Link href="/company/purchasing/orders/create">New PO</Link>
-                    </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                    <BackLinkAction href="/company/purchasing" label="Back to purchasing" variant="outline" />
+                    {canManage && (
+                        <Button asChild>
+                            <Link href="/company/purchasing/orders/create">New PO</Link>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

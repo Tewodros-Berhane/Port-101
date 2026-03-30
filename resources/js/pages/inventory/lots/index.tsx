@@ -1,7 +1,8 @@
-import { Button } from '@/components/ui/button';
+import { Head, Link, router } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Lot = {
     id: string;
@@ -31,11 +32,7 @@ type Props = {
 export default function InventoryLotsIndex({ filters, lots }: Props) {
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Inventory', href: '/company/inventory' },
-                { title: 'Lots & Serials', href: '/company/inventory/lots' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.inventory, { title: 'Lots & Serials', href: '/company/inventory/lots' },)}
         >
             <Head title="Lots & Serials" />
 
@@ -46,9 +43,7 @@ export default function InventoryLotsIndex({ filters, lots }: Props) {
                         Inspect tracked stock by product and location.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/inventory">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/inventory" label="Back to inventory" variant="ghost" />
             </div>
 
             <div className="mt-6 rounded-xl border p-4">

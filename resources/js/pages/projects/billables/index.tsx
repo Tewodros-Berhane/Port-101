@@ -1,8 +1,31 @@
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+
+import { DataTableShell } from '@/components/shell/data-table-shell';
+import {
+    FilterField,
+    FilterToolbar,
+    FilterToolbarActions,
+    FilterToolbarGrid,
+} from '@/components/shell/filter-toolbar';
+import { KpiStrip, MetricCard } from '@/components/shell/kpi-strip';
+import { PageHeader } from '@/components/shell/page-header';
+import { PaginationBar } from '@/components/shell/pagination-bar';
+import { WorkspaceShell } from '@/components/shell/workspace-shell';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import AppLayout from '@/layouts/app-layout';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type FilterOption = {
     id: string;
@@ -81,6 +104,9 @@ type Props = {
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatDateTime = (value?: string | null) =>
+    value ? new Date(value).toLocaleString() : '-';
+
 export default function ProjectBillablesIndex({
     filters,
     statuses,
@@ -92,9 +118,7 @@ export default function ProjectBillablesIndex({
     billables,
     abilities,
 }: Props) {
-    const [selectedBillableIds, setSelectedBillableIds] = useState<string[]>(
-        [],
-    );
+    const [selectedBillableIds, setSelectedBillableIds] = useState<string[]>([]);
     const [groupBy, setGroupBy] = useState(
         abilities.invoiceGroupingOptions[0] ?? 'project',
     );
@@ -131,212 +155,472 @@ export default function ProjectBillablesIndex({
         [billables.data],
     );
 
-    useEffect(() => {
-        setSelectedBillableIds((current) =>
-            current.filter((id) => selectableBillableIds.includes(id)),
-        );
-    }, [selectableBillableIds]);
+    const activeSelectedBillableIds = useMemo(
+        () =>
+            selectedBillableIds.filter((id) =>
+                selectableBillableIds.includes(id),
+            ),
+        [selectedBillableIds, selectableBillableIds],
+    );
 
     const allSelectableRowsChecked =
         selectableBillableIds.length > 0 &&
-        selectableBillableIds.every((id) => selectedBillableIds.includes(id));
+        selectableBillableIds.every((id) => activeSelectedBillableIds.includes(id));
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Projects', href: '/company/projects' },
-                { title: 'Billing Queue', href: '/company/projects/billables' },
-            ]}
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.projects, { title: 'Billing Queue', href: '/company/projects/billables' },)}
         >
             <Head title="Projects Billing Queue" />
 
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Projects billing queue
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Review generated project billables before approval
-                            and create accounting invoice drafts from eligible
-                            items.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/projects">Dashboard</Link>
-                        </Button>
-                        {abilities.can_view_projects_workspace && (
-                            <Button variant="outline" asChild>
-                                <Link href="/company/projects/workspace">
-                                    Workspace
-                                </Link>
-                            </Button>
-                        )}
-                        {abilities.can_create_invoice_drafts && (
+            <WorkspaceShell
+                header={
+                    <PageHeader
+                        title="Projects billing queue"
+                        description="Review generated project billables before approval and create accounting invoice drafts from eligible items."
+                        actions={
                             <>
-                                <select
-                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                    value={groupBy}
-                                    onChange={(event) =>
-                                        setGroupBy(event.target.value)
-                                    }
-                                >
-                                    {abilities.invoiceGroupingOptions.map(
-                                        (option) => (
-                                            <option
-                                                key={option}
-                                                value={option}
-                                            >
-                                                Group by {formatLabel(option)}
-                                            </option>
-                                        ),
-                                    )}
-                                </select>
-                                <Button
-                                    type="button"
-                                    disabled={
-                                        selectedBillableIds.length === 0
-                                    }
-                                    onClick={() =>
-                                        router.post(
-                                            '/company/projects/billables/invoice-drafts',
-                                            {
-                                                billable_ids:
-                                                    selectedBillableIds,
-                                                group_by: groupBy,
-                                            },
-                                            {
-                                                preserveScroll: true,
-                                            },
-                                        )
-                                    }
-                                >
-                                    Create draft invoice
-                                    {selectedBillableIds.length > 0 &&
-                                        ` (${selectedBillableIds.length})`}
-                                </Button>
+                                <BackLinkAction href="/company/projects" label="Back to projects" variant="outline" />
+                                {abilities.can_view_projects_workspace && (
+                                    <Button variant="outline" asChild>
+                                        <Link href="/company/projects/workspace">
+                                            Workspace
+                                        </Link>
+                                    </Button>
+                                )}
+                                {abilities.can_create_invoice_drafts && (
+                                    <>
+                                        <select
+                                            className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                            value={groupBy}
+                                            onChange={(event) =>
+                                                setGroupBy(event.target.value)
+                                            }
+                                        >
+                                            {abilities.invoiceGroupingOptions.map(
+                                                (option) => (
+                                                    <option
+                                                        key={option}
+                                                        value={option}
+                                                    >
+                                                        Group by {formatLabel(option)}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                        <Button
+                                            type="button"
+                                            disabled={activeSelectedBillableIds.length === 0}
+                                            onClick={() =>
+                                                router.post(
+                                                    '/company/projects/billables/invoice-drafts',
+                                                    {
+                                                        billable_ids:
+                                                            activeSelectedBillableIds,
+                                                        group_by: groupBy,
+                                                    },
+                                                    {
+                                                        preserveScroll: true,
+                                                    },
+                                                )
+                                            }
+                                        >
+                                            Create draft invoice
+                                            {activeSelectedBillableIds.length > 0 &&
+                                                ` (${activeSelectedBillableIds.length})`}
+                                        </Button>
+                                    </>
+                                )}
                             </>
-                        )}
-                    </div>
-                </div>
-
-                <form
-                    className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-5"
+                        }
+                        meta={
+                            <>
+                                <span>{summary.ready_to_invoice_count} ready to invoice</span>
+                                <span className="h-1 w-1 rounded-full bg-[color:var(--text-muted)]" />
+                                <span>{billables.data.length} rows on this page</span>
+                            </>
+                        }
+                    />
+                }
+                kpis={
+                    <KpiStrip>
+                        <MetricCard
+                            label="Ready to invoice"
+                            value={String(summary.ready_to_invoice_count)}
+                            tone="success"
+                        />
+                        <MetricCard
+                            label="Pending approval"
+                            value={String(summary.pending_approval_count)}
+                            tone="warning"
+                        />
+                        <MetricCard
+                            label="Invoiced"
+                            value={String(summary.invoiced_count)}
+                            tone="info"
+                        />
+                        <MetricCard
+                            label="Uninvoiced amount"
+                            value={summary.uninvoiced_amount.toFixed(2)}
+                        />
+                    </KpiStrip>
+                }
+                table={
+                    <DataTableShell>
+                        <Table container={false} className="min-w-[1380px]">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>
+                                        <input
+                                            type="checkbox"
+                                            className="size-4 rounded border-input"
+                                            checked={allSelectableRowsChecked}
+                                            onChange={(event) =>
+                                                setSelectedBillableIds(
+                                                    event.target.checked
+                                                        ? selectableBillableIds
+                                                        : [],
+                                                )
+                                            }
+                                            aria-label="Select all invoice-eligible billables"
+                                        />
+                                    </TableHead>
+                                    <TableHead>Project</TableHead>
+                                    <TableHead>Customer</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Qty</TableHead>
+                                    <TableHead className="text-right">Unit price</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Approval</TableHead>
+                                    <TableHead>Invoice</TableHead>
+                                    <TableHead>Updated</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {billables.data.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={13}
+                                            className="py-12 text-center text-sm text-muted-foreground"
+                                        >
+                                            No billables match the current filters.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {billables.data.map((billable) => (
+                                    <TableRow key={billable.id}>
+                                        <TableCell>
+                                            {billable.can_create_invoice ? (
+                                                <input
+                                                    type="checkbox"
+                                                    className="size-4 rounded border-input"
+                                                    checked={activeSelectedBillableIds.includes(
+                                                        billable.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelectedBillableIds((current) =>
+                                                            event.target.checked
+                                                                ? current.includes(billable.id)
+                                                                    ? current
+                                                                    : [...current, billable.id]
+                                                                : current.filter(
+                                                                      (id) => id !== billable.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                    aria-label={`Select billable ${billable.id}`}
+                                                />
+                                            ) : (
+                                                <span className="text-muted-foreground">-</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <p className="font-medium">
+                                                {billable.project_code ?? '-'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {billable.project_name ?? '-'}
+                                            </p>
+                                        </TableCell>
+                                        <TableCell>
+                                            {billable.customer_name ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <BadgeLike>{formatLabel(billable.billable_type)}</BadgeLike>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="max-w-[320px]">
+                                                <p className="font-medium">
+                                                    {billable.description ?? 'No description'}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums">
+                                            {billable.quantity.toFixed(2)}
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums">
+                                            {billable.unit_price.toFixed(2)}
+                                            <p className="text-xs text-muted-foreground">
+                                                {billable.currency_code ?? '-'}
+                                            </p>
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium tabular-nums">
+                                            {billable.amount.toFixed(2)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusBadge status={billable.status} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusBadge status={billable.approval_status} />
+                                            <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                {billable.approved_at && (
+                                                    <p>
+                                                        Approved by {billable.approved_by_name ?? 'Unknown'} on{' '}
+                                                        {formatDateTime(billable.approved_at)}
+                                                    </p>
+                                                )}
+                                                {billable.rejected_at && (
+                                                    <p>
+                                                        Rejected by {billable.rejected_by_name ?? 'Unknown'} on{' '}
+                                                        {formatDateTime(billable.rejected_at)}
+                                                    </p>
+                                                )}
+                                                {billable.rejection_reason && (
+                                                    <p className="max-w-[220px] truncate">
+                                                        {billable.rejection_reason}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {billable.invoice_number ? (
+                                                billable.can_open_invoice ? (
+                                                    <Link
+                                                        href={`/company/accounting/invoices/${billable.invoice_id}/edit`}
+                                                        className="font-medium text-primary"
+                                                    >
+                                                        {billable.invoice_number}
+                                                    </Link>
+                                                ) : (
+                                                    billable.invoice_number
+                                                )
+                                            ) : billable.status === 'invoiced' ? (
+                                                'Invoiced'
+                                            ) : (
+                                                'Not invoiced'
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {formatDateTime(billable.updated_at)}
+                                            {billable.cancelled_at && (
+                                                <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                    <p>
+                                                        Cancelled by {billable.cancelled_by_name ?? 'Unknown'} on{' '}
+                                                        {formatDateTime(billable.cancelled_at)}
+                                                    </p>
+                                                    {billable.cancellation_reason && (
+                                                        <p className="max-w-[220px] truncate">
+                                                            {billable.cancellation_reason}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                                                {billable.can_approve && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                `/company/projects/billables/${billable.id}/approve`,
+                                                                {},
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                )}
+                                                {billable.can_reject && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            withReason(
+                                                                'Reject billable',
+                                                                (reason) =>
+                                                                    router.post(
+                                                                        `/company/projects/billables/${billable.id}/reject`,
+                                                                        {
+                                                                            reason,
+                                                                        },
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    ),
+                                                                billable.rejection_reason,
+                                                            )
+                                                        }
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                )}
+                                                {billable.can_cancel && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            withReason(
+                                                                'Cancel billable',
+                                                                (reason) =>
+                                                                    router.post(
+                                                                        `/company/projects/billables/${billable.id}/cancel`,
+                                                                        {
+                                                                            reason,
+                                                                        },
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    ),
+                                                                billable.cancellation_reason,
+                                                            )
+                                                        }
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                )}
+                                                {billable.can_open_project ? (
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <Link href={`/company/projects/${billable.project_id}`}>
+                                                            Open project
+                                                        </Link>
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        View only
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </DataTableShell>
+                }
+                pagination={<PaginationBar links={billables.links} />}
+            >
+                <FilterToolbar
                     onSubmit={(event) => {
                         event.preventDefault();
-                        form.get('/company/projects/billables', {
+                        router.get('/company/projects/billables', form.data, {
                             preserveState: true,
                             replace: true,
                         });
                     }}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="project_id">Project</Label>
-                        <select
-                            id="project_id"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.project_id}
-                            onChange={(event) =>
-                                form.setData('project_id', event.target.value)
-                            }
-                        >
-                            <option value="">All projects</option>
-                            {projectsFilterOptions.map((project) => (
-                                <option key={project.id} value={project.id}>
-                                    {project.project_code} - {project.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <FilterToolbarGrid className="xl:grid-cols-5">
+                        <FilterField label="Project" htmlFor="project_id">
+                            <select
+                                id="project_id"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.project_id}
+                                onChange={(event) =>
+                                    form.setData('project_id', event.target.value)
+                                }
+                            >
+                                <option value="">All projects</option>
+                                {projectsFilterOptions.map((project) => (
+                                    <option key={project.id} value={project.id}>
+                                        {project.project_code} - {project.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="customer_id">Customer</Label>
-                        <select
-                            id="customer_id"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.customer_id}
-                            onChange={(event) =>
-                                form.setData('customer_id', event.target.value)
-                            }
-                        >
-                            <option value="">All customers</option>
-                            {customersFilterOptions.map((customer) => (
-                                <option key={customer.id} value={customer.id}>
-                                    {customer.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        <FilterField label="Customer" htmlFor="customer_id">
+                            <select
+                                id="customer_id"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.customer_id}
+                                onChange={(event) =>
+                                    form.setData('customer_id', event.target.value)
+                                }
+                            >
+                                <option value="">All customers</option>
+                                {customersFilterOptions.map((customer) => (
+                                    <option key={customer.id} value={customer.id}>
+                                        {customer.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
+                        <FilterField label="Status" htmlFor="status">
+                            <select
+                                id="status"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.status}
+                                onChange={(event) =>
+                                    form.setData('status', event.target.value)
+                                }
+                            >
+                                <option value="">All statuses</option>
+                                {statuses.map((status) => (
+                                    <option key={status} value={status}>
+                                        {formatLabel(status)}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="status">Status</Label>
-                        <select
-                            id="status"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.status}
-                            onChange={(event) =>
-                                form.setData('status', event.target.value)
-                            }
-                        >
-                            <option value="">All statuses</option>
-                            {statuses.map((status) => (
-                                <option key={status} value={status}>
-                                    {formatLabel(status)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        <FilterField label="Approval" htmlFor="approval_status">
+                            <select
+                                id="approval_status"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.approval_status}
+                                onChange={(event) =>
+                                    form.setData('approval_status', event.target.value)
+                                }
+                            >
+                                <option value="">All approval states</option>
+                                {approvalStatuses.map((status) => (
+                                    <option key={status} value={status}>
+                                        {formatLabel(status)}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="approval_status">Approval</Label>
-                        <select
-                            id="approval_status"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.approval_status}
-                            onChange={(event) =>
-                                form.setData(
-                                    'approval_status',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="">All approval states</option>
-                            {approvalStatuses.map((status) => (
-                                <option key={status} value={status}>
-                                    {formatLabel(status)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        <FilterField label="Billable type" htmlFor="billable_type">
+                            <select
+                                id="billable_type"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.billable_type}
+                                onChange={(event) =>
+                                    form.setData('billable_type', event.target.value)
+                                }
+                            >
+                                <option value="">All billable types</option>
+                                {billableTypes.map((billableType) => (
+                                    <option key={billableType} value={billableType}>
+                                        {formatLabel(billableType)}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
+                    </FilterToolbarGrid>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="billable_type">Billable type</Label>
-                        <select
-                            id="billable_type"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.billable_type}
-                            onChange={(event) =>
-                                form.setData(
-                                    'billable_type',
-                                    event.target.value,
-                                )
-                            }
-                        >
-                            <option value="">All billable types</option>
-                            {billableTypes.map((billableType) => (
-                                <option
-                                    key={billableType}
-                                    value={billableType}
-                                >
-                                    {formatLabel(billableType)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-5">
+                    <FilterToolbarActions className="mt-4">
                         <Button type="submit">Apply filters</Button>
                         <Button
                             type="button"
@@ -351,8 +635,7 @@ export default function ProjectBillablesIndex({
                                 };
 
                                 form.setData(resetFilters);
-                                form.get('/company/projects/billables', {
-                                    data: resetFilters,
+                                router.get('/company/projects/billables', resetFilters, {
                                     preserveState: true,
                                     replace: true,
                                 });
@@ -360,377 +643,25 @@ export default function ProjectBillablesIndex({
                         >
                             Reset
                         </Button>
-                    </div>
-                </form>
+                    </FilterToolbarActions>
+                </FilterToolbar>
 
                 {abilities.can_create_invoice_drafts && (
-                    <div className="rounded-xl border px-4 py-3 text-sm text-muted-foreground">
-                        Select ready billables from the table to create draft
-                        customer invoices in Accounting. Pending, rejected,
-                        cancelled, or already invoiced rows are excluded.
-                    </div>
+                    <Card className="gap-0 py-0">
+                        <CardContent className="px-5 py-4 text-sm text-muted-foreground">
+                            Select ready billables from the table to create draft customer invoices in Accounting. Pending, rejected, cancelled, or already invoiced rows are excluded.
+                        </CardContent>
+                    </Card>
                 )}
-
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <MetricCard
-                        label="Ready to invoice"
-                        value={String(summary.ready_to_invoice_count)}
-                    />
-                    <MetricCard
-                        label="Pending approval"
-                        value={String(summary.pending_approval_count)}
-                    />
-                    <MetricCard
-                        label="Invoiced"
-                        value={String(summary.invoiced_count)}
-                    />
-                    <MetricCard
-                        label="Uninvoiced amount"
-                        value={summary.uninvoiced_amount.toFixed(2)}
-                    />
-                </section>
-
-                <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-[1380px] text-sm">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-medium">
-                                    <input
-                                        type="checkbox"
-                                        className="size-4 rounded border-input"
-                                        checked={allSelectableRowsChecked}
-                                        onChange={(event) =>
-                                            setSelectedBillableIds(
-                                                event.target.checked
-                                                    ? selectableBillableIds
-                                                    : [],
-                                            )
-                                        }
-                                        aria-label="Select all invoice-eligible billables"
-                                    />
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Project
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Customer
-                                </th>
-                                <th className="px-4 py-3 font-medium">Type</th>
-                                <th className="px-4 py-3 font-medium">
-                                    Description
-                                </th>
-                                <th className="px-4 py-3 font-medium">Qty</th>
-                                <th className="px-4 py-3 font-medium">
-                                    Unit price
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Amount
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Status
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Approval
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Invoice
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Updated
-                                </th>
-                                <th className="px-4 py-3 text-right font-medium">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {billables.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={13}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No billables match the current filters.
-                                    </td>
-                                </tr>
-                            )}
-                            {billables.data.map((billable) => (
-                                <tr key={billable.id}>
-                                    <td className="px-4 py-3">
-                                        {billable.can_create_invoice ? (
-                                            <input
-                                                type="checkbox"
-                                                className="size-4 rounded border-input"
-                                                checked={selectedBillableIds.includes(
-                                                    billable.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelectedBillableIds(
-                                                        (current) =>
-                                                            event.target.checked
-                                                                ? current.includes(
-                                                                      billable.id,
-                                                                  )
-                                                                    ? current
-                                                                    : [
-                                                                          ...current,
-                                                                          billable.id,
-                                                                      ]
-                                                                : current.filter(
-                                                                      (id) =>
-                                                                          id !==
-                                                                          billable.id,
-                                                                  ),
-                                                    )
-                                                }
-                                                aria-label={`Select billable ${billable.id}`}
-                                            />
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                -
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <p className="font-medium">
-                                            {billable.project_code ?? '-'}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {billable.project_name ?? '-'}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {billable.customer_name ?? '-'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {formatLabel(billable.billable_type)}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="max-w-[320px]">
-                                            <p className="font-medium">
-                                                {billable.description ??
-                                                    'No description'}
-                                            </p>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {billable.quantity.toFixed(2)}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {billable.unit_price.toFixed(2)}
-                                        <p className="text-xs text-muted-foreground">
-                                            {billable.currency_code ?? '-'}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className="font-medium">
-                                            {billable.amount.toFixed(2)}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {formatLabel(billable.status)}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {formatLabel(
-                                            billable.approval_status,
-                                        )}
-                                        <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                                            {billable.approved_at && (
-                                                <p>
-                                                    Approved by{' '}
-                                                    {billable.approved_by_name ??
-                                                        'Unknown'}{' '}
-                                                    on{' '}
-                                                    {new Date(
-                                                        billable.approved_at,
-                                                    ).toLocaleString()}
-                                                </p>
-                                            )}
-                                            {billable.rejected_at && (
-                                                <p>
-                                                    Rejected by{' '}
-                                                    {billable.rejected_by_name ??
-                                                        'Unknown'}{' '}
-                                                    on{' '}
-                                                    {new Date(
-                                                        billable.rejected_at,
-                                                    ).toLocaleString()}
-                                                </p>
-                                            )}
-                                            {billable.rejection_reason && (
-                                                <p className="max-w-[220px] truncate">
-                                                    {billable.rejection_reason}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {billable.invoice_number ? (
-                                            billable.can_open_invoice ? (
-                                                <Link
-                                                    href={`/company/accounting/invoices/${billable.invoice_id}/edit`}
-                                                    className="font-medium text-primary"
-                                                >
-                                                    {billable.invoice_number}
-                                                </Link>
-                                            ) : (
-                                                billable.invoice_number
-                                            )
-                                        ) : billable.status === 'invoiced' ? (
-                                            'Invoiced'
-                                        ) : (
-                                            'Not invoiced'
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {billable.updated_at
-                                            ? new Date(
-                                                  billable.updated_at,
-                                              ).toLocaleString()
-                                            : '-'}
-                                        {billable.cancelled_at && (
-                                            <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                                                <p>
-                                                    Cancelled by{' '}
-                                                    {billable.cancelled_by_name ??
-                                                        'Unknown'}{' '}
-                                                    on{' '}
-                                                    {new Date(
-                                                        billable.cancelled_at,
-                                                    ).toLocaleString()}
-                                                </p>
-                                                {billable.cancellation_reason && (
-                                                    <p className="max-w-[220px] truncate">
-                                                        {
-                                                            billable.cancellation_reason
-                                                        }
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="inline-flex flex-wrap items-center justify-end gap-3">
-                                            {billable.can_approve && (
-                                                <button
-                                                    type="button"
-                                                    className="font-medium text-primary"
-                                                    onClick={() =>
-                                                        router.post(
-                                                            `/company/projects/billables/${billable.id}/approve`,
-                                                            {},
-                                                            {
-                                                                preserveScroll:
-                                                                    true,
-                                                            },
-                                                        )
-                                                    }
-                                                >
-                                                    Approve
-                                                </button>
-                                            )}
-                                            {billable.can_reject && (
-                                                <button
-                                                    type="button"
-                                                    className="font-medium text-primary"
-                                                    onClick={() =>
-                                                        withReason(
-                                                            'Reject billable',
-                                                            (reason) =>
-                                                                router.post(
-                                                                    `/company/projects/billables/${billable.id}/reject`,
-                                                                    {
-                                                                        reason,
-                                                                    },
-                                                                    {
-                                                                        preserveScroll:
-                                                                            true,
-                                                                    },
-                                                                ),
-                                                            billable.rejection_reason,
-                                                        )
-                                                    }
-                                                >
-                                                    Reject
-                                                </button>
-                                            )}
-                                            {billable.can_cancel && (
-                                                <button
-                                                    type="button"
-                                                    className="font-medium text-primary"
-                                                    onClick={() =>
-                                                        withReason(
-                                                            'Cancel billable',
-                                                            (reason) =>
-                                                                router.post(
-                                                                    `/company/projects/billables/${billable.id}/cancel`,
-                                                                    {
-                                                                        reason,
-                                                                    },
-                                                                    {
-                                                                        preserveScroll:
-                                                                            true,
-                                                                    },
-                                                                ),
-                                                            billable.cancellation_reason,
-                                                        )
-                                                    }
-                                                >
-                                                    Cancel
-                                                </button>
-                                            )}
-                                            {billable.can_open_project ? (
-                                                <Link
-                                                    href={`/company/projects/${billable.project_id}`}
-                                                    className="font-medium text-primary"
-                                                >
-                                                    Open project
-                                                </Link>
-                                            ) : (
-                                                <span className="text-muted-foreground">
-                                                    View only
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {billables.links.length > 1 && (
-                    <div className="flex flex-wrap gap-2">
-                        {billables.links.map((link) => (
-                            <Link
-                                key={link.label}
-                                href={link.url ?? '#'}
-                                className={`rounded-md border px-3 py-1 text-sm ${
-                                    link.active
-                                        ? 'border-primary text-primary'
-                                        : 'text-muted-foreground'
-                                } ${
-                                    !link.url
-                                        ? 'pointer-events-none opacity-50'
-                                        : ''
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
+            </WorkspaceShell>
         </AppLayout>
     );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function BadgeLike({ children }: { children: string }) {
     return (
-        <div className="rounded-xl border p-4">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {label}
-            </p>
-            <p className="mt-2 text-2xl font-semibold">{value}</p>
-        </div>
+        <span className="inline-flex rounded-full border border-[color:var(--border-subtle)] bg-muted/35 px-2.5 py-1 text-xs font-medium text-[color:var(--text-secondary)]">
+            {children}
+        </span>
     );
 }

@@ -1,7 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { masterDataBreadcrumbs } from '@/lib/page-navigation';
 
 type Product = {
     id: string;
@@ -28,10 +29,7 @@ export default function ProductsIndex({ products }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Master Data', href: '/core/partners' },
-                { title: 'Products', href: '/core/products' },
-            ]}
+            breadcrumbs={masterDataBreadcrumbs({ title: 'Products', href: '/core/products' },)}
         >
             <Head title="Products" />
 

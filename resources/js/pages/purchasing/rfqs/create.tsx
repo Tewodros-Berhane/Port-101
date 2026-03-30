@@ -1,12 +1,14 @@
+import { Head, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import PurchasingLineItemsEditor, {
     type PurchasingLineItemInput,
 } from '@/components/purchasing/line-items-editor';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Partner = {
     id: string;
@@ -45,15 +47,11 @@ export default function PurchaseRfqCreate({ rfq, partners, products }: Props) {
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Purchasing', href: '/company/purchasing' },
-                { title: 'RFQs', href: '/company/purchasing/rfqs' },
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.purchasing, { title: 'RFQs', href: '/company/purchasing/rfqs' },
                 {
                     title: 'Create',
                     href: '/company/purchasing/rfqs/create',
-                },
-            ]}
+                },)}
         >
             <Head title="New Purchase RFQ" />
 
@@ -64,9 +62,7 @@ export default function PurchaseRfqCreate({ rfq, partners, products }: Props) {
                         Draft a vendor request for quotation.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/purchasing/rfqs">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/purchasing/rfqs" label="Back to RFQs" variant="ghost" />
             </div>
 
             <form

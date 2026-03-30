@@ -1,9 +1,11 @@
+import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
 
 type Props = {
     form: {
@@ -20,11 +22,8 @@ export default function HrReimbursementCategoryCreate({ form: initialForm }: Pro
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'HR', href: '/company/hr' },
-                { title: 'Reimbursements', href: '/company/hr/reimbursements' },
-                { title: 'New category', href: '/company/hr/reimbursements/categories/create' },
-            ]}
+            breadcrumbs={moduleBreadcrumbs(companyModuleLinks.hr, { title: 'Reimbursements', href: '/company/hr/reimbursements' },
+                { title: 'New category', href: '/company/hr/reimbursements/categories/create' },)}
         >
             <Head title="New reimbursement category" />
 
@@ -35,9 +34,7 @@ export default function HrReimbursementCategoryCreate({ form: initialForm }: Pro
                         Create expense categories for travel, meals, subscriptions, and other reimbursable costs.
                     </p>
                 </div>
-                <Button variant="ghost" asChild>
-                    <Link href="/company/hr/reimbursements">Back</Link>
-                </Button>
+                <BackLinkAction href="/company/hr/reimbursements" label="Back to reimbursements" variant="ghost" />
             </div>
 
             <form

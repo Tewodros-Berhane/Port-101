@@ -1,8 +1,30 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { DataTableShell } from '@/components/shell/data-table-shell';
+import {
+    FilterField,
+    FilterToolbar,
+    FilterToolbarActions,
+    FilterToolbarGrid,
+} from '@/components/shell/filter-toolbar';
+import { KpiStrip, MetricCard } from '@/components/shell/kpi-strip';
+import { PageHeader } from '@/components/shell/page-header';
+import { PaginationBar } from '@/components/shell/pagination-bar';
+import { WorkspaceShell } from '@/components/shell/workspace-shell';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import AppLayout from '@/layouts/app-layout';
+import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Option = {
     value: string;
@@ -92,276 +114,129 @@ export default function WebhookDeliveriesIndex({
 
     return (
         <AppLayout
-            breadcrumbs={[
-                { title: 'Company', href: '/company/dashboard' },
-                { title: 'Integrations', href: '/company/integrations' },
-                {
+            breadcrumbs={companyModuleBreadcrumbs(companyModuleLinks.integrations, {
                     title: 'Delivery queue',
                     href: '/company/integrations/deliveries',
-                },
-            ]}
+                },)}
         >
             <Head title="Webhook Delivery Queue" />
 
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Webhook delivery queue
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Review delivery outcomes across all endpoints and
-                            retry dead-letter traffic.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/company/integrations">
-                                Integrations dashboard
-                            </Link>
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <Link href="/company/integrations/webhooks">
-                                Webhook endpoints
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <MetricCard label="Total" value={String(summary.total)} />
-                    <MetricCard
-                        label="Delivered"
-                        value={String(summary.delivered)}
+            <WorkspaceShell
+                header={
+                    <PageHeader
+                        title="Webhook delivery queue"
+                        description="Review delivery outcomes across all endpoints and retry dead-letter traffic."
+                        actions={
+                            <>
+                                <BackLinkAction href="/company/integrations" label="Back to integrations
+                                    " variant="outline" />
+                                <Button variant="outline" asChild>
+                                    <Link href="/company/integrations/webhooks">
+                                        Webhook endpoints
+                                    </Link>
+                                </Button>
+                            </>
+                        }
                     />
-                    <MetricCard
-                        label="Retry scheduled"
-                        value={String(summary.failed)}
-                    />
-                    <MetricCard
-                        label="Dead letters"
-                        value={String(summary.dead)}
-                    />
-                    <MetricCard
-                        label="In flight"
-                        value={String(summary.pending)}
-                    />
-                </section>
-
-                <div className="rounded-xl border p-4 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="font-medium">Delivery policy</p>
-                            <p className="text-xs text-muted-foreground">
-                                Consumers should verify{' '}
-                                <code>{securityPolicy.signature_algorithm}</code>{' '}
-                                over <code>{securityPolicy.signed_content}</code>{' '}
-                                and reject payloads older than{' '}
-                                {securityPolicy.replay_window_seconds} seconds.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <form
-                    className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-5"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        form.get('/company/integrations/deliveries', {
-                            preserveState: true,
-                            replace: true,
-                        });
-                    }}
-                >
-                    <div className="grid gap-2">
-                        <Label htmlFor="search">Search</Label>
-                        <Input
-                            id="search"
-                            value={form.data.search}
-                            onChange={(event) =>
-                                form.setData('search', event.target.value)
-                            }
-                            placeholder="Endpoint or event"
+                }
+                kpis={
+                    <KpiStrip className="xl:grid-cols-5">
+                        <MetricCard label="Total" value={String(summary.total)} />
+                        <MetricCard
+                            label="Delivered"
+                            value={String(summary.delivered)}
+                            tone="success"
                         />
-                    </div>
+                        <MetricCard
+                            label="Retry scheduled"
+                            value={String(summary.failed)}
+                            tone="warning"
+                        />
+                        <MetricCard
+                            label="Dead letters"
+                            value={String(summary.dead)}
+                            tone="danger"
+                        />
+                        <MetricCard
+                            label="In flight"
+                            value={String(summary.pending)}
+                            tone="info"
+                        />
+                    </KpiStrip>
+                }
+                table={
+                    <DataTableShell>
+                        <Table container={false} className="min-w-[1280px]">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Delivery</TableHead>
+                                    <TableHead>Endpoint</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Attempt</TableHead>
+                                    <TableHead>Response</TableHead>
+                                    <TableHead>Failure</TableHead>
+                                    <TableHead>Timing</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {deliveries.data.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={8}
+                                            className="py-12 text-center text-sm text-muted-foreground"
+                                        >
+                                            No deliveries match the current
+                                            filters.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="status">Status</Label>
-                        <select
-                            id="status"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.status}
-                            onChange={(event) =>
-                                form.setData('status', event.target.value)
-                            }
-                        >
-                            <option value="">All statuses</option>
-                            {statusOptions.map((statusOption) => (
-                                <option
-                                    key={statusOption.value}
-                                    value={statusOption.value}
-                                >
-                                    {statusOption.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="event_type">Event</Label>
-                        <select
-                            id="event_type"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.event_type}
-                            onChange={(event) =>
-                                form.setData('event_type', event.target.value)
-                            }
-                        >
-                            <option value="">All events</option>
-                            {eventOptions.map((eventOption) => (
-                                <option
-                                    key={eventOption.value}
-                                    value={eventOption.value}
-                                >
-                                    {eventOption.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="endpoint_id">Endpoint</Label>
-                        <select
-                            id="endpoint_id"
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                            value={form.data.endpoint_id}
-                            onChange={(event) =>
-                                form.setData('endpoint_id', event.target.value)
-                            }
-                        >
-                            <option value="">All endpoints</option>
-                            {endpointOptions.map((endpointOption) => (
-                                <option
-                                    key={endpointOption.id}
-                                    value={endpointOption.id}
-                                >
-                                    {endpointOption.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="flex flex-wrap items-end gap-2">
-                        <Button type="submit">Apply filters</Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                const reset = {
-                                    search: '',
-                                    status: '',
-                                    event_type: '',
-                                    endpoint_id: '',
-                                };
-
-                                form.setData(reset);
-                                form.get('/company/integrations/deliveries', {
-                                    data: reset,
-                                    preserveState: true,
-                                    replace: true,
-                                });
-                            }}
-                        >
-                            Reset
-                        </Button>
-                    </div>
-                </form>
-
-                <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-[1280px] text-sm">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-medium">
-                                    Delivery
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Endpoint
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Status
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Attempt
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Response
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Failure
-                                </th>
-                                <th className="px-4 py-3 font-medium">
-                                    Timing
-                                </th>
-                                <th className="px-4 py-3 text-right font-medium">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {deliveries.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={8}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No deliveries match the current
-                                        filters.
-                                    </td>
-                                </tr>
-                            )}
-
-                            {deliveries.data.map((delivery) => (
-                                <tr key={delivery.id}>
-                                    <td className="px-4 py-3">
-                                        <p className="font-medium">
-                                            {delivery.event_label}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {delivery.event_type}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {delivery.endpoint_name ?? '-'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <StatusPill
-                                            status={delivery.status}
-                                            label={delivery.status_label}
-                                        />
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        Attempt {delivery.attempt_count}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="space-y-1">
-                                            <p>
-                                                {delivery.response_status
-                                                    ? `HTTP ${delivery.response_status}`
-                                                    : '-'}
+                                {deliveries.data.map((delivery) => (
+                                    <TableRow key={delivery.id}>
+                                        <TableCell>
+                                            <p className="font-medium">
+                                                {delivery.event_label}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                {delivery.duration_ms
-                                                    ? `${delivery.duration_ms} ms`
-                                                    : '-'}
+                                                {delivery.event_type}
                                             </p>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <p className="max-w-[260px] truncate text-muted-foreground">
-                                            {delivery.failure_message ?? '-'}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                                        </TableCell>
+                                        <TableCell>
+                                            {delivery.endpoint_name ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusBadge
+                                                status={delivery.status}
+                                                label={delivery.status_label}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            Attempt {delivery.attempt_count}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="space-y-1">
+                                                <p>
+                                                    {delivery.response_status
+                                                        ? `HTTP ${delivery.response_status}`
+                                                        : '-'}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {delivery.duration_ms
+                                                        ? `${delivery.duration_ms} ms`
+                                                        : '-'}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <p className="max-w-[260px] truncate text-muted-foreground">
+                                                {delivery.failure_message ??
+                                                    '-'}
+                                            </p>
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p>
                                                     First attempt{' '}
@@ -374,13 +249,13 @@ export default function WebhookDeliveriesIndex({
                                                     {formatDateTime(
                                                         delivery.created_at,
                                                     )}
-                                            </p>
-                                            <p>
-                                                Delivered{' '}
-                                                {formatDateTime(
-                                                    delivery.delivered_at,
-                                                )}
-                                            </p>
+                                                </p>
+                                                <p>
+                                                    Delivered{' '}
+                                                    {formatDateTime(
+                                                        delivery.delivered_at,
+                                                    )}
+                                                </p>
                                                 <p>
                                                     Next retry{' '}
                                                     {formatDateTime(
@@ -394,98 +269,190 @@ export default function WebhookDeliveriesIndex({
                                                     )}
                                                 </p>
                                             </div>
-                                        </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="inline-flex flex-wrap items-center justify-end gap-3">
-                                            {delivery.can_retry && (
-                                                <button
-                                                    type="button"
-                                                    className="font-medium text-primary"
-                                                    onClick={() =>
-                                                        router.post(
-                                                            `/company/integrations/deliveries/${delivery.id}/retry`,
-                                                            {},
-                                                            {
-                                                                preserveScroll:
-                                                                    true,
-                                                            },
-                                                        )
-                                                    }
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                                                {delivery.can_retry && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                `/company/integrations/deliveries/${delivery.id}/retry`,
+                                                                {},
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Retry
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    asChild
                                                 >
-                                                    Retry
-                                                </button>
-                                            )}
-                                            <Link
-                                                href={`/company/integrations/deliveries/${delivery.id}`}
-                                                className="font-medium text-primary"
-                                            >
-                                                Open
-                                            </Link>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                                    <Link
+                                                        href={`/company/integrations/deliveries/${delivery.id}`}
+                                                    >
+                                                        Open
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </DataTableShell>
+                }
+                pagination={<PaginationBar links={deliveries.links} />}
+            >
+                <Card className="gap-0 py-0">
+                    <CardContent className="px-5 py-4 text-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p className="font-medium">Delivery policy</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Consumers should verify{' '}
+                                    <code>
+                                        {securityPolicy.signature_algorithm}
+                                    </code>{' '}
+                                    over{' '}
+                                    <code>{securityPolicy.signed_content}</code>{' '}
+                                    and reject payloads older than{' '}
+                                    {securityPolicy.replay_window_seconds}{' '}
+                                    seconds.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                {deliveries.links.length > 1 && (
-                    <div className="flex flex-wrap gap-2">
-                        {deliveries.links.map((link) => (
-                            <Link
-                                key={link.label}
-                                href={link.url ?? '#'}
-                                className={`rounded-md border px-3 py-1 text-sm ${
-                                    link.active
-                                        ? 'border-primary text-primary'
-                                        : 'text-muted-foreground'
-                                } ${
-                                    !link.url
-                                        ? 'pointer-events-none opacity-50'
-                                        : ''
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
+                <FilterToolbar
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        router.get('/company/integrations/deliveries', form.data, {
+                            preserveState: true,
+                            replace: true,
+                        });
+                    }}
+                >
+                    <FilterToolbarGrid className="xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                        <FilterField label="Search" htmlFor="search">
+                            <Input
+                                id="search"
+                                value={form.data.search}
+                                onChange={(event) =>
+                                    form.setData('search', event.target.value)
+                                }
+                                placeholder="Endpoint or event"
                             />
-                        ))}
-                    </div>
-                )}
-            </div>
+                        </FilterField>
+
+                        <FilterField label="Status" htmlFor="status">
+                            <select
+                                id="status"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.status}
+                                onChange={(event) =>
+                                    form.setData('status', event.target.value)
+                                }
+                            >
+                                <option value="">All statuses</option>
+                                {statusOptions.map((statusOption) => (
+                                    <option
+                                        key={statusOption.value}
+                                        value={statusOption.value}
+                                    >
+                                        {statusOption.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
+
+                        <FilterField label="Event" htmlFor="event_type">
+                            <select
+                                id="event_type"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.event_type}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'event_type',
+                                        event.target.value,
+                                    )
+                                }
+                            >
+                                <option value="">All events</option>
+                                {eventOptions.map((eventOption) => (
+                                    <option
+                                        key={eventOption.value}
+                                        value={eventOption.value}
+                                    >
+                                        {eventOption.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
+
+                        <FilterField label="Endpoint" htmlFor="endpoint_id">
+                            <select
+                                id="endpoint_id"
+                                className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                value={form.data.endpoint_id}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'endpoint_id',
+                                        event.target.value,
+                                    )
+                                }
+                            >
+                                <option value="">All endpoints</option>
+                                {endpointOptions.map((endpointOption) => (
+                                    <option
+                                        key={endpointOption.id}
+                                        value={endpointOption.id}
+                                    >
+                                        {endpointOption.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </FilterField>
+
+                        <FilterToolbarActions>
+                            <Button type="submit">Apply filters</Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    const reset = {
+                                        search: '',
+                                        status: '',
+                                        event_type: '',
+                                        endpoint_id: '',
+                                    };
+
+                                    form.setData(reset);
+                                    router.get(
+                                        '/company/integrations/deliveries',
+                                        reset,
+                                        {
+                                            preserveState: true,
+                                            replace: true,
+                                        },
+                                    );
+                                }}
+                            >
+                                Reset
+                            </Button>
+                        </FilterToolbarActions>
+                    </FilterToolbarGrid>
+                </FilterToolbar>
+            </WorkspaceShell>
         </AppLayout>
-    );
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-xl border p-4">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {label}
-            </p>
-            <p className="mt-2 text-2xl font-semibold">{value}</p>
-        </div>
-    );
-}
-
-function StatusPill({
-    status,
-    label,
-}: {
-    status: string;
-    label: string;
-}) {
-    const toneClass =
-        status === 'delivered'
-            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
-            : status === 'dead'
-              ? 'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300'
-              : status === 'failed'
-                ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300'
-                : 'border-border bg-muted text-muted-foreground';
-
-    return (
-        <span
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-        >
-            {label}
-        </span>
     );
 }
