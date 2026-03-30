@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -9,7 +10,6 @@ import {
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
 
 export function NavMain({
     items = [],
@@ -29,22 +29,24 @@ export function NavMain({
     }
 
     return (
-        <SidebarGroup className="mt-0.5 p-1 first:mt-0">
-            <SidebarGroupLabel className="h-6 px-1 text-[10px]">
+        <SidebarGroup className="mt-1 first:mt-0">
+            <SidebarGroupLabel>
                 {label}
             </SidebarGroupLabel>
-            <SidebarMenu className="gap-0.5 pl-2">
+            <SidebarMenu className="gap-1">
                 {visibleItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                             asChild
                             isActive={isCurrentUrl(item.href)}
                             tooltip={{ children: item.title }}
-                            size="sm"
+                            size="default"
                         >
                             <Link href={item.href} prefetch>
                                 {item.icon && <item.icon />}
-                                <span>{item.title}</span>
+                                <span className="group-data-[collapsible=icon]:hidden">
+                                    {item.title}
+                                </span>
                             </Link>
                         </SidebarMenuButton>
                         {item.badge !== undefined &&
