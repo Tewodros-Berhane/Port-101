@@ -3,6 +3,7 @@ import { AppCommandPalette } from '@/components/app-command-palette';
 import { AppNotificationsPanel } from '@/components/app-notifications-panel';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { CompanySwitcher } from '@/components/company-switcher';
+import ThemeToggle from '@/components/theme-toggle';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { findNavigationItem } from '@/lib/app-navigation';
 import type { BreadcrumbItem as BreadcrumbItemType, SharedData } from '@/types';
@@ -37,13 +38,14 @@ export function AppSidebarHeader({
     return (
         <header className="sticky top-0 z-20 border-b border-[color:var(--border-subtle)] bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="flex min-h-16 items-center justify-between gap-4 px-6 py-3 md:px-4">
-                <div className="flex min-w-0 items-start gap-3">
-                    <SidebarTrigger className="mt-0.5 shrink-0" />
+                <div className="flex min-w-0 items-center gap-3">
+                    <SidebarTrigger className="shrink-0" />
                     <div className="hidden min-w-0 md:block">
                         <Breadcrumbs breadcrumbs={resolvedBreadcrumbs} />
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <ThemeToggle compact />
                     <AppCommandPalette />
                     <AppNotificationsPanel />
                     <div className="hidden md:block">
