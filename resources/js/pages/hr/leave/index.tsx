@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
@@ -136,6 +137,10 @@ export default function HrLeaveIndex({
     const form = useForm(filters);
     const [showLeaveTypeModal, setShowLeaveTypeModal] = useState(false);
     const [showLeavePeriodModal, setShowLeavePeriodModal] = useState(false);
+    const [rejectingRequest, setRejectingRequest] = useState<{
+        id: string;
+        requestNumber: string;
+    } | null>(null);
     const leaveTypeForm = useForm({
         name: '',
         code: '',
@@ -152,6 +157,9 @@ export default function HrLeaveIndex({
         start_date: '',
         end_date: '',
         is_closed: false,
+    });
+    const rejectForm = useForm({
+        reason: '',
     });
 
     const closeLeaveTypeModal = (open: boolean) => {
@@ -172,14 +180,32 @@ export default function HrLeaveIndex({
         }
     };
 
-    const rejectWithReason = (requestId: string) => {
-        const reason = window.prompt('Rejection reason (optional)', '');
-
-        if (reason === null) {
+    const closeRejectDialog = (open: boolean) => {
+        if (rejectForm.processing) {
             return;
         }
 
-        router.post(`/company/hr/leave/requests/${requestId}/reject`, { reason }, { preserveScroll: true });
+        if (!open) {
+            rejectForm.reset();
+            rejectForm.clearErrors();
+            setRejectingRequest(null);
+        }
+    };
+
+    const submitRejectRequest = () => {
+        if (!rejectingRequest) {
+            return;
+        }
+
+        rejectForm.post(
+            `/company/hr/leave/requests/${rejectingRequest.id}/reject`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    closeRejectDialog(false);
+                },
+            },
+        );
     };
 
     return (
@@ -599,7 +625,20 @@ export default function HrLeaveIndex({
                                                     </Button>
                                                 )}
                                                 {requestRecord.can_reject && (
-                                                    <Button variant="outline" size="sm" type="button" onClick={() => rejectWithReason(requestRecord.id)}>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        type="button"
+                                                        onClick={() => {
+                                                            rejectForm.reset();
+                                                            rejectForm.clearErrors();
+                                                            setRejectingRequest({
+                                                                id: requestRecord.id,
+                                                                requestNumber:
+                                                                    requestRecord.request_number,
+                                                            });
+                                                        }}
+                                                    >
                                                         Reject
                                                     </Button>
                                                 )}
@@ -768,6 +807,29 @@ export default function HrLeaveIndex({
                     </div>
                 </div>
             </div>
+
+            <ReasonDialog
+                open={Boolean(rejectingRequest)}
+                onOpenChange={closeRejectDialog}
+                title={
+                    rejectingRequest
+                        ? `Reject leave request ${rejectingRequest.requestNumber}?`
+                        : 'Reject leave request?'
+                }
+                description="This will mark the request as rejected and remove it from the approval queue."
+                confirmLabel="Reject request"
+                processingLabel="Rejecting..."
+                cancelLabel="Keep request"
+                processing={rejectForm.processing}
+                onConfirm={submitRejectRequest}
+                reason={rejectForm.data.reason}
+                onReasonChange={(value) => rejectForm.setData('reason', value)}
+                reasonLabel="Reason"
+                reasonPlaceholder="Add context for the requester if needed."
+                reasonHelperText="This note is optional, but it will be recorded with the decision."
+                reasonError={rejectForm.errors.reason}
+                errors={rejectForm.errors}
+            />
         </AppLayout>
     );
 }

@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
@@ -142,6 +143,10 @@ export default function HrAttendanceIndex({
 }: Props) {
     const filterForm = useForm(filters);
     const [showShiftModal, setShowShiftModal] = useState(false);
+    const [rejectingRequest, setRejectingRequest] = useState<{
+        id: string;
+        requestNumber: string;
+    } | null>(null);
     const punchForm = useForm({
         employee_id: linkedEmployeeId ?? '',
         recorded_at: todayIso,
@@ -155,6 +160,9 @@ export default function HrAttendanceIndex({
         grace_minutes: '',
         auto_attendance_enabled: false,
     });
+    const rejectForm = useForm({
+        reason: '',
+    });
 
     const closeShiftModal = (open: boolean) => {
         setShowShiftModal(open);
@@ -165,14 +173,32 @@ export default function HrAttendanceIndex({
         }
     };
 
-    const rejectWithReason = (requestId: string) => {
-        const reason = window.prompt('Rejection reason (optional)', '');
-
-        if (reason === null) {
+    const closeRejectDialog = (open: boolean) => {
+        if (rejectForm.processing) {
             return;
         }
 
-        router.post(`/company/hr/attendance/requests/${requestId}/reject`, { reason }, { preserveScroll: true });
+        if (!open) {
+            rejectForm.reset();
+            rejectForm.clearErrors();
+            setRejectingRequest(null);
+        }
+    };
+
+    const submitRejectRequest = () => {
+        if (!rejectingRequest) {
+            return;
+        }
+
+        rejectForm.post(
+            `/company/hr/attendance/requests/${rejectingRequest.id}/reject`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    closeRejectDialog(false);
+                },
+            },
+        );
     };
 
     const submitPunch = (endpoint: 'check-in' | 'check-out') => {
@@ -524,7 +550,23 @@ export default function HrAttendanceIndex({
                                                     {requestRecord.can_edit && <Button variant="outline" size="sm" asChild><Link href={`/company/hr/attendance/requests/${requestRecord.id}/edit`}>Edit</Link></Button>}
                                                     {requestRecord.can_submit && <Button variant="outline" size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/submit`, {}, { preserveScroll: true })}>Submit</Button>}
                                                     {requestRecord.can_approve && <Button size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/approve`, {}, { preserveScroll: true })}>Approve</Button>}
-                                                    {requestRecord.can_reject && <Button variant="outline" size="sm" type="button" onClick={() => rejectWithReason(requestRecord.id)}>Reject</Button>}
+                                                    {requestRecord.can_reject && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            type="button"
+                                                            onClick={() => {
+                                                                rejectForm.reset();
+                                                                rejectForm.clearErrors();
+                                                                setRejectingRequest({
+                                                                    id: requestRecord.id,
+                                                                    requestNumber: requestRecord.request_number,
+                                                                });
+                                                            }}
+                                                        >
+                                                            Reject
+                                                        </Button>
+                                                    )}
                                                     {requestRecord.can_cancel && <Button variant="ghost" size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/cancel`, {}, { preserveScroll: true })}>Cancel</Button>}
                                                 </div>
                                             </td>
@@ -594,6 +636,29 @@ export default function HrAttendanceIndex({
                     </div>
                 </div>
             </div>
+
+            <ReasonDialog
+                open={Boolean(rejectingRequest)}
+                onOpenChange={closeRejectDialog}
+                title={
+                    rejectingRequest
+                        ? `Reject correction ${rejectingRequest.requestNumber}?`
+                        : 'Reject attendance correction?'
+                }
+                description="This will reject the correction request and keep the current attendance record unchanged."
+                confirmLabel="Reject correction"
+                processingLabel="Rejecting..."
+                cancelLabel="Keep correction"
+                processing={rejectForm.processing}
+                onConfirm={submitRejectRequest}
+                reason={rejectForm.data.reason}
+                onReasonChange={(value) => rejectForm.setData('reason', value)}
+                reasonLabel="Reason"
+                reasonPlaceholder="Add context for the requester if needed."
+                reasonHelperText="This note is optional, but it will be recorded with the decision."
+                reasonError={rejectForm.errors.reason}
+                errors={rejectForm.errors}
+            />
         </AppLayout>
     );
 }

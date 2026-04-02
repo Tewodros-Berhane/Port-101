@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
@@ -99,6 +100,10 @@ export default function HrReimbursementsIndex({
 }: Props) {
     const form = useForm(filters);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const [rejectingClaim, setRejectingClaim] = useState<{
+        id: string;
+        claimNumber: string;
+    } | null>(null);
     const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
     const categoryForm = useForm({
         name: '',
@@ -106,6 +111,9 @@ export default function HrReimbursementsIndex({
         default_expense_account_reference: '',
         requires_receipt: false,
         is_project_rebillable: false,
+    });
+    const rejectForm = useForm({
+        reason: '',
     });
 
     const closeCategoryModal = (open: boolean) => {
@@ -115,6 +123,34 @@ export default function HrReimbursementsIndex({
             categoryForm.reset();
             categoryForm.clearErrors();
         }
+    };
+
+    const closeRejectDialog = (open: boolean) => {
+        if (rejectForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            rejectForm.reset();
+            rejectForm.clearErrors();
+            setRejectingClaim(null);
+        }
+    };
+
+    const submitRejectClaim = () => {
+        if (!rejectingClaim) {
+            return;
+        }
+
+        rejectForm.post(
+            `/company/hr/reimbursements/claims/${rejectingClaim.id}/reject`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    closeRejectDialog(false);
+                },
+            },
+        );
     };
 
     return (
@@ -459,22 +495,12 @@ export default function HrReimbursementsIndex({
                                                         size="sm"
                                                         type="button"
                                                         onClick={() => {
-                                                            const reason = window.prompt(
-                                                                'Rejection reason (optional)',
-                                                                '',
-                                                            );
-
-                                                            if (reason === null) {
-                                                                return;
-                                                            }
-
-                                                            router.post(
-                                                                `/company/hr/reimbursements/claims/${claim.id}/reject`,
-                                                                { reason },
-                                                                {
-                                                                    preserveScroll: true,
-                                                                },
-                                                            );
+                                                            rejectForm.reset();
+                                                            rejectForm.clearErrors();
+                                                            setRejectingClaim({
+                                                                id: claim.id,
+                                                                claimNumber: claim.claim_number,
+                                                            });
                                                         }}
                                                     >
                                                         Reject
@@ -591,6 +617,28 @@ export default function HrReimbursementsIndex({
                 </div>
             </div>
 
+            <ReasonDialog
+                open={Boolean(rejectingClaim)}
+                onOpenChange={closeRejectDialog}
+                title={
+                    rejectingClaim
+                        ? `Reject claim ${rejectingClaim.claimNumber}?`
+                        : 'Reject reimbursement claim?'
+                }
+                description="This will reject the claim and stop it from moving to accounting until the requester revises or resubmits it."
+                confirmLabel="Reject claim"
+                processingLabel="Rejecting..."
+                cancelLabel="Keep claim"
+                processing={rejectForm.processing}
+                onConfirm={submitRejectClaim}
+                reason={rejectForm.data.reason}
+                onReasonChange={(value) => rejectForm.setData('reason', value)}
+                reasonLabel="Reason"
+                reasonPlaceholder="Add context for the requester if needed."
+                reasonHelperText="This note is optional, but it will be recorded with the decision."
+                reasonError={rejectForm.errors.reason}
+                errors={rejectForm.errors}
+            />
         </AppLayout>
     );
 }
