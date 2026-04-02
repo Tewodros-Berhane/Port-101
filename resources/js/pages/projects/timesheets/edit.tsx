@@ -1,4 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
@@ -92,14 +94,40 @@ export default function ProjectTimesheetEdit({
 
     const editable = abilities.can_edit_timesheet;
 
-    const handleReject = () => {
-        const reason =
-            window.prompt('Optional rejection reason', timesheet.rejection_reason ?? '') ?? '';
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const rejectForm = useForm({
+        reason: timesheet.rejection_reason ?? '',
+    });
 
-        router.post(
+    const openRejectDialog = () => {
+        rejectForm.setData('reason', timesheet.rejection_reason ?? '');
+        rejectForm.clearErrors();
+        setRejectDialogOpen(true);
+    };
+
+    const closeRejectDialog = (open: boolean) => {
+        if (rejectForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            rejectForm.reset();
+            rejectForm.clearErrors();
+            setRejectDialogOpen(false);
+        }
+    };
+
+    const submitRejection = () => {
+        rejectForm.post(
             `/company/projects/timesheets/${timesheet.id}/reject`,
-            { reason },
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    rejectForm.reset();
+                    rejectForm.clearErrors();
+                    setRejectDialogOpen(false);
+                },
+            },
         );
     };
 
@@ -414,7 +442,7 @@ export default function ProjectTimesheetEdit({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={handleReject}
+                            onClick={openRejectDialog}
                         >
                             Reject
                         </Button>
@@ -434,6 +462,25 @@ export default function ProjectTimesheetEdit({
                     )}
                 </div>
             </form>
+
+            <ReasonDialog
+                open={rejectDialogOpen}
+                onOpenChange={closeRejectDialog}
+                title="Reject timesheet?"
+                description="This keeps the entry out of approved project time until it is corrected and resubmitted."
+                confirmLabel="Reject timesheet"
+                processingLabel="Rejecting..."
+                cancelLabel="Keep timesheet"
+                processing={rejectForm.processing}
+                onConfirm={submitRejection}
+                reason={rejectForm.data.reason}
+                onReasonChange={(value) => rejectForm.setData('reason', value)}
+                reasonLabel="Rejection note"
+                reasonPlaceholder="Optional note for why this timesheet is being rejected."
+                reasonHelperText={`${project.project_code} - ${project.name} | ${timesheet.work_date ?? 'No work date'} | ${timesheet.hours} hours`}
+                reasonError={rejectForm.errors.reason}
+                errors={rejectForm.errors}
+            />
         </AppLayout>
     );
 }
