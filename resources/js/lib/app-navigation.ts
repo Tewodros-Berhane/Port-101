@@ -232,6 +232,11 @@ const platformNavItems: NavItem[] = [
         icon: ShieldCheck,
     },
     {
+        title: 'Contact Requests',
+        href: '/platform/contact-requests',
+        icon: Mail,
+    },
+    {
         title: 'Notifications',
         href: '/core/notifications',
         icon: Bell,

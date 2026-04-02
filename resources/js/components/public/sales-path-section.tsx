@@ -7,7 +7,6 @@ import {
 } from '@/components/public/public-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { login } from '@/routes';
 
 export type SalesPathProfile = {
     title: string;
@@ -31,7 +30,7 @@ export default function SalesPathSection({
             <PublicSectionHeader
                 eyebrow="Deployment paths"
                 title="Adopt Port-101 in the order your operation actually needs."
-                description="The codebase does not expose a public self-serve trial, pricing checkout, or demo-booking flow. This section therefore stays operationally honest: it explains rollout patterns and points visitors toward product review or existing-account sign-in."
+                description="Public demo-request and contact-sales routes are available here. Self-serve trial and pricing checkout are not, so this section stays clear about rollout fit instead of pretending there is an instant-buy path."
             />
 
             <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -87,17 +86,17 @@ export default function SalesPathSection({
                     </Button>
                 ) : (
                     <Button asChild>
-                        <a href="#product-preview">
-                            See product preview
+                        <Link href="/book-demo">
+                            Book demo
                             <ArrowRight className="size-4" />
-                        </a>
+                        </Link>
                     </Button>
                 )}
                 <Button asChild variant="outline">
                     {isAuthenticated ? (
                         <a href="#security">Review control model</a>
                     ) : (
-                        <Link href={login()}>Sign in</Link>
+                        <Link href="/contact-sales">Contact sales</Link>
                     )}
                 </Button>
             </div>

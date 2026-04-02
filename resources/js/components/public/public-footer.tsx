@@ -37,12 +37,17 @@ export default function PublicFooter({
                         {!isAuthenticated ? (
                             <>
                                 <Button asChild variant="outline" size="sm">
-                                    <a href="#product-preview">See product</a>
+                                    <Link href="/contact-sales">Contact sales</Link>
                                 </Button>
                                 <Button asChild size="sm">
+                                    <Link href="/book-demo">
+                                        Book demo
+                                        <ArrowRight className="size-4" />
+                                    </Link>
+                                </Button>
+                                <Button asChild variant="ghost" size="sm">
                                     <Link href={login()}>
                                         Sign in
-                                        <ArrowRight className="size-4" />
                                     </Link>
                                 </Button>
                             </>

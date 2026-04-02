@@ -59,15 +59,15 @@ export default function HeroSection({
                                         <ArrowRight className="size-4" />
                                     </Link>
                                 ) : (
-                                    <a href="#product-preview">
-                                        See product preview
+                                    <Link href="/book-demo">
+                                        Book demo
                                         <ArrowRight className="size-4" />
-                                    </a>
+                                    </Link>
                                 )}
                             </Button>
                             {!isAuthenticated ? (
                                 <Button asChild variant="outline" size="lg">
-                                    <a href="#sales-path">See rollout paths</a>
+                                    <Link href="/contact-sales">Contact sales</Link>
                                 </Button>
                             ) : (
                                 <Button asChild variant="outline" size="lg">

@@ -19,7 +19,6 @@ import ProductPreviewSection, {
     type ProductPreviewTab,
 } from '@/components/public/product-preview-section';
 import ProofSection, { type ProofItem } from '@/components/public/proof-section';
-import type { PublicFooterGroup, PublicNavLink } from '@/components/public/public-shell';
 import RoleUseCaseSection, {
     type RoleUseCase,
 } from '@/components/public/role-use-case-section';
@@ -34,52 +33,10 @@ import WorkflowSection, {
     type WorkflowItem,
 } from '@/components/public/workflow-section';
 import PublicLayout from '@/layouts/public/public-layout';
+import { publicFooterGroups, publicNavLinks } from '@/lib/public-site';
 import { dashboard as companyDashboard } from '@/routes/company';
 import { dashboard as platformDashboard } from '@/routes/platform';
 import type { SharedData } from '@/types';
-
-const navLinks: PublicNavLink[] = [
-    { label: 'Product', href: '#product-preview' },
-    { label: 'Modules', href: '#modules' },
-    { label: 'Teams', href: '#teams' },
-    { label: 'Controls', href: '#controls' },
-    { label: 'Trust', href: '#security' },
-    { label: 'FAQ', href: '#faq' },
-];
-
-const footerGroups: PublicFooterGroup[] = [
-    {
-        title: 'Product',
-        links: [
-            { label: 'Overview', href: '#top' },
-            { label: 'Product preview', href: '#product-preview' },
-            { label: 'Modules', href: '#modules' },
-        ],
-    },
-    {
-        title: 'Teams',
-        links: [
-            { label: 'Teams', href: '#teams' },
-            { label: 'Workflow controls', href: '#controls' },
-            { label: 'Proof model', href: '#proof' },
-        ],
-    },
-    {
-        title: 'Trust',
-        links: [
-            { label: 'Security', href: '#security' },
-            { label: 'FAQ', href: '#faq' },
-        ],
-    },
-    {
-        title: 'Access',
-        links: [
-            { label: 'Deployment paths', href: '#sales-path' },
-            { label: 'Sign in', href: '/login' },
-            { label: 'Back to top', href: '#top' },
-        ],
-    },
-];
 
 const trustChips = [
     'Role-based access',
@@ -662,9 +619,9 @@ const faqs: FaqItem[] = [
             'Yes. HR includes employees, leave, attendance, reimbursements, and payroll. Projects include delivery records, tasks, timesheets, milestones, billables, and recurring billing.',
     },
     {
-        question: 'Is there a public self-serve trial or demo booking flow?',
+        question: 'Can I book a demo or contact sales from the public site?',
         answer:
-            'No public self-serve trial, pricing checkout, or demo-booking route is present in this codebase. This page therefore avoids fake booking or video interactions and keeps calls to action truthful.',
+            'Yes. The public site now includes dedicated routes for demo requests and sales requests. Self-serve trial and pricing checkout are still not part of this product surface.',
     },
 ];
 
@@ -680,8 +637,8 @@ export default function Welcome() {
         <>
             <Head title="Port-101" />
             <PublicLayout
-                navLinks={navLinks}
-                footerGroups={footerGroups}
+                navLinks={publicNavLinks}
+                footerGroups={publicFooterGroups}
                 isAuthenticated={isAuthenticated}
                 dashboardHref={dashboardHref}
             >

@@ -93,6 +93,22 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute($rate)->by($identity);
         });
+
+        RateLimiter::for('contact-requests', function (Request $request) {
+            $email = strtolower(trim((string) $request->input('work_email', '')));
+            $identity = $email !== ''
+                ? $email.'|'.$request->ip()
+                : 'guest|'.$request->ip();
+
+            return Limit::perMinutes(10, 5)
+                ->by($identity)
+                ->response(function () use ($request) {
+                    return redirect()
+                        ->back()
+                        ->withInput($request->except(['website']))
+                        ->with('error', 'Too many requests were submitted from this session. Please wait a few minutes and try again.');
+                });
+        });
     }
 
     protected function registerStructuredLogging(): void

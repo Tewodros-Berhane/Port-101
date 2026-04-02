@@ -67,12 +67,15 @@ export default function PublicHeader({
                     <PublicThemeToggle />
                     {!isAuthenticated ? (
                         <>
+                            <Button asChild variant="ghost" size="sm">
+                                <Link href={login()}>Sign in</Link>
+                            </Button>
                             <Button asChild variant="outline">
-                                <a href="#product-preview">See product</a>
+                                <Link href="/contact-sales">Contact sales</Link>
                             </Button>
                             <Button asChild>
-                                <Link href={login()}>
-                                    Sign in
+                                <Link href="/book-demo">
+                                    Book demo
                                     <ArrowRight className="size-4" />
                                 </Link>
                             </Button>
@@ -131,15 +134,22 @@ export default function PublicHeader({
                                         <PublicThemeToggle className="w-full justify-center" />
                                         <SheetClose asChild>
                                             <Button asChild variant="outline" className="w-full">
-                                                <a href="#product-preview">See product</a>
+                                                <Link href="/contact-sales">
+                                                    Contact sales
+                                                </Link>
                                             </Button>
                                         </SheetClose>
                                         <SheetClose asChild>
                                             <Button asChild className="w-full">
-                                                <Link href={login()}>
-                                                    Sign in
+                                                <Link href="/book-demo">
+                                                    Book demo
                                                     <ArrowRight className="size-4" />
                                                 </Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button asChild variant="ghost" className="w-full">
+                                                <Link href={login()}>Sign in</Link>
                                             </Button>
                                         </SheetClose>
                                     </>

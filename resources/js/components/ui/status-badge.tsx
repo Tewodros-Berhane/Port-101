@@ -4,6 +4,13 @@ import { cn } from '@/lib/utils';
 type KnownStatus =
     | 'draft'
     | 'pending'
+    | 'new'
+    | 'contacted'
+    | 'qualified'
+    | 'demo'
+    | 'sales'
+    | 'demo_scheduled'
+    | 'closed'
     | 'approved'
     | 'rejected'
     | 'active'
@@ -23,18 +30,25 @@ const STATUS_VARIANTS = {
     active: 'success',
     approved: 'success',
     cancelled: 'neutral',
+    closed: 'neutral',
     completed: 'success',
+    contacted: 'info',
     dead: 'danger',
+    demo: 'info',
+    demo_scheduled: 'info',
     delivered: 'success',
     draft: 'neutral',
     failed: 'danger',
     inactive: 'neutral',
     in_progress: 'info',
+    new: 'warning',
     overdue: 'danger',
     pending: 'warning',
     posted: 'info',
+    qualified: 'success',
     queued: 'info',
     rejected: 'danger',
+    sales: 'warning',
     suspended: 'neutral',
 } as const;
 

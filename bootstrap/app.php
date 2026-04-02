@@ -12,6 +12,7 @@ use App\Http\Middleware\RequireIdempotency;
 use App\Http\Middleware\ResolveCompanyContext;
 use App\Http\Middleware\ShareRequestLogContext;
 use App\Support\Api\ApiErrorResponse;
+use App\Support\Http\ErrorResponseFactory;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -21,6 +22,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -59,18 +61,20 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $isApiV1Request = static fn (Request $request): bool => $request->is('api/v1/*');
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request, Throwable $exception): bool => ErrorResponseFactory::shouldRenderJson($request)
+        );
 
-        $exceptions->render(function (AuthenticationException $exception, Request $request) use ($isApiV1Request) {
-            if (! $isApiV1Request($request)) {
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
                 return null;
             }
 
             return ApiErrorResponse::make('Unauthenticated.', 401);
         });
 
-        $exceptions->render(function (AuthorizationException $exception, Request $request) use ($isApiV1Request) {
-            if (! $isApiV1Request($request)) {
+        $exceptions->render(function (AuthorizationException $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
                 return null;
             }
 
@@ -81,8 +85,8 @@ return Application::configure(basePath: dirname(__DIR__))
             return ApiErrorResponse::make($message, 403);
         });
 
-        $exceptions->render(function (ValidationException $exception, Request $request) use ($isApiV1Request) {
-            if (! $isApiV1Request($request)) {
+        $exceptions->render(function (ValidationException $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
                 return null;
             }
 
@@ -93,24 +97,24 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         });
 
-        $exceptions->render(function (ModelNotFoundException $exception, Request $request) use ($isApiV1Request) {
-            if (! $isApiV1Request($request)) {
+        $exceptions->render(function (ModelNotFoundException $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
                 return null;
             }
 
             return ApiErrorResponse::make('Resource not found.', 404);
         });
 
-        $exceptions->render(function (NotFoundHttpException $exception, Request $request) use ($isApiV1Request) {
-            if (! $isApiV1Request($request)) {
+        $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
                 return null;
             }
 
             return ApiErrorResponse::make('Resource not found.', 404);
         });
 
-        $exceptions->render(function (HttpExceptionInterface $exception, Request $request) use ($isApiV1Request) {
-            if (! $isApiV1Request($request)) {
+        $exceptions->render(function (HttpExceptionInterface $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
                 return null;
             }
 
@@ -126,5 +130,45 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return ApiErrorResponse::make($message, $status);
+        });
+
+        $exceptions->render(function (Throwable $exception, Request $request) {
+            if (! ErrorResponseFactory::isApiV1Request($request)) {
+                return null;
+            }
+
+            return ErrorResponseFactory::jsonResponse($request, 500);
+        });
+
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if (ErrorResponseFactory::isApiV1Request($request)) {
+                return $response;
+            }
+
+            if (ErrorResponseFactory::shouldPassThrough($response, $exception)) {
+                return $response;
+            }
+
+            $status = ErrorResponseFactory::resolveStatus($response);
+
+            if (! ErrorResponseFactory::shouldHandleStatus($status)) {
+                return $response;
+            }
+
+            if (ErrorResponseFactory::shouldRenderJson($request)) {
+                return ErrorResponseFactory::preserveHeaders(
+                    ErrorResponseFactory::jsonResponse($request, $status),
+                    $response,
+                );
+            }
+
+            if (ErrorResponseFactory::shouldRedirectBack($request, $status)) {
+                return ErrorResponseFactory::backRedirect($request, $status);
+            }
+
+            return ErrorResponseFactory::preserveHeaders(
+                ErrorResponseFactory::pageResponse($request, $status),
+                $response,
+            );
         });
     })->create();

@@ -7,7 +7,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { login } from '@/routes';
 
 export default function FinalCtaSection({
     isAuthenticated,
@@ -45,15 +44,15 @@ export default function FinalCtaSection({
                                 </Button>
                             ) : (
                                 <Button asChild size="lg">
-                                    <a href="#product-preview">
-                                        See product preview
+                                    <Link href="/book-demo">
+                                        Book demo
                                         <ArrowRight className="size-4" />
-                                    </a>
+                                    </Link>
                                 </Button>
                             )}
                             {!isAuthenticated ? (
                                 <Button asChild variant="outline" size="lg">
-                                    <Link href={login()}>Sign in</Link>
+                                    <Link href="/contact-sales">Contact sales</Link>
                                 </Button>
                             ) : (
                                 <Button asChild variant="outline" size="lg">
@@ -62,7 +61,7 @@ export default function FinalCtaSection({
                             )}
                         </div>
                         <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
-                            Public demo booking and self-serve trial routes are not implemented here. The page keeps the access path honest: explore the product, review rollout fit, or sign in with an existing account.
+                            Use the public request flow to book a demo or contact sales. If your team already has access, sign in and continue from the live product.
                         </p>
                     </div>
                 </CardContent>

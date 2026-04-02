@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Platform\AdminUsersController as PlatformAdminUsersController;
+use App\Http\Controllers\Platform\ContactRequestsController as PlatformContactRequestsController;
 use App\Http\Controllers\Platform\CompaniesController as PlatformCompaniesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
@@ -58,6 +59,10 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->only(['index', 'create', 'store', 'show', 'update']);
         Route::resource('admin-users', PlatformAdminUsersController::class)
             ->only(['index', 'create', 'store']);
+        Route::get('contact-requests', [PlatformContactRequestsController::class, 'index'])
+            ->name('contact-requests.index');
+        Route::put('contact-requests/{contactRequest}', [PlatformContactRequestsController::class, 'update'])
+            ->name('contact-requests.update');
         Route::delete('invites/{invite}', [PlatformInvitesController::class, 'destroy'])
             ->whereUuid('invite')
             ->name('invites.destroy');
