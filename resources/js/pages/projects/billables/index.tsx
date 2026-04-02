@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 
 import { DataTableShell } from '@/components/shell/data-table-shell';
@@ -101,6 +102,15 @@ type Props = {
     };
 };
 
+type BillableDecisionDialogState = {
+    action: 'reject' | 'cancel';
+    id: string;
+    projectLabel: string;
+    description: string;
+    amount: number;
+    currencyCode?: string | null;
+};
+
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -122,6 +132,8 @@ export default function ProjectBillablesIndex({
     const [groupBy, setGroupBy] = useState(
         abilities.invoiceGroupingOptions[0] ?? 'project',
     );
+    const [decisionDialog, setDecisionDialog] =
+        useState<BillableDecisionDialogState | null>(null);
     const form = useForm({
         project_id: filters.project_id,
         customer_id: filters.customer_id,
@@ -129,22 +141,59 @@ export default function ProjectBillablesIndex({
         approval_status: filters.approval_status,
         billable_type: filters.billable_type,
     });
+    const decisionForm = useForm({
+        reason: '',
+    });
 
-    const withReason = (
-        label: string,
-        callback: (reason: string) => void,
+    const openDecisionDialog = (
+        action: 'reject' | 'cancel',
+        billable: BillableRow,
         currentReason?: string | null,
     ) => {
-        const reason = window.prompt(
-            `${label} reason (optional)`,
-            currentReason ?? '',
-        );
+        decisionForm.setData('reason', currentReason ?? '');
+        decisionForm.clearErrors();
+        setDecisionDialog({
+            action,
+            id: billable.id,
+            projectLabel: billable.project_code
+                ? billable.project_name
+                    ? `${billable.project_code} - ${billable.project_name}`
+                    : billable.project_code
+                : billable.project_name ?? 'Unknown project',
+            description: billable.description ?? 'No description',
+            amount: billable.amount,
+            currencyCode: billable.currency_code,
+        });
+    };
 
-        if (reason === null) {
+    const closeDecisionDialog = (open: boolean) => {
+        if (decisionForm.processing) {
             return;
         }
 
-        callback(reason);
+        if (!open) {
+            decisionForm.reset();
+            decisionForm.clearErrors();
+            setDecisionDialog(null);
+        }
+    };
+
+    const submitDecision = () => {
+        if (!decisionDialog) {
+            return;
+        }
+
+        decisionForm.post(
+            `/company/projects/billables/${decisionDialog.id}/${decisionDialog.action}`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    decisionForm.reset();
+                    decisionForm.clearErrors();
+                    setDecisionDialog(null);
+                },
+            },
+        );
     };
 
     const selectableBillableIds = useMemo(
@@ -455,18 +504,9 @@ export default function ProjectBillablesIndex({
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() =>
-                                                            withReason(
-                                                                'Reject billable',
-                                                                (reason) =>
-                                                                    router.post(
-                                                                        `/company/projects/billables/${billable.id}/reject`,
-                                                                        {
-                                                                            reason,
-                                                                        },
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    ),
+                                                            openDecisionDialog(
+                                                                'reject',
+                                                                billable,
                                                                 billable.rejection_reason,
                                                             )
                                                         }
@@ -480,18 +520,9 @@ export default function ProjectBillablesIndex({
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() =>
-                                                            withReason(
-                                                                'Cancel billable',
-                                                                (reason) =>
-                                                                    router.post(
-                                                                        `/company/projects/billables/${billable.id}/cancel`,
-                                                                        {
-                                                                            reason,
-                                                                        },
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    ),
+                                                            openDecisionDialog(
+                                                                'cancel',
+                                                                billable,
                                                                 billable.cancellation_reason,
                                                             )
                                                         }
@@ -654,6 +685,55 @@ export default function ProjectBillablesIndex({
                     </Card>
                 )}
             </WorkspaceShell>
+
+            <ReasonDialog
+                open={decisionDialog !== null}
+                onOpenChange={closeDecisionDialog}
+                title={
+                    decisionDialog
+                        ? decisionDialog.action === 'reject'
+                            ? 'Reject project billable?'
+                            : 'Cancel project billable?'
+                        : 'Update billable?'
+                }
+                description={
+                    decisionDialog?.action === 'reject'
+                        ? 'This marks the billable as rejected and keeps it out of the invoice queue until it is corrected or recreated.'
+                        : 'This cancels the billable and removes it from further billing activity.'
+                }
+                confirmLabel={
+                    decisionDialog?.action === 'reject'
+                        ? 'Reject billable'
+                        : 'Cancel billable'
+                }
+                processingLabel={
+                    decisionDialog?.action === 'reject'
+                        ? 'Rejecting...'
+                        : 'Cancelling...'
+                }
+                cancelLabel="Keep billable"
+                processing={decisionForm.processing}
+                onConfirm={submitDecision}
+                reason={decisionForm.data.reason}
+                onReasonChange={(value) => decisionForm.setData('reason', value)}
+                reasonLabel={
+                    decisionDialog?.action === 'reject'
+                        ? 'Rejection note'
+                        : 'Cancellation note'
+                }
+                reasonPlaceholder={
+                    decisionDialog?.action === 'reject'
+                        ? 'Optional note for why this billable is being rejected.'
+                        : 'Optional note for why this billable is being cancelled.'
+                }
+                reasonHelperText={
+                    decisionDialog
+                        ? `${decisionDialog.projectLabel} | ${decisionDialog.amount.toFixed(2)} ${decisionDialog.currencyCode ?? ''} | ${decisionDialog.description}`
+                        : undefined
+                }
+                reasonError={decisionForm.errors.reason}
+                errors={decisionForm.errors}
+            />
         </AppLayout>
     );
 }
