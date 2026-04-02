@@ -1,4 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { DataTableShell } from '@/components/shell/data-table-shell';
 import {
     FilterField,
@@ -95,6 +97,9 @@ export default function ApprovalsIndex({
 }: Props) {
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('approvals.requests.manage');
+    const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(
+        null,
+    );
 
     const form = useForm({
         status: filters.status ?? '',
@@ -102,19 +107,45 @@ export default function ApprovalsIndex({
         start_date: filters.start_date ?? '',
         end_date: filters.end_date ?? '',
     });
+    const rejectForm = useForm({
+        reason: '',
+    });
+    const rejectErrors = rejectForm.errors as Record<string, string | undefined>;
+    const rejectingRequest = useMemo(
+        () =>
+            approvalRequests.data.find(
+                (approvalRequest) => approvalRequest.id === rejectingRequestId,
+            ) ?? null,
+        [approvalRequests.data, rejectingRequestId],
+    );
 
     const handleApprove = (requestId: string) => {
         router.post(`/company/approvals/${requestId}/approve`, {}, { preserveScroll: true });
     };
 
-    const handleReject = (requestId: string) => {
-        const reason = window.prompt('Optional rejection reason') ?? '';
+    const handleRejectOpenChange = (open: boolean) => {
+        if (rejectForm.processing) {
+            return;
+        }
 
-        router.post(
-            `/company/approvals/${requestId}/reject`,
-            { reason },
-            { preserveScroll: true },
-        );
+        if (!open) {
+            setRejectingRequestId(null);
+            rejectForm.reset();
+            rejectForm.clearErrors();
+        }
+    };
+
+    const handleReject = () => {
+        if (!rejectingRequest) {
+            return;
+        }
+
+        rejectForm.post(`/company/approvals/${rejectingRequest.id}/reject`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                handleRejectOpenChange(false);
+            },
+        });
     };
 
     return (
@@ -285,7 +316,13 @@ export default function ApprovalsIndex({
                                                             size="sm"
                                                             variant="destructive"
                                                             type="button"
-                                                            onClick={() => handleReject(approvalRequest.id)}
+                                                            onClick={() => {
+                                                                rejectForm.reset();
+                                                                rejectForm.clearErrors();
+                                                                setRejectingRequestId(
+                                                                    approvalRequest.id,
+                                                                );
+                                                            }}
                                                             disabled={!approvalRequest.can_approve}
                                                         >
                                                             Reject
@@ -387,6 +424,32 @@ export default function ApprovalsIndex({
                     </FilterToolbarActions>
                 </FilterToolbar>
             </WorkspaceShell>
+
+            <ReasonDialog
+                open={rejectingRequest !== null}
+                onOpenChange={handleRejectOpenChange}
+                title="Reject approval request?"
+                description={
+                    rejectingRequest
+                        ? `This will mark ${rejectingRequest.source_number ?? 'the selected request'} as rejected and record the decision in the approval history.`
+                        : 'This will mark the selected request as rejected and record the decision in the approval history.'
+                }
+                confirmLabel="Reject request"
+                processingLabel="Rejecting..."
+                cancelLabel="Keep pending"
+                processing={rejectForm.processing}
+                onConfirm={handleReject}
+                reason={rejectForm.data.reason}
+                onReasonChange={(value) => rejectForm.setData('reason', value)}
+                reasonLabel="Rejection reason"
+                reasonPlaceholder="Optional context for the requester or downstream reviewers."
+                reasonHelperText="A reason is optional, but it helps explain why the request was rejected."
+                reasonError={rejectForm.errors.reason}
+                errors={{
+                    approval: rejectErrors.approval,
+                    reason: rejectForm.errors.reason,
+                }}
+            />
         </AppLayout>
     );
 }

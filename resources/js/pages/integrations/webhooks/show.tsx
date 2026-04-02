@@ -1,5 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -134,10 +136,12 @@ export default function ShowWebhookEndpoint({
     eventOptions,
     deliveries,
 }: Props) {
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const filterForm = useForm({
         status: filters.status,
         event_type: filters.event_type,
     });
+    const deleteForm = useForm({});
 
     return (
         <AppLayout
@@ -201,19 +205,7 @@ export default function ShowWebhookEndpoint({
                         {endpoint.can_delete && (
                             <Button
                                 variant="destructive"
-                                onClick={() => {
-                                    if (
-                                        !window.confirm(
-                                            'Remove this webhook endpoint and its delivery history?',
-                                        )
-                                    ) {
-                                        return;
-                                    }
-
-                                    router.delete(
-                                        `/company/integrations/webhooks/${endpoint.id}`,
-                                    );
-                                }}
+                                onClick={() => setDeleteDialogOpen(true)}
                             >
                                 Delete
                             </Button>
@@ -652,10 +644,10 @@ export default function ShowWebhookEndpoint({
                                     };
 
                                     filterForm.setData(reset);
-                                    filterForm.get(
+                                    router.get(
                                         `/company/integrations/webhooks/${endpoint.id}`,
+                                        reset,
                                         {
-                                            data: reset,
                                             preserveState: true,
                                             replace: true,
                                         },
@@ -823,6 +815,33 @@ export default function ShowWebhookEndpoint({
                     )}
                 </section>
             </div>
+
+            <DestructiveConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    if (deleteForm.processing) {
+                        return;
+                    }
+
+                    setDeleteDialogOpen(open);
+                }}
+                title="Delete webhook endpoint?"
+                description="This removes the endpoint configuration and its delivery history from the company workspace."
+                confirmLabel="Delete endpoint"
+                processingLabel="Removing..."
+                cancelLabel="Keep endpoint"
+                processing={deleteForm.processing}
+                onConfirm={() => {
+                    deleteForm.delete(
+                        `/company/integrations/webhooks/${endpoint.id}`,
+                        {
+                            preserveScroll: true,
+                            onSuccess: () => setDeleteDialogOpen(false),
+                        },
+                    );
+                }}
+                helperText="Only use this when the endpoint should no longer receive deliveries."
+            />
         </AppLayout>
     );
 }
