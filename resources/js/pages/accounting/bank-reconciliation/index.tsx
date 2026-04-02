@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,13 @@ type BatchRow = {
     can_unreconcile: boolean;
 };
 
+type UnreconcileDialogState = {
+    id: string;
+    statementReference: string;
+    journalLabel: string;
+    totalAmount: number;
+};
+
 type Props = {
     importForm: {
         journal_id: string;
@@ -131,6 +139,8 @@ export default function AccountingBankReconciliationIndex({
     const [matchSelections, setMatchSelections] = useState<
         Record<string, string>
     >({});
+    const [unreconcileDialog, setUnreconcileDialog] =
+        useState<UnreconcileDialogState | null>(null);
     const importForm = useForm({
         journal_id: importDefaults.journal_id,
         statement_reference: importDefaults.statement_reference,
@@ -144,6 +154,9 @@ export default function AccountingBankReconciliationIndex({
             activeImport?.lines
                 .filter((line) => line.match_status === 'matched')
                 .map((line) => line.id) ?? [],
+    });
+    const unreconcileForm = useForm({
+        reason: '',
     });
 
     const matchedLines =
@@ -178,18 +191,45 @@ export default function AccountingBankReconciliationIndex({
     };
 
     const handleUnreconcile = (batch: BatchRow) => {
-        const reason = window.prompt(
-            `Unreconcile ${batch.statement_reference}. Enter a reason for the audit trail.`,
-        );
+        unreconcileForm.reset();
+        unreconcileForm.clearErrors();
+        setUnreconcileDialog({
+            id: batch.id,
+            statementReference: batch.statement_reference,
+            journalLabel: batch.journal_code
+                ? `${batch.journal_code} - ${batch.journal_name}`
+                : batch.journal_name ?? '-',
+            totalAmount: batch.total_amount,
+        });
+    };
 
-        if (!reason || reason.trim() === '') {
+    const closeUnreconcileDialog = (open: boolean) => {
+        if (unreconcileForm.processing) {
             return;
         }
 
-        router.post(
-            `/company/accounting/bank-reconciliation/${batch.id}/unreconcile`,
-            { reason: reason.trim() },
-            { preserveScroll: true },
+        if (!open) {
+            unreconcileForm.reset();
+            unreconcileForm.clearErrors();
+            setUnreconcileDialog(null);
+        }
+    };
+
+    const submitUnreconcile = () => {
+        if (!unreconcileDialog) {
+            return;
+        }
+
+        unreconcileForm.post(
+            `/company/accounting/bank-reconciliation/${unreconcileDialog.id}/unreconcile`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    unreconcileForm.reset();
+                    unreconcileForm.clearErrors();
+                    setUnreconcileDialog(null);
+                },
+            },
         );
     };
 
@@ -970,6 +1010,36 @@ export default function AccountingBankReconciliationIndex({
                     </table>
                 </div>
             </div>
+
+            <ReasonDialog
+                open={unreconcileDialog !== null}
+                onOpenChange={closeUnreconcileDialog}
+                title={
+                    unreconcileDialog
+                        ? `Unreconcile ${unreconcileDialog.statementReference}?`
+                        : 'Unreconcile batch?'
+                }
+                description="This reopens the reconciliation batch and records the operator reason in the audit trail."
+                confirmLabel="Unreconcile batch"
+                processingLabel="Unreconciling..."
+                cancelLabel="Keep reconciled"
+                processing={unreconcileForm.processing}
+                onConfirm={submitUnreconcile}
+                reason={unreconcileForm.data.reason}
+                onReasonChange={(value) =>
+                    unreconcileForm.setData('reason', value)
+                }
+                reasonLabel="Unreconcile reason"
+                reasonPlaceholder="Explain why this batch needs to be reopened."
+                reasonHelperText={
+                    unreconcileDialog
+                        ? `${unreconcileDialog.journalLabel} | ${unreconcileDialog.totalAmount.toFixed(2)}`
+                        : undefined
+                }
+                reasonError={unreconcileForm.errors.reason}
+                errors={unreconcileForm.errors}
+                required
+            />
         </AppLayout>
     );
 }
