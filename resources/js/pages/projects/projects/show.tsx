@@ -1,6 +1,7 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import AttachmentsPanel from '@/components/attachments-panel';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -46,6 +47,14 @@ type ProjectTimesheet = {
     can_submit: boolean;
     can_approve: boolean;
     can_reject: boolean;
+};
+
+type TimesheetRejectDialogState = {
+    id: string;
+    userName: string;
+    taskLabel: string;
+    workDate: string;
+    hours: number;
 };
 
 type ProjectMilestone = {
@@ -235,15 +244,58 @@ export default function ProjectShow({
     const [groupBy, setGroupBy] = useState(
         abilities.invoice_grouping_options[0] ?? 'project',
     );
+    const [rejectDialog, setRejectDialog] =
+        useState<TimesheetRejectDialogState | null>(null);
+    const rejectForm = useForm({
+        reason: '',
+    });
 
-    const handleRejectTimesheet = (timesheetId: string, rejectionReason?: string | null) => {
-        const reason =
-            window.prompt('Optional rejection reason', rejectionReason ?? '') ?? '';
+    const openRejectDialog = (
+        timesheet: ProjectTimesheet,
+        rejectionReason?: string | null,
+    ) => {
+        rejectForm.setData('reason', rejectionReason ?? '');
+        rejectForm.clearErrors();
+        setRejectDialog({
+            id: timesheet.id,
+            userName: timesheet.user_name ?? 'Unknown user',
+            taskLabel: timesheet.task_number
+                ? timesheet.task_title
+                    ? `${timesheet.task_number} - ${timesheet.task_title}`
+                    : timesheet.task_number
+                : timesheet.task_title ?? 'No linked task',
+            workDate: timesheet.work_date ?? 'No work date',
+            hours: timesheet.hours,
+        });
+    };
 
-        router.post(
-            `/company/projects/timesheets/${timesheetId}/reject`,
-            { reason },
-            { preserveScroll: true },
+    const closeRejectDialog = (open: boolean) => {
+        if (rejectForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            rejectForm.reset();
+            rejectForm.clearErrors();
+            setRejectDialog(null);
+        }
+    };
+
+    const submitTimesheetRejection = () => {
+        if (!rejectDialog) {
+            return;
+        }
+
+        rejectForm.post(
+            `/company/projects/timesheets/${rejectDialog.id}/reject`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    rejectForm.reset();
+                    rejectForm.clearErrors();
+                    setRejectDialog(null);
+                },
+            },
         );
     };
 
@@ -254,16 +306,19 @@ export default function ProjectShow({
                 .map((billable) => billable.id),
         [project.billables],
     );
-
-    useEffect(() => {
-        setSelectedBillableIds((current) =>
-            current.filter((id) => selectableBillableIds.includes(id)),
-        );
-    }, [selectableBillableIds]);
+    const activeSelectedBillableIds = useMemo(
+        () =>
+            selectedBillableIds.filter((id) =>
+                selectableBillableIds.includes(id),
+            ),
+        [selectedBillableIds, selectableBillableIds],
+    );
 
     const allSelectableBillablesChecked =
         selectableBillableIds.length > 0 &&
-        selectableBillableIds.every((id) => selectedBillableIds.includes(id));
+        selectableBillableIds.every((id) =>
+            activeSelectedBillableIds.includes(id),
+        );
 
     return (
         <AppLayout
@@ -334,14 +389,14 @@ export default function ProjectShow({
                                     <Button
                                         type="button"
                                         disabled={
-                                            selectedBillableIds.length === 0
+                                            activeSelectedBillableIds.length === 0
                                         }
                                         onClick={() =>
                                             router.post(
                                                 '/company/projects/billables/invoice-drafts',
                                                 {
                                                     billable_ids:
-                                                        selectedBillableIds,
+                                                        activeSelectedBillableIds,
                                                     group_by: groupBy,
                                                 },
                                                 {
@@ -351,8 +406,8 @@ export default function ProjectShow({
                                         }
                                     >
                                         Create draft invoice
-                                        {selectedBillableIds.length > 0 &&
-                                            ` (${selectedBillableIds.length})`}
+                                        {activeSelectedBillableIds.length > 0 &&
+                                            ` (${activeSelectedBillableIds.length})`}
                                     </Button>
                                 </>
                             )}
@@ -1251,8 +1306,8 @@ export default function ProjectShow({
                                                         type="button"
                                                         className="font-medium text-primary"
                                                         onClick={() =>
-                                                            handleRejectTimesheet(
-                                                                timesheet.id,
+                                                            openRejectDialog(
+                                                                timesheet,
                                                                 timesheet.rejection_reason,
                                                             )
                                                         }
@@ -1268,6 +1323,29 @@ export default function ProjectShow({
                         </table>
                     </div>
                 </section>
+
+                <ReasonDialog
+                    open={rejectDialog !== null}
+                    onOpenChange={closeRejectDialog}
+                    title="Reject timesheet?"
+                    description="This keeps the entry out of approved project time until it is corrected and resubmitted."
+                    confirmLabel="Reject timesheet"
+                    processingLabel="Rejecting..."
+                    cancelLabel="Keep timesheet"
+                    processing={rejectForm.processing}
+                    onConfirm={submitTimesheetRejection}
+                    reason={rejectForm.data.reason}
+                    onReasonChange={(value) => rejectForm.setData('reason', value)}
+                    reasonLabel="Rejection note"
+                    reasonPlaceholder="Optional note for why this timesheet is being rejected."
+                    reasonHelperText={
+                        rejectDialog
+                            ? `${rejectDialog.userName} | ${rejectDialog.taskLabel} | ${rejectDialog.workDate} | ${rejectDialog.hours.toFixed(2)} hours`
+                            : undefined
+                    }
+                    reasonError={rejectForm.errors.reason}
+                    errors={rejectForm.errors}
+                />
 
                 <section className="rounded-xl border p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -1432,7 +1510,7 @@ export default function ProjectShow({
                                                 <input
                                                     type="checkbox"
                                                     className="size-4 rounded border-input"
-                                                    checked={selectedBillableIds.includes(
+                                                    checked={activeSelectedBillableIds.includes(
                                                         billable.id,
                                                     )}
                                                     onChange={(event) =>
