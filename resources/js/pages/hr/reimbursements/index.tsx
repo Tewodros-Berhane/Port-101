@@ -7,6 +7,7 @@ import { FormErrorSummary } from '@/components/shell/form-error-summary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
@@ -98,6 +99,7 @@ export default function HrReimbursementsIndex({
 }: Props) {
     const form = useForm(filters);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
     const categoryForm = useForm({
         name: '',
         code: '',
@@ -162,7 +164,11 @@ export default function HrReimbursementsIndex({
                             categoryForm.post(
                                 '/company/hr/reimbursements/categories',
                                 {
-                                    onSuccess: () => closeCategoryModal(false),
+                                    headers: clientToastHeaders,
+                                    onSuccess: (page) => {
+                                        showPageFlashToast(page);
+                                        closeCategoryModal(false);
+                                    },
                                 },
                             );
                         }}

@@ -27,6 +27,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { platformBreadcrumbs } from '@/lib/page-navigation';
 
@@ -116,6 +117,7 @@ function ContactRequestStatusEditor({
             : statusOptions.filter((option) => option.value !== 'demo_scheduled');
     const requestedDemoDate = preferredDemoDate ?? '';
     const initialScheduledDemoDate = currentScheduledDemoDate ?? '';
+    const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
     const form = useForm({
         status: currentStatus,
         scheduled_demo_date: initialScheduledDemoDate,
@@ -186,9 +188,11 @@ function ContactRequestStatusEditor({
                         event.preventDefault();
 
                         form.put(`/platform/contact-requests/${requestId}`, {
+                            headers: clientToastHeaders,
                             preserveScroll: true,
                             preserveState: true,
-                            onSuccess: () => {
+                            onSuccess: (page) => {
+                                showPageFlashToast(page);
                                 setOpen(false);
                                 form.reset('demo_date_change_reason');
                             },

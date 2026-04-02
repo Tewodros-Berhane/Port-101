@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Hr;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\HrReimbursementCategoryStoreRequest;
 use App\Http\Requests\Hr\HrReimbursementCategoryUpdateRequest;
+use App\Support\Http\Feedback;
 use App\Modules\Hr\HrReimbursementService;
 use App\Modules\Hr\Models\HrReimbursementCategory;
 use Illuminate\Http\RedirectResponse;
@@ -41,7 +42,7 @@ class HrReimbursementCategoriesController extends Controller
 
         return redirect()
             ->route('company.hr.reimbursements.index')
-            ->with('success', 'Reimbursement category created.');
+            ->with('success', Feedback::flash($request, 'Reimbursement category created.'));
     }
 
     public function edit(HrReimbursementCategory $category): Response

@@ -1,7 +1,8 @@
-﻿import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { platformBreadcrumbs } from '@/lib/page-navigation';
 
@@ -53,10 +54,15 @@ const resolveStatusVariant = (status: AdminRow['status']) => {
 export default function PlatformAdminUsersIndex({ admins }: Props) {
     const resendForm = useForm({});
     const cancelForm = useForm({});
+    const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
 
     const handleResend = (inviteId: string) => {
         resendForm.post(`/platform/invites/${inviteId}/resend`, {
+            headers: clientToastHeaders,
             preserveScroll: true,
+            onSuccess: (page) => {
+                showPageFlashToast(page);
+            },
         });
     };
 
@@ -66,7 +72,11 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
         }
 
         cancelForm.delete(`/platform/invites/${inviteId}`, {
+            headers: clientToastHeaders,
             preserveScroll: true,
+            onSuccess: (page) => {
+                showPageFlashToast(page);
+            },
         });
     };
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\ContactRequestStatusUpdateRequest;
 use App\Models\ContactRequest;
 use App\Notifications\DemoScheduledConfirmationNotification;
+use App\Support\Http\Feedback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -125,9 +126,12 @@ class ContactRequestsController extends Controller
 
         return back(303)->with(
             'success',
-            $emailSent
-                ? 'Request updated. Demo email sent to the requester.'
-                : 'Request status updated.',
+            Feedback::flash(
+                $request,
+                $emailSent
+                    ? 'Request updated. Demo email sent to the requester.'
+                    : 'Request status updated.',
+            ),
         );
     }
 }
