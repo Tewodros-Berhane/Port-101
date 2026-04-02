@@ -1,18 +1,47 @@
-import { useToast } from '@/components/ui/toast';
-import type { SharedData } from '@/types';
 import { router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef } from 'react';
+import { useToast } from '@/components/ui/toast';
+import type { FlashMessage, FlashMessages, SharedData, ToastLevel, ToastPayload } from '@/types';
 
-type FlashMessages = SharedData['flash'];
+function normalizeFlashToast(
+    value: FlashMessage | undefined,
+    level: ToastLevel,
+): ToastPayload | null {
+    if (typeof value === 'string') {
+        const message = value.trim();
 
-function getFlashMessage(value: unknown): string | null {
-    if (typeof value !== 'string') {
+        if (message === '') {
+            return null;
+        }
+
+        return {
+            level,
+            message,
+        };
+    }
+
+    if (!value || typeof value !== 'object') {
         return null;
     }
 
-    const message = value.trim();
+    const message = value.message.trim();
 
-    return message.length > 0 ? message : null;
+    if (message === '') {
+        return null;
+    }
+
+    return {
+        ...value,
+        level: value.level ?? level,
+        message,
+    };
+}
+
+function flashToastIdentity(toast: ToastPayload): string {
+    return (
+        toast.dedupe_key ??
+        [toast.level ?? 'success', toast.title ?? '', toast.message].join(':')
+    );
 }
 
 export default function FlashToaster({
@@ -25,39 +54,21 @@ export default function FlashToaster({
 
     const showFromFlash = useCallback(
         (flash?: FlashMessages) => {
-            const success = getFlashMessage(flash?.success);
-            const error = getFlashMessage(flash?.error);
-            const warning = getFlashMessage(flash?.warning);
+            const toast =
+                normalizeFlashToast(flash?.success, 'success') ??
+                normalizeFlashToast(flash?.error, 'error') ??
+                normalizeFlashToast(flash?.warning, 'warning') ??
+                normalizeFlashToast(flash?.info, 'info');
 
-            if (success) {
-                const key = `success:${success}`;
-
-                if (lastShown.current !== key) {
-                    showToast(success, 'success');
-                    lastShown.current = key;
-                }
-
+            if (!toast) {
                 return;
             }
 
-            if (error) {
-                const key = `error:${error}`;
+            const key = flashToastIdentity(toast);
 
-                if (lastShown.current !== key) {
-                    showToast(error, 'error');
-                    lastShown.current = key;
-                }
-
-                return;
-            }
-
-            if (warning) {
-                const key = `warning:${warning}`;
-
-                if (lastShown.current !== key) {
-                    showToast(warning, 'warning');
-                    lastShown.current = key;
-                }
+            if (lastShown.current !== key) {
+                showToast(toast);
+                lastShown.current = key;
             }
         },
         [showToast],
@@ -67,8 +78,7 @@ export default function FlashToaster({
         showFromFlash(initialFlash);
 
         return router.on('success', (event) => {
-            const nextFlash = (event.detail.page.props as Partial<SharedData>)
-                .flash;
+            const nextFlash = (event.detail.page.props as Partial<SharedData>).flash;
             showFromFlash(nextFlash);
         });
     }, [initialFlash, showFromFlash]);

@@ -1,10 +1,12 @@
 export type * from './auth';
 export type * from './company';
+export type * from './feedback';
 export type * from './navigation';
 export type * from './ui';
 
 import type { Auth } from './auth';
 import type { Company } from './company';
+import type { FlashMessages } from './feedback';
 
 export type SharedData = {
     name: string;
@@ -24,11 +26,7 @@ export type SharedData = {
             created_at?: string | null;
         }>;
     };
-    flash?: {
-        success?: string | null;
-        error?: string | null;
-        warning?: string | null;
-    };
+    flash?: FlashMessages;
     sidebarOpen: boolean;
     [key: string]: unknown;
 };
