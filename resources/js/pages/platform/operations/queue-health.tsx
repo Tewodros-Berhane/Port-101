@@ -1,4 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -83,6 +85,14 @@ type FailedReportExportRow = {
     failure_message?: string | null;
 };
 
+type FailedJobActionDialogState = {
+    type: 'discard' | 'forget';
+    id: string;
+    jobName: string;
+    queue: string;
+    companyName?: string | null;
+};
+
 type Props = {
     filters: {
         search: string;
@@ -164,10 +174,48 @@ export default function PlatformQueueHealth({
     failedReportExports,
     alertingStatus,
 }: Props) {
+    const [jobActionDialog, setJobActionDialog] =
+        useState<FailedJobActionDialogState | null>(null);
     const form = useForm({
         search: filters.search,
         queue: filters.queue,
     });
+    const jobActionForm = useForm({});
+
+    const closeJobActionDialog = (open: boolean) => {
+        if (jobActionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setJobActionDialog(null);
+        }
+    };
+
+    const submitJobAction = () => {
+        if (!jobActionDialog) {
+            return;
+        }
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => setJobActionDialog(null),
+        };
+
+        if (jobActionDialog.type === 'discard') {
+            jobActionForm.post(
+                `/platform/operations/queue-health/failed-jobs/${jobActionDialog.id}/discard-poison`,
+                options,
+            );
+
+            return;
+        }
+
+        jobActionForm.delete(
+            `/platform/operations/queue-health/failed-jobs/${jobActionDialog.id}`,
+            options,
+        );
+    };
 
     return (
         <AppLayout
@@ -444,8 +492,7 @@ export default function PlatformQueueHealth({
                             onClick={() => {
                                 const reset = { search: '', queue: '' };
                                 form.setData(reset);
-                                form.get('/platform/operations/queue-health', {
-                                    data: reset,
+                                router.get('/platform/operations/queue-health', reset, {
                                     preserveState: true,
                                     replace: true,
                                 });
@@ -586,19 +633,16 @@ export default function PlatformQueueHealth({
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() => {
-                                                            if (
-                                                                window.confirm(
-                                                                    'Discard this failed job as a poison message? This removes it from the retry queue and records the operator decision.',
-                                                                )
-                                                            ) {
-                                                                router.post(
-                                                                    `/platform/operations/queue-health/failed-jobs/${job.id}/discard-poison`,
-                                                                    {},
-                                                                    { preserveScroll: true },
-                                                                );
-                                                            }
-                                                        }}
+                                                        onClick={() =>
+                                                            setJobActionDialog({
+                                                                type: 'discard',
+                                                                id: job.id,
+                                                                jobName: job.job_name_label,
+                                                                queue: job.queue,
+                                                                companyName:
+                                                                    job.company_name,
+                                                            })
+                                                        }
                                                     >
                                                         Discard as poison
                                                     </Button>
@@ -606,13 +650,16 @@ export default function PlatformQueueHealth({
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => {
-                                                        if (window.confirm('Forget this failed job record?')) {
-                                                            router.delete(`/platform/operations/queue-health/failed-jobs/${job.id}`, {
-                                                                preserveScroll: true,
-                                                            });
-                                                        }
-                                                    }}
+                                                    onClick={() =>
+                                                        setJobActionDialog({
+                                                            type: 'forget',
+                                                            id: job.id,
+                                                            jobName: job.job_name_label,
+                                                            queue: job.queue,
+                                                            companyName:
+                                                                job.company_name,
+                                                        })
+                                                    }
                                                 >
                                                     Forget
                                                 </Button>
@@ -824,6 +871,43 @@ export default function PlatformQueueHealth({
                     </div>
                 </section>
             </div>
+
+            <DestructiveConfirmDialog
+                open={jobActionDialog !== null}
+                onOpenChange={closeJobActionDialog}
+                title={
+                    jobActionDialog?.type === 'discard'
+                        ? 'Discard failed job as poison?'
+                        : 'Forget failed job record?'
+                }
+                description={
+                    jobActionDialog?.type === 'discard'
+                        ? 'This removes the failed job from the retry queue and records an operator poison-message decision.'
+                        : 'This removes the failed job record from queue health. Use this only when the failure has already been handled elsewhere.'
+                }
+                confirmLabel={
+                    jobActionDialog?.type === 'discard'
+                        ? 'Discard failed job'
+                        : 'Forget failed job'
+                }
+                processingLabel={
+                    jobActionDialog?.type === 'discard'
+                        ? 'Discarding...'
+                        : 'Forgetting...'
+                }
+                cancelLabel="Cancel"
+                processing={jobActionForm.processing}
+                onConfirm={submitJobAction}
+                helperText={
+                    jobActionDialog
+                        ? `${jobActionDialog.jobName} on ${jobActionDialog.queue}${
+                              jobActionDialog.companyName
+                                  ? ` for ${jobActionDialog.companyName}`
+                                  : ''
+                          }`
+                        : undefined
+                }
+            />
         </AppLayout>
     );
 }

@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog';
 import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
@@ -137,11 +138,13 @@ export default function ShowWebhookEndpoint({
     deliveries,
 }: Props) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [rotateDialogOpen, setRotateDialogOpen] = useState(false);
     const filterForm = useForm({
         status: filters.status,
         event_type: filters.event_type,
     });
     const deleteForm = useForm({});
+    const rotateForm = useForm({});
 
     return (
         <AppLayout
@@ -193,11 +196,7 @@ export default function ShowWebhookEndpoint({
                         {endpoint.can_rotate_secret && (
                             <Button
                                 variant="outline"
-                                onClick={() =>
-                                    router.post(
-                                        `/company/integrations/webhooks/${endpoint.id}/rotate-secret`,
-                                    )
-                                }
+                                onClick={() => setRotateDialogOpen(true)}
                             >
                                 Rotate secret
                             </Button>
@@ -841,6 +840,34 @@ export default function ShowWebhookEndpoint({
                     );
                 }}
                 helperText="Only use this when the endpoint should no longer receive deliveries."
+            />
+
+            <ConfirmDialog
+                open={rotateDialogOpen}
+                onOpenChange={(open) => {
+                    if (rotateForm.processing) {
+                        return;
+                    }
+
+                    setRotateDialogOpen(open);
+                }}
+                title="Rotate signing secret?"
+                description="This issues a new signing secret for the endpoint. Downstream consumers will need to update their verification configuration."
+                confirmLabel="Rotate secret"
+                processingLabel="Rotating..."
+                cancelLabel="Keep current secret"
+                tone="warning"
+                processing={rotateForm.processing}
+                onConfirm={() => {
+                    rotateForm.post(
+                        `/company/integrations/webhooks/${endpoint.id}/rotate-secret`,
+                        {
+                            preserveScroll: true,
+                            onSuccess: () => setRotateDialogOpen(false),
+                        },
+                    );
+                }}
+                helperText="After rotation, copy the newly revealed secret immediately. It is shown only once."
             />
         </AppLayout>
     );
