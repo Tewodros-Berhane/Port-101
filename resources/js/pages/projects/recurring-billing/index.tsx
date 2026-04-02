@@ -1,4 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -78,6 +80,13 @@ type Props = {
     };
 };
 
+type CancelDialogState = {
+    id: string;
+    projectLabel: string;
+    scheduleName: string;
+    nextRunOn?: string | null;
+};
+
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -98,15 +107,56 @@ export default function ProjectRecurringBillingIndex({
         frequency: filters.frequency,
         auto_invoice: filters.auto_invoice,
     });
+    const cancelForm = useForm({
+        reason: '',
+    });
+    const [cancelDialog, setCancelDialog] = useState<CancelDialogState | null>(
+        null,
+    );
 
-    const withReason = (callback: (reason: string) => void) => {
-        const reason = window.prompt('Cancellation reason (optional)', '');
-
-        if (reason === null) {
+    const closeCancelDialog = (open: boolean) => {
+        if (cancelForm.processing) {
             return;
         }
 
-        callback(reason);
+        if (!open) {
+            cancelForm.reset();
+            cancelForm.clearErrors();
+            setCancelDialog(null);
+        }
+    };
+
+    const openCancelDialog = (schedule: ScheduleRow) => {
+        cancelForm.reset();
+        cancelForm.clearErrors();
+        setCancelDialog({
+            id: schedule.id,
+            projectLabel: schedule.project_code
+                ? schedule.project_name
+                    ? `${schedule.project_code} - ${schedule.project_name}`
+                    : schedule.project_code
+                : schedule.project_name ?? 'Unknown project',
+            scheduleName: schedule.name,
+            nextRunOn: schedule.next_run_on,
+        });
+    };
+
+    const submitCancel = () => {
+        if (!cancelDialog) {
+            return;
+        }
+
+        cancelForm.post(
+            `/company/projects/recurring-billing/${cancelDialog.id}/cancel`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    cancelForm.reset();
+                    cancelForm.clearErrors();
+                    setCancelDialog(null);
+                },
+            },
+        );
     };
 
     return (
@@ -265,8 +315,7 @@ export default function ProjectRecurringBillingIndex({
                                 };
 
                                 form.setData(resetFilters);
-                                form.get('/company/projects/recurring-billing', {
-                                    data: resetFilters,
+                                router.get('/company/projects/recurring-billing', resetFilters, {
                                     preserveState: true,
                                     replace: true,
                                 });
@@ -495,17 +544,8 @@ export default function ProjectRecurringBillingIndex({
                                                     type="button"
                                                     className="font-medium text-primary"
                                                     onClick={() =>
-                                                        withReason((reason) =>
-                                                            router.post(
-                                                                `/company/projects/recurring-billing/${schedule.id}/cancel`,
-                                                                {
-                                                                    reason,
-                                                                },
-                                                                {
-                                                                    preserveScroll:
-                                                                        true,
-                                                                },
-                                                            ),
+                                                        openCancelDialog(
+                                                            schedule,
                                                         )
                                                     }
                                                 >
@@ -557,6 +597,37 @@ export default function ProjectRecurringBillingIndex({
                     </div>
                 )}
             </div>
+
+            <ReasonDialog
+                open={cancelDialog !== null}
+                onOpenChange={closeCancelDialog}
+                title={
+                    cancelDialog
+                        ? `Cancel ${cancelDialog.scheduleName}?`
+                        : 'Cancel recurring schedule?'
+                }
+                description="This stops future recurring billing runs for the schedule. Add a note if the cancellation should be preserved in the activity trail."
+                confirmLabel="Cancel schedule"
+                processingLabel="Cancelling..."
+                cancelLabel="Keep schedule"
+                processing={cancelForm.processing}
+                onConfirm={submitCancel}
+                reason={cancelForm.data.reason}
+                onReasonChange={(value) => cancelForm.setData('reason', value)}
+                reasonLabel="Cancellation note"
+                reasonPlaceholder="Optional note for why this schedule is being cancelled."
+                reasonHelperText={
+                    cancelDialog
+                        ? `${cancelDialog.projectLabel}${
+                              cancelDialog.nextRunOn
+                                  ? ` | Next run ${cancelDialog.nextRunOn}`
+                                  : ''
+                          }`
+                        : undefined
+                }
+                reasonError={cancelForm.errors.reason}
+                errors={cancelForm.errors}
+            />
         </AppLayout>
     );
 }
