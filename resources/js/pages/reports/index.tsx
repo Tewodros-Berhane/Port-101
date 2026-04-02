@@ -1,9 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FileSpreadsheet, FileText } from 'lucide-react';
+import InputError from '@/components/input-error';
+import { FormErrorSummary } from '@/components/shell/form-error-summary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { normalizeFormErrors } from '@/lib/form-feedback';
 import { companyBreadcrumbs } from '@/lib/page-navigation';
 
 type ReportCatalogItem = {
@@ -58,6 +61,12 @@ type Props = {
 const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
+const REPORT_DELIVERY_ERROR_LABELS: Record<string, string> = {
+    day_of_week: 'Day of week',
+    preset_id: 'Preset',
+    report_key: 'Report',
+};
+
 export default function CompanyReportsIndex({
     filters,
     reportCatalog,
@@ -93,6 +102,9 @@ export default function CompanyReportsIndex({
         day_of_week: String(deliverySchedule.day_of_week),
         time: deliverySchedule.time,
         timezone: deliverySchedule.timezone,
+    });
+    const scheduleErrors = normalizeFormErrors(scheduleForm.errors, {
+        prefix: 'delivery_schedule',
     });
 
     const buildQuery = (
@@ -394,6 +406,13 @@ export default function CompanyReportsIndex({
                     Auto-deliver selected exports to report recipients by schedule.
                 </p>
 
+                <FormErrorSummary
+                    className="mt-4"
+                    errors={scheduleErrors}
+                    fieldLabels={REPORT_DELIVERY_ERROR_LABELS}
+                    title="Review the report delivery schedule before saving."
+                />
+
                 <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="grid gap-2">
                         <Label htmlFor="schedule_enabled">Enabled</Label>
@@ -430,6 +449,7 @@ export default function CompanyReportsIndex({
                                 </option>
                             ))}
                         </select>
+                        <InputError message={scheduleErrors.preset_id} />
                     </div>
 
                     <div className="grid gap-2">
@@ -448,6 +468,7 @@ export default function CompanyReportsIndex({
                                 </option>
                             ))}
                         </select>
+                        <InputError message={scheduleErrors.report_key} />
                     </div>
 
                     <div className="grid gap-2">
@@ -466,6 +487,7 @@ export default function CompanyReportsIndex({
                             <option value="pdf">PDF</option>
                             <option value="xlsx">Excel</option>
                         </select>
+                        <InputError message={scheduleErrors.format} />
                     </div>
 
                     <div className="grid gap-2">
@@ -484,6 +506,7 @@ export default function CompanyReportsIndex({
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
                         </select>
+                        <InputError message={scheduleErrors.frequency} />
                     </div>
 
                     <div className="grid gap-2">
@@ -507,6 +530,7 @@ export default function CompanyReportsIndex({
                             <option value="6">Saturday</option>
                             <option value="7">Sunday</option>
                         </select>
+                        <InputError message={scheduleErrors.day_of_week} />
                     </div>
 
                     <div className="grid gap-2">
@@ -519,6 +543,7 @@ export default function CompanyReportsIndex({
                                 scheduleForm.setData('time', event.target.value)
                             }
                         />
+                        <InputError message={scheduleErrors.time} />
                     </div>
 
                     <div className="grid gap-2">
@@ -531,6 +556,7 @@ export default function CompanyReportsIndex({
                             }
                             placeholder="UTC"
                         />
+                        <InputError message={scheduleErrors.timezone} />
                     </div>
                 </div>
 

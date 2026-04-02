@@ -47,7 +47,9 @@ class ContactRequestsController extends Controller
         if ($recentDuplicate) {
             return redirect()
                 ->route($redirectRoute)
-                ->with('warning', 'A similar request was already submitted recently. The team will follow up using the existing request.');
+                ->with('warning', $this->inlineFlashMessage(
+                    'A similar request was already submitted recently. The team will follow up using the existing request.',
+                ));
         }
 
         $contactRequest = ContactRequest::create([
@@ -81,10 +83,23 @@ class ContactRequestsController extends Controller
             ->route($redirectRoute)
             ->with(
                 'success',
-                $contactRequest->request_type === ContactRequest::REQUEST_TYPE_DEMO
-                    ? 'Demo request received. The team will review it and follow up.'
-                    : 'Sales request received. The team will review it and follow up.',
+                $this->inlineFlashMessage(
+                    $contactRequest->request_type === ContactRequest::REQUEST_TYPE_DEMO
+                        ? 'Demo request received. The team will review it and follow up.'
+                        : 'Sales request received. The team will review it and follow up.',
+                ),
             );
+    }
+
+    /**
+     * @return array{message: string, suppress_global_toast: bool}
+     */
+    private function inlineFlashMessage(string $message): array
+    {
+        return [
+            'message' => $message,
+            'suppress_global_toast' => true,
+        ];
     }
 
     private function renderForm(Request $request, string $requestType): Response

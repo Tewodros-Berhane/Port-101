@@ -106,7 +106,10 @@ class AppServiceProvider extends ServiceProvider
                     return redirect()
                         ->back()
                         ->withInput($request->except(['website']))
-                        ->with('error', 'Too many requests were submitted from this session. Please wait a few minutes and try again.');
+                        ->with('error', [
+                            'message' => 'Too many requests were submitted from this session. Please wait a few minutes and try again.',
+                            'suppress_global_toast' => true,
+                        ]);
                 });
         });
     }

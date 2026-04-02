@@ -3,6 +3,7 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { FormErrorSummary } from '@/components/shell/form-error-summary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -79,6 +80,12 @@ type Props = {
 const labelize = (value: string) =>
     value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
+const CATEGORY_ERROR_LABELS: Record<string, string> = {
+    default_expense_account_reference: 'Default expense account reference',
+    is_project_rebillable: 'Allow project rebilling',
+    requires_receipt: 'Receipt required',
+};
+
 export default function HrReimbursementsIndex({
     summary,
     filters,
@@ -106,16 +113,6 @@ export default function HrReimbursementsIndex({
             categoryForm.reset();
             categoryForm.clearErrors();
         }
-    };
-
-    const rejectClaim = (claimId: string) => {
-        const reason = window.prompt('Rejection reason (optional)', '');
-
-        if (reason === null) {
-            return;
-        }
-
-        router.post(`/company/hr/reimbursements/claims/${claimId}/reject`, { reason }, { preserveScroll: true });
     };
 
     return (
@@ -170,6 +167,11 @@ export default function HrReimbursementsIndex({
                             );
                         }}
                     >
+                        <FormErrorSummary
+                            errors={categoryForm.errors}
+                            fieldLabels={CATEGORY_ERROR_LABELS}
+                            title="Review the category details before saving."
+                        />
                         <Field label="Name" error={categoryForm.errors.name}>
                             <Input
                                 value={categoryForm.data.name}
@@ -450,7 +452,24 @@ export default function HrReimbursementsIndex({
                                                         variant="outline"
                                                         size="sm"
                                                         type="button"
-                                                        onClick={() => rejectClaim(claim.id)}
+                                                        onClick={() => {
+                                                            const reason = window.prompt(
+                                                                'Rejection reason (optional)',
+                                                                '',
+                                                            );
+
+                                                            if (reason === null) {
+                                                                return;
+                                                            }
+
+                                                            router.post(
+                                                                `/company/hr/reimbursements/claims/${claim.id}/reject`,
+                                                                { reason },
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            );
+                                                        }}
                                                     >
                                                         Reject
                                                     </Button>
@@ -565,6 +584,7 @@ export default function HrReimbursementsIndex({
                     </div>
                 </div>
             </div>
+
         </AppLayout>
     );
 }

@@ -2,18 +2,21 @@ import { AlertCircle } from 'lucide-react';
 import * as React from 'react';
 
 
+import { humanizeErrorField } from '@/lib/form-feedback';
 import { cn } from '@/lib/utils';
 
 type FormErrorSummaryProps = {
     errors: Record<string, string | undefined>;
     title?: string;
     className?: string;
+    fieldLabels?: Record<string, string>;
 };
 
 export function FormErrorSummary({
     errors,
     title = 'Review the highlighted fields before saving.',
     className,
+    fieldLabels,
 }: FormErrorSummaryProps) {
     const items = React.useMemo(
         () =>
@@ -56,7 +59,7 @@ export function FormErrorSummary({
                         {items.map(([field, message]) => (
                             <li key={field}>
                                 <span className="font-medium text-[color:var(--text-primary)]">
-                                    {field.replace(/_/g, ' ')}:
+                                    {humanizeErrorField(field, fieldLabels)}:
                                 </span>{' '}
                                 {message}
                             </li>

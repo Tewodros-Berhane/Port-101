@@ -1,7 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import GovernanceTimeSeriesChart from '@/components/platform/dashboard/governance-time-series-chart';
 import NoisyEventsChart from '@/components/platform/dashboard/noisy-events-chart';
+import { FormErrorSummary } from '@/components/shell/form-error-summary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -143,6 +145,16 @@ const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
 const formatPercent = (value: number) => `${value}%`;
+
+const DELIVERY_SCHEDULE_ERROR_LABELS: Record<string, string> = {
+    additional_emails: 'Additional recipient emails',
+    day_of_week: 'Weekday',
+    preset_id: 'Preset',
+    recipient_mode: 'Recipients',
+    recipient_user_ids: 'Selected platform admins',
+    slack_webhook_url: 'Slack webhook URL',
+    webhook_url: 'Webhook URL',
+};
 
 export default function PlatformGovernance({
     analyticsFilters,
@@ -325,6 +337,13 @@ export default function PlatformGovernance({
                     </p>
                 </div>
 
+                <FormErrorSummary
+                    className="mt-4"
+                    errors={deliveryScheduleForm.errors}
+                    fieldLabels={DELIVERY_SCHEDULE_ERROR_LABELS}
+                    title="Review the delivery settings before saving."
+                />
+
                 <div className="mt-4 grid gap-4 md:grid-cols-4">
                     <div className="grid gap-2">
                         <Label htmlFor="delivery_enabled">Delivery</Label>
@@ -364,6 +383,9 @@ export default function PlatformGovernance({
                                 </option>
                             ))}
                         </select>
+                        <InputError
+                            message={deliveryScheduleForm.errors.preset_id}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -382,6 +404,9 @@ export default function PlatformGovernance({
                             <option value="pdf">PDF</option>
                             <option value="xlsx">Excel (.xlsx)</option>
                         </select>
+                        <InputError
+                            message={deliveryScheduleForm.errors.format}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -400,6 +425,9 @@ export default function PlatformGovernance({
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
                         </select>
+                        <InputError
+                            message={deliveryScheduleForm.errors.frequency}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -427,6 +455,9 @@ export default function PlatformGovernance({
                             <option value="6">Saturday</option>
                             <option value="7">Sunday</option>
                         </select>
+                        <InputError
+                            message={deliveryScheduleForm.errors.day_of_week}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -442,6 +473,9 @@ export default function PlatformGovernance({
                                 )
                             }
                         />
+                        <InputError
+                            message={deliveryScheduleForm.errors.time}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -456,6 +490,9 @@ export default function PlatformGovernance({
                                 )
                             }
                             placeholder="UTC"
+                        />
+                        <InputError
+                            message={deliveryScheduleForm.errors.timezone}
                         />
                     </div>
 
@@ -488,9 +525,9 @@ export default function PlatformGovernance({
                             ))}
                         </div>
                         {deliveryScheduleForm.errors.channels && (
-                            <p className="text-xs text-destructive">
-                                {deliveryScheduleForm.errors.channels}
-                            </p>
+                            <InputError
+                                message={deliveryScheduleForm.errors.channels}
+                            />
                         )}
                     </div>
 
@@ -516,6 +553,9 @@ export default function PlatformGovernance({
                                 Selected platform admins
                             </option>
                         </select>
+                        <InputError
+                            message={deliveryScheduleForm.errors.recipient_mode}
+                        />
                     </div>
 
                     {deliveryScheduleForm.data.recipient_mode ===
@@ -554,12 +594,12 @@ export default function PlatformGovernance({
                                 </div>
                             </div>
                             {deliveryScheduleForm.errors.recipient_user_ids && (
-                                <p className="text-xs text-destructive">
-                                    {
+                                <InputError
+                                    message={
                                         deliveryScheduleForm.errors
                                             .recipient_user_ids
                                     }
-                                </p>
+                                />
                             )}
                         </div>
                     )}
@@ -583,9 +623,11 @@ export default function PlatformGovernance({
                             Optional comma-separated emails for delivery.
                         </p>
                         {deliveryScheduleForm.errors.additional_emails && (
-                            <p className="text-xs text-destructive">
-                                {deliveryScheduleForm.errors.additional_emails}
-                            </p>
+                            <InputError
+                                message={
+                                    deliveryScheduleForm.errors.additional_emails
+                                }
+                            />
                         )}
                     </div>
 
@@ -605,9 +647,11 @@ export default function PlatformGovernance({
                                 placeholder="https://example.com/hooks/ops-report"
                             />
                             {deliveryScheduleForm.errors.webhook_url && (
-                                <p className="text-xs text-destructive">
-                                    {deliveryScheduleForm.errors.webhook_url}
-                                </p>
+                                <InputError
+                                    message={
+                                        deliveryScheduleForm.errors.webhook_url
+                                    }
+                                />
                             )}
                         </div>
                     )}
@@ -632,12 +676,12 @@ export default function PlatformGovernance({
                                 placeholder="https://hooks.slack.com/services/..."
                             />
                             {deliveryScheduleForm.errors.slack_webhook_url && (
-                                <p className="text-xs text-destructive">
-                                    {
+                                <InputError
+                                    message={
                                         deliveryScheduleForm.errors
                                             .slack_webhook_url
                                     }
-                                </p>
+                                />
                             )}
                         </div>
                     )}

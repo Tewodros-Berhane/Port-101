@@ -16,7 +16,7 @@ import { publicFooterGroups, publicNavLinks } from '@/lib/public-site';
 import { login } from '@/routes';
 import { dashboard as companyDashboard } from '@/routes/company';
 import { dashboard as platformDashboard } from '@/routes/platform';
-import type { SharedData } from '@/types';
+import type { FlashMessage, SharedData } from '@/types';
 
 type Option = {
     value: string;
@@ -38,6 +38,34 @@ type Props = {
 
 const NATIVE_SELECT_CLASS =
     'h-10 w-full rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30';
+
+const CONTACT_REQUEST_ERROR_LABELS: Record<string, string> = {
+    company_name: 'Company name',
+    full_name: 'Full name',
+    modules_interest: 'Modules of interest',
+    preferred_demo_date: 'Preferred demo date',
+    request_type: 'Request type',
+    role_title: 'Role title',
+    source_page: 'Source page',
+    team_size: 'Team size',
+    work_email: 'Work email',
+};
+
+function flashText(message?: FlashMessage): string | null {
+    if (typeof message === 'string') {
+        const trimmed = message.trim();
+
+        return trimmed === '' ? null : trimmed;
+    }
+
+    if (!message || typeof message !== 'object') {
+        return null;
+    }
+
+    const trimmed = message.message.trim();
+
+    return trimmed === '' ? null : trimmed;
+}
 
 function FieldBlock({
     htmlFor,
@@ -79,6 +107,9 @@ export default function PublicContactRequestPage({
     const isAuthenticated = Boolean(auth.user);
     const isSuperAdmin = Boolean(auth.user?.is_super_admin);
     const flash = sharedFlash ?? {};
+    const flashSuccess = flashText(flash.success);
+    const flashWarning = flashText(flash.warning);
+    const flashError = flashText(flash.error);
     const dashboardHref = isSuperAdmin
         ? platformDashboard()
         : companyDashboard();
@@ -184,11 +215,11 @@ export default function PublicContactRequestPage({
                                         </p>
                                     </CardHeader>
                                     <CardContent className="px-6 py-6">
-                                        {flash.success ? (
+                                        {flashSuccess ? (
                                             <div className="space-y-5">
                                                 <div className="rounded-[var(--radius-panel)] border border-[color:var(--status-success)]/20 bg-[color:var(--status-success-soft)] px-5 py-4">
                                                     <p className="text-sm font-medium text-[color:var(--status-success-foreground)]">
-                                                        {flash.success}
+                                                        {flashSuccess}
                                                     </p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">
@@ -218,17 +249,23 @@ export default function PublicContactRequestPage({
                                                     form.post('/contact-requests');
                                                 }}
                                             >
-                                                <FormErrorSummary errors={form.errors} />
+                                                <FormErrorSummary
+                                                    errors={form.errors}
+                                                    title="Review the request details before sending."
+                                                    fieldLabels={
+                                                        CONTACT_REQUEST_ERROR_LABELS
+                                                    }
+                                                />
 
-                                                {flash.warning ? (
+                                                {flashWarning ? (
                                                     <div className="rounded-[var(--radius-panel)] border border-[color:var(--status-warning)]/22 bg-[color:var(--status-warning-soft)] px-4 py-3 text-sm text-[color:var(--status-warning-foreground)]">
-                                                        {flash.warning}
+                                                        {flashWarning}
                                                     </div>
                                                 ) : null}
 
-                                                {flash.error ? (
+                                                {flashError ? (
                                                     <div className="rounded-[var(--radius-panel)] border border-[color:var(--status-danger)]/18 bg-[color:var(--status-danger-soft)] px-4 py-3 text-sm text-[color:var(--status-danger-foreground)]">
-                                                        {flash.error}
+                                                        {flashError}
                                                     </div>
                                                 ) : null}
 

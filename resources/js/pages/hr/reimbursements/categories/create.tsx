@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { FormErrorSummary } from '@/components/shell/form-error-summary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,12 @@ type Props = {
         requires_receipt: boolean;
         is_project_rebillable: boolean;
     };
+};
+
+const CATEGORY_ERROR_LABELS: Record<string, string> = {
+    default_expense_account_reference: 'Default expense account reference',
+    is_project_rebillable: 'Allow project rebilling',
+    requires_receipt: 'Receipt required',
 };
 
 export default function HrReimbursementCategoryCreate({ form: initialForm }: Props) {
@@ -44,6 +51,11 @@ export default function HrReimbursementCategoryCreate({ form: initialForm }: Pro
                     form.post('/company/hr/reimbursements/categories');
                 }}
             >
+                <FormErrorSummary
+                    errors={form.errors}
+                    fieldLabels={CATEGORY_ERROR_LABELS}
+                    title="Review the category details before saving."
+                />
                 <Field label="Name" error={form.errors.name}>
                     <Input value={form.data.name} onChange={(event) => form.setData('name', event.target.value)} />
                 </Field>
