@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import InputError from '@/components/input-error';
 import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function CompanyInvitesIndex({ invites }: Props) {
     const resendForm = useForm({});
     const retryDeliveryForm = useForm({});
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [revokeDialog, setRevokeDialog] = useState<Invite | null>(null);
     const createForm = useForm({
         email: '',
         name: '',
@@ -55,12 +57,35 @@ export default function CompanyInvitesIndex({ invites }: Props) {
         }
     };
 
-    const handleDelete = (inviteId: string) => {
-        if (!confirm('Revoke this invite?')) {
+    const openRevokeDialog = (invite: Invite) => {
+        deleteForm.clearErrors();
+        setRevokeDialog(invite);
+    };
+
+    const closeRevokeDialog = (open: boolean) => {
+        if (deleteForm.processing) {
             return;
         }
 
-        deleteForm.delete(`/core/invites/${inviteId}`);
+        if (!open) {
+            deleteForm.reset();
+            deleteForm.clearErrors();
+            setRevokeDialog(null);
+        }
+    };
+
+    const handleDelete = () => {
+        if (!revokeDialog) {
+            return;
+        }
+
+        deleteForm.delete(`/core/invites/${revokeDialog.id}`, {
+            onSuccess: () => {
+                deleteForm.reset();
+                deleteForm.clearErrors();
+                setRevokeDialog(null);
+            },
+        });
     };
 
     const handleResend = (inviteId: string) => {
@@ -300,9 +325,7 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                                         <Button
                                             type="button"
                                             variant="destructive"
-                                            onClick={() =>
-                                                handleDelete(invite.id)
-                                            }
+                                            onClick={() => openRevokeDialog(invite)}
                                             disabled={deleteForm.processing}
                                         >
                                             Revoke
@@ -335,6 +358,23 @@ export default function CompanyInvitesIndex({ invites }: Props) {
                     ))}
                 </div>
             )}
+
+            <DestructiveConfirmDialog
+                open={revokeDialog !== null}
+                onOpenChange={closeRevokeDialog}
+                title="Revoke owner invite?"
+                description="This will invalidate the invite link. The recipient will need a new invite before they can join as a company owner."
+                confirmLabel="Revoke invite"
+                processingLabel="Revoking..."
+                cancelLabel="Keep invite"
+                processing={deleteForm.processing}
+                onConfirm={handleDelete}
+                helperText={
+                    revokeDialog
+                        ? `${revokeDialog.email}${revokeDialog.name ? ` | ${revokeDialog.name}` : ''}${revokeDialog.expires_at ? ` | Expires ${formatDate(revokeDialog.expires_at)}` : ''}`
+                        : undefined
+                }
+            />
         </AppLayout>
     );
 }

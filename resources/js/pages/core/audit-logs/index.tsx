@@ -1,4 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -106,6 +108,7 @@ export default function AuditLogsIndex({
         end_date: filters.end_date ?? '',
     });
     const deleteForm = useForm({});
+    const [deleteDialog, setDeleteDialog] = useState<AuditLog | null>(null);
 
     const exportQuery = buildQueryString(form.data);
     const exportBaseUrl = '/core/audit-logs/export';
@@ -116,12 +119,35 @@ export default function AuditLogsIndex({
         ? `${exportBaseUrl}?${exportQuery}&format=json`
         : `${exportBaseUrl}?format=json`;
 
-    const handleDelete = (logId: string) => {
-        if (!confirm('Delete this audit log entry?')) {
+    const openDeleteDialog = (log: AuditLog) => {
+        deleteForm.clearErrors();
+        setDeleteDialog(log);
+    };
+
+    const closeDeleteDialog = (open: boolean) => {
+        if (deleteForm.processing) {
             return;
         }
 
-        deleteForm.delete(`/core/audit-logs/${logId}`);
+        if (!open) {
+            deleteForm.reset();
+            deleteForm.clearErrors();
+            setDeleteDialog(null);
+        }
+    };
+
+    const handleDelete = () => {
+        if (!deleteDialog) {
+            return;
+        }
+
+        deleteForm.delete(`/core/audit-logs/${deleteDialog.id}`, {
+            onSuccess: () => {
+                deleteForm.reset();
+                deleteForm.clearErrors();
+                setDeleteDialog(null);
+            },
+        });
     };
 
     return (
@@ -340,9 +366,7 @@ export default function AuditLogsIndex({
                                                 <Button
                                                     type="button"
                                                     variant="destructive"
-                                                    onClick={() =>
-                                                        handleDelete(log.id)
-                                                    }
+                                                    onClick={() => openDeleteDialog(log)}
                                                     disabled={
                                                         deleteForm.processing
                                                     }
@@ -381,6 +405,23 @@ export default function AuditLogsIndex({
                     You do not have access to view audit logs.
                 </div>
             )}
+
+            <DestructiveConfirmDialog
+                open={deleteDialog !== null}
+                onOpenChange={closeDeleteDialog}
+                title="Delete audit log entry?"
+                description="This permanently removes the selected audit entry from the governance history."
+                confirmLabel="Delete entry"
+                processingLabel="Deleting..."
+                cancelLabel="Keep entry"
+                processing={deleteForm.processing}
+                onConfirm={handleDelete}
+                helperText={
+                    deleteDialog
+                        ? `${formatAction(deleteDialog.action)} | ${deleteDialog.record_type} ${deleteDialog.record_id} | ${formatDate(deleteDialog.created_at)}`
+                        : undefined
+                }
+            />
         </AppLayout>
     );
 }
