@@ -1,4 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
@@ -65,9 +68,66 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
     });
 
     const actionForm = useForm({});
+    const deleteForm = useForm({});
     const reverseForm = useForm({
         reason: payment.reversal_reason ?? '',
     });
+    const [postDialogOpen, setPostDialogOpen] = useState(false);
+    const [reconcileDialogOpen, setReconcileDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    const closePostDialog = (open: boolean) => {
+        if (actionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setPostDialogOpen(false);
+        }
+    };
+
+    const closeReconcileDialog = (open: boolean) => {
+        if (actionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setReconcileDialogOpen(false);
+        }
+    };
+
+    const closeDeleteDialog = (open: boolean) => {
+        if (deleteForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setDeleteDialogOpen(false);
+        }
+    };
+
+    const submitPost = () => {
+        actionForm.post(`/company/accounting/payments/${payment.id}/post`, {
+            preserveScroll: true,
+            onSuccess: () => setPostDialogOpen(false),
+        });
+    };
+
+    const submitReconcile = () => {
+        actionForm.post(
+            `/company/accounting/payments/${payment.id}/reconcile`,
+            {
+                preserveScroll: true,
+                onSuccess: () => setReconcileDialogOpen(false),
+            },
+        );
+    };
+
+    const submitDelete = () => {
+        deleteForm.delete(`/company/accounting/payments/${payment.id}`, {
+            onSuccess: () => setDeleteDialogOpen(false),
+        });
+    };
 
     return (
         <AppLayout
@@ -241,11 +301,7 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
                     {canManage && isDraft && (
                         <Button
                             type="button"
-                            onClick={() =>
-                                actionForm.post(
-                                    `/company/accounting/payments/${payment.id}/post`,
-                                )
-                            }
+                            onClick={() => setPostDialogOpen(true)}
                             disabled={actionForm.processing}
                         >
                             Post payment
@@ -255,11 +311,7 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
                     {canManage && isPosted && (
                         <Button
                             type="button"
-                            onClick={() =>
-                                actionForm.post(
-                                    `/company/accounting/payments/${payment.id}/reconcile`,
-                                )
-                            }
+                            onClick={() => setReconcileDialogOpen(true)}
                             disabled={actionForm.processing}
                         >
                             Reconcile payment
@@ -270,18 +322,67 @@ export default function AccountingPaymentEdit({ payment, invoices }: Props) {
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={() =>
-                                form.delete(
-                                    `/company/accounting/payments/${payment.id}`,
-                                )
-                            }
-                            disabled={form.processing}
+                            onClick={() => setDeleteDialogOpen(true)}
+                            disabled={deleteForm.processing}
                         >
                             Delete
                         </Button>
                     )}
                 </div>
             </form>
+
+            <ConfirmDialog
+                open={postDialogOpen}
+                onOpenChange={closePostDialog}
+                tone="warning"
+                title="Post payment?"
+                description={
+                    <>
+                        Post <span className="font-medium">{payment.payment_number}</span>{' '}
+                        and move it into the accounting payment workflow.
+                    </>
+                }
+                confirmLabel="Post payment"
+                processingLabel="Posting..."
+                helperText="Only post the payment once the amount, date, and reference are final."
+                onConfirm={submitPost}
+                processing={actionForm.processing}
+            />
+
+            <ConfirmDialog
+                open={reconcileDialogOpen}
+                onOpenChange={closeReconcileDialog}
+                tone="warning"
+                title="Reconcile payment?"
+                description={
+                    <>
+                        Reconcile <span className="font-medium">{payment.payment_number}</span>{' '}
+                        against its invoice balance.
+                    </>
+                }
+                confirmLabel="Reconcile payment"
+                processingLabel="Reconciling..."
+                helperText="Use this when the payment should be marked as applied in the ledger."
+                onConfirm={submitReconcile}
+                processing={actionForm.processing}
+            />
+
+            <DestructiveConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={closeDeleteDialog}
+                title="Delete payment?"
+                description={
+                    <>
+                        Delete <span className="font-medium">{payment.payment_number}</span> from
+                        the draft payment queue.
+                    </>
+                }
+                confirmLabel="Delete payment"
+                processingLabel="Deleting..."
+                helperText="This should only be used for draft payments that should be removed entirely."
+                onConfirm={submitDelete}
+                processing={deleteForm.processing}
+            />
 
             {canReverse &&
                 !payment.bank_reconciled_at &&

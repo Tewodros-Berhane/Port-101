@@ -1,7 +1,10 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import AccountingInvoiceLineItemsEditor, {
     type AccountingInvoiceLineInput,
 } from '@/components/accounting/invoice-line-items-editor';
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
@@ -90,8 +93,62 @@ export default function AccountingInvoiceEdit({
         lines: invoice.lines,
     });
     const actionForm = useForm({});
+    const deleteForm = useForm({});
+    const [postDialogOpen, setPostDialogOpen] = useState(false);
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     const totals = calculateTotals(form.data.lines);
+
+    const closePostDialog = (open: boolean) => {
+        if (actionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setPostDialogOpen(false);
+        }
+    };
+
+    const closeCancelDialog = (open: boolean) => {
+        if (actionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setCancelDialogOpen(false);
+        }
+    };
+
+    const closeDeleteDialog = (open: boolean) => {
+        if (deleteForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setDeleteDialogOpen(false);
+        }
+    };
+
+    const submitPost = () => {
+        actionForm.post(`/company/accounting/invoices/${invoice.id}/post`, {
+            preserveScroll: true,
+            onSuccess: () => setPostDialogOpen(false),
+        });
+    };
+
+    const submitCancel = () => {
+        actionForm.post(`/company/accounting/invoices/${invoice.id}/cancel`, {
+            preserveScroll: true,
+            onSuccess: () => setCancelDialogOpen(false),
+        });
+    };
+
+    const submitDelete = () => {
+        deleteForm.delete(`/company/accounting/invoices/${invoice.id}`, {
+            onSuccess: () => setDeleteDialogOpen(false),
+        });
+    };
 
     return (
         <AppLayout
@@ -284,11 +341,7 @@ export default function AccountingInvoiceEdit({
                     {canPost && isDraft && (
                         <Button
                             type="button"
-                            onClick={() =>
-                                actionForm.post(
-                                    `/company/accounting/invoices/${invoice.id}/post`,
-                                )
-                            }
+                            onClick={() => setPostDialogOpen(true)}
                             disabled={actionForm.processing}
                         >
                             Post invoice
@@ -301,11 +354,7 @@ export default function AccountingInvoiceEdit({
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() =>
-                                    actionForm.post(
-                                        `/company/accounting/invoices/${invoice.id}/cancel`,
-                                    )
-                                }
+                                onClick={() => setCancelDialogOpen(true)}
                                 disabled={actionForm.processing}
                             >
                                 Cancel invoice
@@ -316,18 +365,67 @@ export default function AccountingInvoiceEdit({
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={() =>
-                                form.delete(
-                                    `/company/accounting/invoices/${invoice.id}`,
-                                )
-                            }
-                            disabled={form.processing}
+                            onClick={() => setDeleteDialogOpen(true)}
+                            disabled={deleteForm.processing}
                         >
                             Delete
                         </Button>
                     )}
                 </div>
             </form>
+
+            <ConfirmDialog
+                open={postDialogOpen}
+                onOpenChange={closePostDialog}
+                tone="warning"
+                title="Post invoice?"
+                description={
+                    <>
+                        Post <span className="font-medium">{invoice.invoice_number}</span> and
+                        move it into the receivables workflow.
+                    </>
+                }
+                confirmLabel="Post invoice"
+                processingLabel="Posting..."
+                helperText="Use this when the invoice is ready for downstream payment and collection activity."
+                onConfirm={submitPost}
+                processing={actionForm.processing}
+            />
+
+            <ConfirmDialog
+                open={cancelDialogOpen}
+                onOpenChange={closeCancelDialog}
+                tone="warning"
+                title="Cancel invoice?"
+                description={
+                    <>
+                        Cancel <span className="font-medium">{invoice.invoice_number}</span>{' '}
+                        and stop it from continuing through the normal invoice workflow.
+                    </>
+                }
+                confirmLabel="Cancel invoice"
+                processingLabel="Cancelling..."
+                helperText="Only use this when the invoice should no longer remain active."
+                onConfirm={submitCancel}
+                processing={actionForm.processing}
+            />
+
+            <DestructiveConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={closeDeleteDialog}
+                title="Delete invoice?"
+                description={
+                    <>
+                        Delete <span className="font-medium">{invoice.invoice_number}</span> and
+                        remove its current draft lines.
+                    </>
+                }
+                confirmLabel="Delete invoice"
+                processingLabel="Deleting..."
+                helperText="This should only be used for draft invoices that should be removed entirely."
+                onConfirm={submitDelete}
+                processing={deleteForm.processing}
+            />
 
             <div className="mt-6 rounded-xl border p-4">
                 <div className="flex items-center justify-between gap-3">

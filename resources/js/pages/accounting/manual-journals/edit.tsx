@@ -1,8 +1,11 @@
 import { Head, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import AccountingManualJournalLinesEditor, {
     type AccountingManualJournalLineInput,
 } from '@/components/accounting/manual-journal-lines-editor';
 import AttachmentsPanel from '@/components/attachments-panel';
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
@@ -97,10 +100,52 @@ export default function AccountingManualJournalEdit({
     });
 
     const actionForm = useForm({});
+    const deleteForm = useForm({});
     const reverseForm = useForm({
         reason: manualJournal.reversal_reason ?? '',
     });
+    const [postDialogOpen, setPostDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const totals = calculateTotals(form.data.lines);
+
+    const closePostDialog = (open: boolean) => {
+        if (actionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setPostDialogOpen(false);
+        }
+    };
+
+    const closeDeleteDialog = (open: boolean) => {
+        if (deleteForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            setDeleteDialogOpen(false);
+        }
+    };
+
+    const submitPost = () => {
+        actionForm.post(
+            `/company/accounting/manual-journals/${manualJournal.id}/post`,
+            {
+                preserveScroll: true,
+                onSuccess: () => setPostDialogOpen(false),
+            },
+        );
+    };
+
+    const submitDelete = () => {
+        deleteForm.delete(
+            `/company/accounting/manual-journals/${manualJournal.id}`,
+            {
+                onSuccess: () => setDeleteDialogOpen(false),
+            },
+        );
+    };
 
     return (
         <AppLayout
@@ -300,11 +345,7 @@ export default function AccountingManualJournalEdit({
                     {canPost && isDraft && (
                         <Button
                             type="button"
-                            onClick={() =>
-                                actionForm.post(
-                                    `/company/accounting/manual-journals/${manualJournal.id}/post`,
-                                )
-                            }
+                            onClick={() => setPostDialogOpen(true)}
                             disabled={
                                 actionForm.processing ||
                                 (manualJournal.requires_approval &&
@@ -320,18 +361,49 @@ export default function AccountingManualJournalEdit({
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={() =>
-                                form.delete(
-                                    `/company/accounting/manual-journals/${manualJournal.id}`,
-                                )
-                            }
-                            disabled={form.processing}
+                            onClick={() => setDeleteDialogOpen(true)}
+                            disabled={deleteForm.processing}
                         >
                             Delete
                         </Button>
                     )}
                 </div>
             </form>
+
+            <ConfirmDialog
+                open={postDialogOpen}
+                onOpenChange={closePostDialog}
+                tone="warning"
+                title="Post journal?"
+                description={
+                    <>
+                        Post <span className="font-medium">{manualJournal.entry_number}</span>{' '}
+                        into the general ledger.
+                    </>
+                }
+                confirmLabel="Post journal"
+                processingLabel="Posting..."
+                helperText="Use this when the journal is balanced, reviewed, and ready to affect accounting balances."
+                onConfirm={submitPost}
+                processing={actionForm.processing}
+            />
+
+            <DestructiveConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={closeDeleteDialog}
+                title="Delete journal?"
+                description={
+                    <>
+                        Delete <span className="font-medium">{manualJournal.entry_number}</span>{' '}
+                        and remove its current draft lines.
+                    </>
+                }
+                confirmLabel="Delete journal"
+                processingLabel="Deleting..."
+                helperText="This should only be used for draft journals that should be removed entirely."
+                onConfirm={submitDelete}
+                processing={deleteForm.processing}
+            />
 
             {canPost && isPosted && (
                 <div className="mt-6 rounded-xl border p-4">
