@@ -1,4 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,13 @@ type Props = {
         data: AdminRow[];
         links: { url: string | null; label: string; active: boolean }[];
     };
+};
+
+type CancelInviteDialogState = {
+    inviteId: string;
+    name: string;
+    email: string;
+    expiresAt?: string | null;
 };
 
 const formatDate = (value?: string | null) =>
@@ -54,6 +63,7 @@ const resolveStatusVariant = (status: AdminRow['status']) => {
 export default function PlatformAdminUsersIndex({ admins }: Props) {
     const resendForm = useForm({});
     const cancelForm = useForm({});
+    const [cancelDialog, setCancelDialog] = useState<CancelInviteDialogState | null>(null);
     const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
 
     const handleResend = (inviteId: string) => {
@@ -66,16 +76,45 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
         });
     };
 
-    const handleCancel = (inviteId: string) => {
-        if (!confirm('Cancel this platform admin invite?')) {
+    const openCancelDialog = (admin: AdminRow) => {
+        if (!admin.invite_id) {
             return;
         }
 
-        cancelForm.delete(`/platform/invites/${inviteId}`, {
+        cancelForm.clearErrors();
+        setCancelDialog({
+            inviteId: admin.invite_id,
+            name: admin.name,
+            email: admin.email,
+            expiresAt: admin.expires_at,
+        });
+    };
+
+    const closeCancelDialog = (open: boolean) => {
+        if (cancelForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            cancelForm.reset();
+            cancelForm.clearErrors();
+            setCancelDialog(null);
+        }
+    };
+
+    const handleCancel = () => {
+        if (!cancelDialog) {
+            return;
+        }
+
+        cancelForm.delete(`/platform/invites/${cancelDialog.inviteId}`, {
             headers: clientToastHeaders,
             preserveScroll: true,
             onSuccess: (page) => {
                 showPageFlashToast(page);
+                cancelForm.reset();
+                cancelForm.clearErrors();
+                setCancelDialog(null);
             },
         });
     };
@@ -182,9 +221,7 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                                                 type="button"
                                                 variant="destructive"
                                                 onClick={() =>
-                                                    handleCancel(
-                                                        admin.invite_id as string,
-                                                    )
+                                                    openCancelDialog(admin)
                                                 }
                                                 disabled={
                                                     cancelForm.processing ||
@@ -205,6 +242,23 @@ export default function PlatformAdminUsersIndex({ admins }: Props) {
                     </tbody>
                 </table>
             </div>
+
+            <DestructiveConfirmDialog
+                open={cancelDialog !== null}
+                onOpenChange={closeCancelDialog}
+                title="Cancel platform admin invite?"
+                description="This will invalidate the invite link. The invited admin will need a new invite before they can access the platform."
+                confirmLabel="Cancel invite"
+                processingLabel="Cancelling..."
+                cancelLabel="Keep invite"
+                processing={cancelForm.processing}
+                onConfirm={handleCancel}
+                helperText={
+                    cancelDialog
+                        ? `${cancelDialog.name} | ${cancelDialog.email}${cancelDialog.expiresAt ? ` | Expires ${formatDate(cancelDialog.expiresAt)}` : ''}`
+                        : undefined
+                }
+            />
 
             {admins.links.length > 1 && (
                 <div className="mt-6 flex flex-wrap gap-2">
