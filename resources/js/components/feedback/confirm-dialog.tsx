@@ -1,8 +1,9 @@
-import { AlertTriangle, Info, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Info, ShieldAlert, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
+    DialogClose,
     DialogContent,
     DialogDescription,
     DialogFooter,
@@ -103,11 +104,23 @@ export function ConfirmDialog({
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent
-                className={cn('sm:max-w-xl', className)}
+                className={cn('overflow-visible sm:max-w-xl', className)}
                 closeDisabled={processing}
+                showCloseButton={false}
                 onEscapeKeyDown={preventDismiss}
                 onInteractOutside={preventDismiss}
             >
+                <DialogClose asChild>
+                    <button
+                        type="button"
+                        disabled={processing}
+                        className="absolute -top-3 -right-3 z-10 flex size-8 items-center justify-center rounded-full border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-elevated)] text-[color:var(--text-muted)] shadow-[var(--shadow-sm)] transition-[background-color,color,box-shadow,border-color] hover:border-[color:var(--border-default)] hover:bg-[color:var(--bg-surface-muted)] hover:text-[color:var(--text-primary)] focus:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+                        aria-label="Close dialog"
+                    >
+                        <X className="size-3.5" />
+                    </button>
+                </DialogClose>
+
                 <div className="grid gap-5">
                     <div
                         className={cn(

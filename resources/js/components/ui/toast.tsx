@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { CheckCircle2, Info, OctagonAlert, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, CircleX, Info, TriangleAlert, X } from 'lucide-react';
 import {
     createContext,
     type PropsWithChildren,
@@ -32,20 +32,39 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const levelClasses: Record<ToastLevel, string> = {
-    success:
-        'border-[color:var(--status-success)]/18 bg-[color:var(--status-success-soft)] text-[color:var(--status-success-foreground)]',
-    error:
-        'border-[color:var(--status-danger)]/18 bg-[color:var(--status-danger-soft)] text-[color:var(--status-danger-foreground)]',
-    warning:
-        'border-[color:var(--status-warning)]/18 bg-[color:var(--status-warning-soft)] text-[color:var(--status-warning-foreground)]',
-    info:
-        'border-[color:var(--status-info)]/18 bg-[color:var(--status-info-soft)] text-[color:var(--status-info-foreground)]',
+const levelStyles: Record<
+    ToastLevel,
+    {
+        accent: string;
+        icon: string;
+        action: string;
+    }
+> = {
+    success: {
+        accent: 'bg-[color:var(--status-success)]',
+        icon: 'text-[color:var(--status-success)]',
+        action: 'text-[color:var(--status-success)]',
+    },
+    error: {
+        accent: 'bg-[color:var(--status-danger)]',
+        icon: 'text-[color:var(--status-danger)]',
+        action: 'text-[color:var(--status-danger)]',
+    },
+    warning: {
+        accent: 'bg-[color:var(--status-warning)]',
+        icon: 'text-[color:var(--status-warning)]',
+        action: 'text-[color:var(--status-warning)]',
+    },
+    info: {
+        accent: 'bg-[color:var(--status-info)]',
+        icon: 'text-[color:var(--status-info)]',
+        action: 'text-[color:var(--status-info)]',
+    },
 };
 
 const iconMap: Record<ToastLevel, typeof CheckCircle2> = {
     success: CheckCircle2,
-    error: OctagonAlert,
+    error: CircleX,
     warning: TriangleAlert,
     info: Info,
 };
@@ -95,72 +114,84 @@ function ToastViewport({
 }) {
     return (
         <div
-            className="pointer-events-none fixed top-4 right-4 z-[100] flex w-full max-w-sm flex-col gap-2 px-4 sm:px-0"
+            className="pointer-events-none fixed right-4 bottom-4 z-[100] flex w-full max-w-sm flex-col gap-2.5 px-4 sm:px-0"
             aria-live="polite"
             aria-relevant="additions text"
         >
             {toasts.map((toast) => {
                 const Icon = iconMap[toast.level];
+                const styles = levelStyles[toast.level];
 
                 return (
                     <div
                         key={toast.id}
                         className={cn(
-                            'pointer-events-auto rounded-[var(--radius-panel)] border px-4 py-3 text-sm shadow-[var(--shadow-md)]',
-                            levelClasses[toast.level],
+                            'pointer-events-auto overflow-hidden rounded-[calc(var(--radius-hero)+2px)] border border-[color:var(--border-default)] bg-[color:var(--bg-surface-elevated)] text-[color:var(--text-primary)] shadow-[var(--shadow-md)] animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 slide-in-from-right-4 duration-200 motion-reduce:animate-none',
                         )}
                         role={toast.level === 'error' ? 'alert' : 'status'}
                         aria-live={toast.level === 'error' ? 'assertive' : 'polite'}
                     >
-                        <div className="flex items-start gap-3">
-                            <div className="mt-0.5 rounded-full bg-black/5 p-1 dark:bg-white/10">
-                                <Icon className="size-4" />
-                            </div>
+                        <div className="flex items-stretch">
+                            <div className={cn('w-1 shrink-0', styles.accent)} />
 
-                            <div className="min-w-0 flex-1 space-y-3">
-                                <div className="space-y-1">
-                                    {toast.title ? (
-                                        <p className="font-semibold tracking-[-0.01em]">
-                                            {toast.title}
-                                        </p>
-                                    ) : null}
-                                    <p className="leading-6">{toast.message}</p>
+                            <div className="flex min-w-0 flex-1 items-start gap-2.5 px-3.5 py-3.5">
+                                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)]">
+                                    <Icon className={cn('size-[18px]', styles.icon)} />
                                 </div>
 
-                                {toast.action?.href || toast.action?.onClick ? (
-                                    <div>
-                                        {toast.action.href ? (
-                                            <Link
-                                                href={toast.action.href}
-                                                className="inline-flex text-sm font-medium underline underline-offset-4 opacity-90 transition hover:opacity-100"
-                                                onClick={() => onDismiss(toast.id)}
-                                            >
-                                                {toast.action.label}
-                                            </Link>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="inline-flex text-sm font-medium underline underline-offset-4 opacity-90 transition hover:opacity-100"
-                                                onClick={() => {
-                                                    toast.action?.onClick?.();
-                                                    onDismiss(toast.id);
-                                                }}
-                                            >
-                                                {toast.action.label}
-                                            </button>
-                                        )}
+                                <div className="min-w-0 flex-1 space-y-2.5">
+                                    <div className="space-y-0.5">
+                                        {toast.title ? (
+                                            <p className="text-[13px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
+                                                {toast.title}
+                                            </p>
+                                        ) : null}
+                                        <p className="text-[13px] leading-5 text-[color:var(--text-secondary)]">
+                                            {toast.message}
+                                        </p>
                                     </div>
-                                ) : null}
-                            </div>
 
-                            <button
-                                type="button"
-                                className="rounded-[var(--radius-control)] p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
-                                onClick={() => onDismiss(toast.id)}
-                                aria-label="Dismiss notification"
-                            >
-                                <X className="size-4" />
-                            </button>
+                                    {toast.action?.href || toast.action?.onClick ? (
+                                        <div>
+                                            {toast.action.href ? (
+                                                <Link
+                                                    href={toast.action.href}
+                                                    className={cn(
+                                                        'inline-flex text-[13px] font-medium underline underline-offset-4 transition hover:opacity-85',
+                                                        styles.action,
+                                                    )}
+                                                    onClick={() => onDismiss(toast.id)}
+                                                >
+                                                    {toast.action.label}
+                                                </Link>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className={cn(
+                                                        'inline-flex text-[13px] font-medium underline underline-offset-4 transition hover:opacity-85',
+                                                        styles.action,
+                                                    )}
+                                                    onClick={() => {
+                                                        toast.action?.onClick?.();
+                                                        onDismiss(toast.id);
+                                                    }}
+                                                >
+                                                    {toast.action.label}
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="rounded-[var(--radius-control)] p-0.5 text-[color:var(--text-muted)] transition hover:bg-[color:var(--bg-surface-muted)] hover:text-[color:var(--text-primary)]"
+                                    onClick={() => onDismiss(toast.id)}
+                                    aria-label="Dismiss notification"
+                                >
+                                    <X className="size-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
