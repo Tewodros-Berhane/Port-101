@@ -1,4 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
+import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import SalesLineItemsEditor, {
@@ -71,6 +74,49 @@ export default function SalesQuoteEdit({
     });
 
     const isConfirmed = quote.status === 'confirmed';
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    const closeRejectDialog = (open: boolean) => {
+        if (actionForm.processing) {
+            return;
+        }
+
+        if (!open) {
+            actionForm.reset();
+            actionForm.clearErrors();
+            setRejectDialogOpen(false);
+        }
+    };
+
+    const submitRejection = () => {
+        actionForm.post(`/company/sales/quotes/${quote.id}/reject`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                actionForm.reset();
+                actionForm.clearErrors();
+                setRejectDialogOpen(false);
+            },
+        });
+    };
+
+    const closeDeleteDialog = (open: boolean) => {
+        if (form.processing) {
+            return;
+        }
+
+        if (!open) {
+            setDeleteDialogOpen(false);
+        }
+    };
+
+    const submitDelete = () => {
+        form.delete(`/company/sales/quotes/${quote.id}`, {
+            onSuccess: () => {
+                setDeleteDialogOpen(false);
+            },
+        });
+    };
 
     return (
         <AppLayout
@@ -266,15 +312,9 @@ export default function SalesQuoteEdit({
                             variant="outline"
                             disabled={actionForm.processing}
                             onClick={() => {
-                                const reason = window.prompt(
-                                    'Rejection reason (optional):',
-                                    '',
-                                );
-
-                                actionForm.setData('reason', reason ?? '');
-                                actionForm.post(
-                                    `/company/sales/quotes/${quote.id}/reject`,
-                                );
+                                actionForm.setData('reason', '');
+                                actionForm.clearErrors();
+                                setRejectDialogOpen(true);
                             }}
                         >
                             Reject
@@ -299,9 +339,7 @@ export default function SalesQuoteEdit({
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={() =>
-                                form.delete(`/company/sales/quotes/${quote.id}`)
-                            }
+                            onClick={() => setDeleteDialogOpen(true)}
                             disabled={form.processing}
                         >
                             Delete
@@ -309,6 +347,47 @@ export default function SalesQuoteEdit({
                     )}
                 </div>
             </form>
+
+            <ReasonDialog
+                open={rejectDialogOpen}
+                onOpenChange={closeRejectDialog}
+                tone="warning"
+                title="Reject quote"
+                description={
+                    <>
+                        Rejecting <span className="font-medium">{quote.quote_number}</span>{' '}
+                        will move it back out of the approval path.
+                    </>
+                }
+                confirmLabel="Reject quote"
+                processingLabel="Rejecting..."
+                reason={actionForm.data.reason}
+                onReasonChange={(value) => actionForm.setData('reason', value)}
+                reasonLabel="Rejection reason"
+                reasonPlaceholder="Add an optional note for the sales team"
+                reasonHelperText="This note is optional and will be stored with the quote rejection."
+                reasonError={actionForm.errors.reason}
+                errors={actionForm.errors}
+                onConfirm={submitRejection}
+                processing={actionForm.processing}
+            />
+
+            <DestructiveConfirmDialog
+                open={deleteDialogOpen}
+                onOpenChange={closeDeleteDialog}
+                title="Delete quote"
+                description={
+                    <>
+                        Delete <span className="font-medium">{quote.quote_number}</span> and
+                        remove its current line items.
+                    </>
+                }
+                confirmLabel="Delete quote"
+                processingLabel="Deleting..."
+                helperText="Use this only when the quote should be removed entirely. This cannot be undone from the quote screen."
+                onConfirm={submitDelete}
+                processing={form.processing}
+            />
         </AppLayout>
     );
 }
