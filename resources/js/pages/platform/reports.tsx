@@ -1,11 +1,13 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Head, Link, useForm, useRemember } from '@inertiajs/react';
+import { CheckCircle2, Download, FileSpreadsheet, FileText, Info, TriangleAlert, X } from 'lucide-react';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { platformBreadcrumbs } from '@/lib/page-navigation';
+import { cn } from '@/lib/utils';
 
 type Props = {
     operationsFilters: {
@@ -53,6 +55,13 @@ type Props = {
     >;
 };
 
+type OperationalFeedback = {
+    tone: 'success' | 'warning' | 'info';
+    title: string;
+    message: string;
+    nextStep?: string;
+};
+
 const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
@@ -66,6 +75,11 @@ export default function PlatformReports({
     operationsReportPresets,
     reportingResearch,
 }: Props) {
+    const [operationalFeedback, setOperationalFeedback] =
+        useRemember<OperationalFeedback | null>(
+            null,
+            'platform.reports.feedback',
+        );
     const form = useForm({
         trend_window: String(operationsFilters.trend_window ?? 30),
         admin_action: operationsFilters.admin_action ?? '',
@@ -84,6 +98,10 @@ export default function PlatformReports({
         invite_delivery_status: operationsFilters.invite_delivery_status ?? '',
     });
     const deletePresetForm = useForm({});
+
+    const publishFeedback = (feedback: OperationalFeedback) => {
+        setOperationalFeedback(feedback);
+    };
 
     const buildQuery = (
         overrides: Partial<typeof form.data> = {},
@@ -110,6 +128,34 @@ export default function PlatformReports({
         ).toString();
     };
 
+    const startExport = (
+        report: Props['reportCatalog'][number],
+        format: 'pdf' | 'xlsx',
+        url: string,
+    ) => {
+        const opened = window.open(url, '_blank', 'noopener,noreferrer');
+
+        if (!opened) {
+            publishFeedback({
+                tone: 'warning',
+                title: 'Allow the report export tab',
+                message: `${report.title} could not be opened automatically because the browser blocked the export window.`,
+                nextStep:
+                    'Allow pop-ups for this workspace or try the export again from a browser that permits downloads.',
+            });
+
+            return;
+        }
+
+        publishFeedback({
+            tone: 'info',
+            title: `${report.title} export started`,
+            message: `A ${format === 'pdf' ? 'PDF' : 'Excel'} export was opened in a new tab using the current reporting filters.`,
+            nextStep:
+                'If the file looks empty or incomplete, review the filters above and try the export again.',
+        });
+    };
+
     return (
         <AppLayout
             breadcrumbs={platformBreadcrumbs({ title: 'Reports', href: '/platform/reports' },)}
@@ -126,6 +172,13 @@ export default function PlatformReports({
                 </div>
                 <BackLinkAction href="/platform/dashboard" label="Back to platform" variant="outline" />
             </div>
+
+            {operationalFeedback && (
+                <OperationalResultPanel
+                    feedback={operationalFeedback}
+                    onDismiss={() => setOperationalFeedback(null)}
+                />
+            )}
 
             <form
                 className="mt-6 rounded-xl border p-4"
@@ -288,7 +341,21 @@ export default function PlatformReports({
 
                                 presetForm.post('/platform/reports/report-presets', {
                                     preserveScroll: true,
-                                    onSuccess: () => presetForm.reset('name'),
+                                    onSuccess: () => {
+                                        const presetName =
+                                            presetForm.data.name.trim();
+
+                                        presetForm.reset('name');
+                                        publishFeedback({
+                                            tone: 'success',
+                                            title: 'Preset saved',
+                                            message: presetName
+                                                ? `${presetName} is ready for recurring exports.`
+                                                : 'The current reporting filters were saved as a reusable preset.',
+                                            nextStep:
+                                                'Use Apply from the preset list below when you need the same reporting filters again.',
+                                        });
+                                    },
                                 });
                             }}
                         >
@@ -324,17 +391,29 @@ export default function PlatformReports({
                             </div>
 
                             <div className="mt-4 inline-flex items-center gap-2">
-                                <Button variant="outline" asChild>
-                                    <a href={pdfUrl}>
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() =>
+                                        startExport(report, 'pdf', pdfUrl)
+                                    }
+                                >
+                                    <>
                                         <FileText className="size-4" />
                                         PDF
-                                    </a>
+                                    </>
                                 </Button>
-                                <Button variant="outline" asChild>
-                                    <a href={xlsxUrl}>
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    onClick={() =>
+                                        startExport(report, 'xlsx', xlsxUrl)
+                                    }
+                                >
+                                    <>
                                         <FileSpreadsheet className="size-4" />
                                         Excel
-                                    </a>
+                                    </>
                                 </Button>
                             </div>
                         </div>
@@ -450,6 +529,16 @@ export default function PlatformReports({
                                                             `/platform/reports/report-presets/${preset.id}`,
                                                             {
                                                                 preserveScroll: true,
+                                                                onSuccess: () =>
+                                                                    publishFeedback(
+                                                                        {
+                                                                            tone: 'success',
+                                                                            title: 'Preset removed',
+                                                                            message: `${preset.name} was removed from the saved preset list.`,
+                                                                            nextStep:
+                                                                                'Current filters are unchanged. Save a new preset if you still need this export configuration.',
+                                                                        },
+                                                                    ),
                                                             },
                                                         )
                                                     }
@@ -498,5 +587,52 @@ export default function PlatformReports({
                 </div>
             </div>
         </AppLayout>
+    );
+}
+
+function OperationalResultPanel({
+    feedback,
+    onDismiss,
+}: {
+    feedback: OperationalFeedback;
+    onDismiss: () => void;
+}) {
+    const Icon =
+        feedback.tone === 'success'
+            ? CheckCircle2
+            : feedback.tone === 'warning'
+              ? TriangleAlert
+              : Info;
+
+    return (
+        <Alert
+            className={cn(
+                'border mt-6',
+                feedback.tone === 'success'
+                    ? 'border-[color:var(--status-success)]/20 bg-[color:var(--status-success-soft)] text-[color:var(--status-success-foreground)]'
+                    : feedback.tone === 'warning'
+                      ? 'border-[color:var(--status-warning)]/20 bg-[color:var(--status-warning-soft)] text-[color:var(--status-warning-foreground)]'
+                      : 'border-[color:var(--status-info)]/20 bg-[color:var(--status-info-soft)] text-[color:var(--status-info-foreground)]',
+            )}
+        >
+            <Icon className="size-4" />
+            <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                    <AlertTitle>{feedback.title}</AlertTitle>
+                    <AlertDescription className="space-y-1">
+                        <p>{feedback.message}</p>
+                        {feedback.nextStep && <p>{feedback.nextStep}</p>}
+                    </AlertDescription>
+                </div>
+                <button
+                    type="button"
+                    className="rounded-[var(--radius-control)] p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+                    onClick={onDismiss}
+                    aria-label="Dismiss reporting feedback"
+                >
+                    <X className="size-4" />
+                </button>
+            </div>
+        </Alert>
     );
 }

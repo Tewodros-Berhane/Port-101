@@ -1,11 +1,14 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, useRemember } from '@inertiajs/react';
+import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { platformBreadcrumbs } from '@/lib/page-navigation';
+import { cn } from '@/lib/utils';
 
 type Option = {
     value: string;
@@ -93,6 +96,13 @@ type FailedJobActionDialogState = {
     companyName?: string | null;
 };
 
+type OperationalFeedback = {
+    tone: 'success' | 'warning' | 'info';
+    title: string;
+    message: string;
+    nextStep?: string;
+};
+
 type Props = {
     filters: {
         search: string;
@@ -176,11 +186,20 @@ export default function PlatformQueueHealth({
 }: Props) {
     const [jobActionDialog, setJobActionDialog] =
         useState<FailedJobActionDialogState | null>(null);
+    const [operationalFeedback, setOperationalFeedback] =
+        useRemember<OperationalFeedback | null>(
+            null,
+            'platform.queue-health.feedback',
+        );
     const form = useForm({
         search: filters.search,
         queue: filters.queue,
     });
     const jobActionForm = useForm({});
+
+    const publishFeedback = (feedback: OperationalFeedback) => {
+        setOperationalFeedback(feedback);
+    };
 
     const closeJobActionDialog = (open: boolean) => {
         if (jobActionForm.processing) {
@@ -197,9 +216,57 @@ export default function PlatformQueueHealth({
             return;
         }
 
+        const actionDialog = jobActionDialog;
         const options = {
             preserveScroll: true,
-            onSuccess: () => setJobActionDialog(null),
+            onSuccess: (page: { props: unknown }) => {
+                setJobActionDialog(null);
+
+                const nextProps = page.props as unknown as Props;
+                const remainingFailedJob = nextProps.failedJobs.data.some(
+                    (job) => job.id === actionDialog.id,
+                );
+
+                if (actionDialog.type === 'discard') {
+                    publishFeedback(
+                        remainingFailedJob
+                            ? {
+                                  tone: 'warning',
+                                  title: 'Poison discard needs another review',
+                                  message: `${actionDialog.jobName} still appears in the failed-job queue.`,
+                                  nextStep:
+                                      'Review the exception guidance again before discarding or retrying.',
+                              }
+                            : {
+                                  tone: 'success',
+                                  title: 'Poison discard recorded',
+                                  message: `${actionDialog.jobName} was removed from the failed-job queue and marked for operator review.`,
+                                  nextStep:
+                                      'Use the recent poison decisions list below to confirm the audit trail.',
+                              },
+                    );
+
+                    return;
+                }
+
+                publishFeedback(
+                    remainingFailedJob
+                        ? {
+                              tone: 'warning',
+                              title: 'Failure record still needs attention',
+                              message: `${actionDialog.jobName} still appears in the failed-job queue.`,
+                              nextStep:
+                                  'Refresh the queue view or review the exception details before trying again.',
+                          }
+                        : {
+                              tone: 'success',
+                              title: 'Failure record removed',
+                              message: `${actionDialog.jobName} was removed from queue health.`,
+                              nextStep:
+                                  'Use this only when the failure has already been handled elsewhere.',
+                          },
+                );
+            },
         };
 
         if (jobActionDialog.type === 'discard') {
@@ -246,6 +313,13 @@ export default function PlatformQueueHealth({
                         </Button>
                     </div>
                 </div>
+
+                {operationalFeedback && (
+                    <OperationalResultPanel
+                        feedback={operationalFeedback}
+                        onDismiss={() => setOperationalFeedback(null)}
+                    />
+                )}
 
                 <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <MetricCard
@@ -623,7 +697,42 @@ export default function PlatformQueueHealth({
                                                         router.post(
                                                             `/platform/operations/queue-health/failed-jobs/${job.id}/retry`,
                                                             {},
-                                                            { preserveScroll: true },
+                                                            {
+                                                                preserveScroll:
+                                                                    true,
+                                                                onSuccess: (
+                                                                    page,
+                                                                ) => {
+                                                                    const nextProps =
+                                                                        page.props as unknown as Props;
+                                                                    const stillPresent =
+                                                                        nextProps.failedJobs.data.some(
+                                                                            (
+                                                                                failedJob,
+                                                                            ) =>
+                                                                                failedJob.id ===
+                                                                                job.id,
+                                                                        );
+
+                                                                    publishFeedback(
+                                                                        stillPresent
+                                                                            ? {
+                                                                                  tone: 'warning',
+                                                                                  title: 'Retry completed with follow-up still needed',
+                                                                                  message: `${job.job_name_label} still appears in the failed-job queue.`,
+                                                                                  nextStep:
+                                                                                      'Review the exception details before retrying again or discarding it as poison.',
+                                                                              }
+                                                                            : {
+                                                                                  tone: 'success',
+                                                                                  title: 'Retry cleared from queue health',
+                                                                                  message: `${job.job_name_label} is no longer listed in failed jobs.`,
+                                                                                  nextStep:
+                                                                                      'Monitor backlog and dead-letter sections below for any downstream follow-up.',
+                                                                              },
+                                                                    );
+                                                                },
+                                                            },
                                                         )
                                                     }
                                                 >
@@ -794,7 +903,39 @@ export default function PlatformQueueHealth({
                                                 router.post(
                                                     `/platform/operations/queue-health/webhook-deliveries/${delivery.id}/retry`,
                                                     {},
-                                                    { preserveScroll: true },
+                                                    {
+                                                        preserveScroll: true,
+                                                        onSuccess: (page) => {
+                                                            const nextProps =
+                                                                page.props as unknown as Props;
+                                                            const stillPresent =
+                                                                nextProps.deadWebhookDeliveries.some(
+                                                                    (
+                                                                        deadDelivery,
+                                                                    ) =>
+                                                                        deadDelivery.id ===
+                                                                        delivery.id,
+                                                                );
+
+                                                            publishFeedback(
+                                                                stillPresent
+                                                                    ? {
+                                                                          tone: 'warning',
+                                                                          title: 'Dead-letter retry still needs attention',
+                                                                          message: `${delivery.event_label} remains in the dead-letter queue.`,
+                                                                          nextStep:
+                                                                              'Review the endpoint failure details below before retrying again.',
+                                                                      }
+                                                                    : {
+                                                                          tone: 'success',
+                                                                          title: 'Dead-letter retry moved forward',
+                                                                          message: `${delivery.event_label} is no longer listed as a dead-letter delivery.`,
+                                                                          nextStep:
+                                                                              'Review the webhook delivery queue or company timeline for the new attempt.',
+                                                                      },
+                                                            );
+                                                        },
+                                                    },
                                                 )
                                             }
                                         >
@@ -854,7 +995,39 @@ export default function PlatformQueueHealth({
                                                 router.post(
                                                     `/platform/operations/queue-health/report-exports/${exportRow.id}/retry`,
                                                     {},
-                                                    { preserveScroll: true },
+                                                    {
+                                                        preserveScroll: true,
+                                                        onSuccess: (page) => {
+                                                            const nextProps =
+                                                                page.props as unknown as Props;
+                                                            const stillPresent =
+                                                                nextProps.failedReportExports.some(
+                                                                    (
+                                                                        retryExport,
+                                                                    ) =>
+                                                                        retryExport.id ===
+                                                                        exportRow.id,
+                                                                );
+
+                                                            publishFeedback(
+                                                                stillPresent
+                                                                    ? {
+                                                                          tone: 'warning',
+                                                                          title: 'Export retry still needs attention',
+                                                                          message: `${exportRow.report_title} still appears in failed exports.`,
+                                                                          nextStep:
+                                                                              'Check the export failure details below before retrying again.',
+                                                                      }
+                                                                    : {
+                                                                          tone: 'success',
+                                                                          title: 'Export retry moved forward',
+                                                                          message: `${exportRow.report_title} is no longer listed as a failed export.`,
+                                                                          nextStep:
+                                                                              'Review the reports workspace or company notifications for the regenerated file.',
+                                                                      },
+                                                            );
+                                                        },
+                                                    },
                                                 )
                                             }
                                         >
@@ -966,4 +1139,51 @@ function BreakdownPanel({
 
 function EmptyState({ message }: { message: string }) {
     return <p className="text-sm text-muted-foreground">{message}</p>;
+}
+
+function OperationalResultPanel({
+    feedback,
+    onDismiss,
+}: {
+    feedback: OperationalFeedback;
+    onDismiss: () => void;
+}) {
+    const Icon =
+        feedback.tone === 'success'
+            ? CheckCircle2
+            : feedback.tone === 'warning'
+              ? TriangleAlert
+              : Info;
+
+    return (
+        <Alert
+            className={cn(
+                'border',
+                feedback.tone === 'success'
+                    ? 'border-[color:var(--status-success)]/20 bg-[color:var(--status-success-soft)] text-[color:var(--status-success-foreground)]'
+                    : feedback.tone === 'warning'
+                      ? 'border-[color:var(--status-warning)]/20 bg-[color:var(--status-warning-soft)] text-[color:var(--status-warning-foreground)]'
+                      : 'border-[color:var(--status-info)]/20 bg-[color:var(--status-info-soft)] text-[color:var(--status-info-foreground)]',
+            )}
+        >
+            <Icon className="size-4" />
+            <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                    <AlertTitle>{feedback.title}</AlertTitle>
+                    <AlertDescription className="space-y-1">
+                        <p>{feedback.message}</p>
+                        {feedback.nextStep && <p>{feedback.nextStep}</p>}
+                    </AlertDescription>
+                </div>
+                <button
+                    type="button"
+                    className="rounded-[var(--radius-control)] p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+                    onClick={onDismiss}
+                    aria-label="Dismiss operational feedback"
+                >
+                    <X className="size-4" />
+                </button>
+            </div>
+        </Alert>
+    );
 }

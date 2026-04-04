@@ -1,13 +1,16 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, useRemember } from '@inertiajs/react';
+import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/feedback/confirm-dialog';
 import { DestructiveConfirmDialog } from '@/components/feedback/destructive-confirm-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
+import { cn } from '@/lib/utils';
 
 type EventOption = {
     value: string;
@@ -126,6 +129,13 @@ type Props = {
     };
 };
 
+type OperationalFeedback = {
+    tone: 'success' | 'warning' | 'info';
+    title: string;
+    message: string;
+    nextStep?: string;
+};
+
 const formatDateTime = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
@@ -139,12 +149,20 @@ export default function ShowWebhookEndpoint({
 }: Props) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [rotateDialogOpen, setRotateDialogOpen] = useState(false);
+    const [operationalFeedback, setOperationalFeedback] =
+        useRemember<OperationalFeedback | null>(
+            null,
+            'integrations.webhooks.show.feedback',
+        );
     const filterForm = useForm({
         status: filters.status,
         event_type: filters.event_type,
     });
     const deleteForm = useForm({});
     const rotateForm = useForm({});
+    const publishFeedback = (feedback: OperationalFeedback) => {
+        setOperationalFeedback(feedback);
+    };
 
     return (
         <AppLayout
@@ -187,6 +205,82 @@ export default function ShowWebhookEndpoint({
                                 onClick={() =>
                                     router.post(
                                         `/company/integrations/webhooks/${endpoint.id}/test`,
+                                        {},
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: (page) => {
+                                                const nextProps =
+                                                    page.props as unknown as Props;
+                                                const deliveredDelta =
+                                                    nextProps.summary.delivered -
+                                                    summary.delivered;
+                                                const failedDelta =
+                                                    nextProps.summary.failed -
+                                                    summary.failed;
+                                                const deadDelta =
+                                                    nextProps.summary.dead -
+                                                    summary.dead;
+                                                const pendingDelta =
+                                                    nextProps.summary.pending -
+                                                    summary.pending;
+                                                const filtersActive =
+                                                    filters.status !== '' ||
+                                                    filters.event_type !== '';
+
+                                                if (deadDelta > 0) {
+                                                    publishFeedback({
+                                                        tone: 'warning',
+                                                        title: 'Test delivery failed',
+                                                        message:
+                                                            'The newest test attempt moved into the dead-letter queue.',
+                                                        nextStep:
+                                                            'Review the latest failure below before sending another test.',
+                                                    });
+
+                                                    return;
+                                                }
+
+                                                if (failedDelta > 0) {
+                                                    publishFeedback({
+                                                        tone: 'warning',
+                                                        title: 'Test delivery needs follow-up',
+                                                        message:
+                                                            'The newest test attempt failed and another retry is scheduled.',
+                                                        nextStep:
+                                                            'Review the latest failure details below before retrying again.',
+                                                    });
+
+                                                    return;
+                                                }
+
+                                                if (deliveredDelta > 0) {
+                                                    publishFeedback({
+                                                        tone: 'success',
+                                                        title: 'Test delivery succeeded',
+                                                        message:
+                                                            'A new webhook test completed successfully.',
+                                                        nextStep: filtersActive
+                                                            ? 'Clear the current delivery filters if you need to inspect the newest attempt in the history table.'
+                                                            : 'Use the top delivery row below to inspect the completed test.',
+                                                    });
+
+                                                    return;
+                                                }
+
+                                                publishFeedback({
+                                                    tone: 'info',
+                                                    title:
+                                                        pendingDelta > 0
+                                                            ? 'Test delivery queued'
+                                                            : 'Test delivery requested',
+                                                    message:
+                                                        'The endpoint accepted a new test delivery request.',
+                                                    nextStep: filtersActive
+                                                        ? 'Clear the current delivery filters if the newest attempt is not visible below.'
+                                                        : 'Review the newest delivery row below for the final status.',
+                                                });
+                                            },
+                                        },
                                     )
                                 }
                             >
@@ -211,6 +305,13 @@ export default function ShowWebhookEndpoint({
                         )}
                     </div>
                 </div>
+
+                {operationalFeedback && (
+                    <OperationalResultPanel
+                        feedback={operationalFeedback}
+                        onDismiss={() => setOperationalFeedback(null)}
+                    />
+                )}
 
                 {endpoint.revealed_signing_secret && (
                     <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
@@ -770,6 +871,74 @@ export default function ShowWebhookEndpoint({
                                                         onClick={() =>
                                                             router.post(
                                                                 `/company/integrations/deliveries/${delivery.id}/retry`,
+                                                                {},
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                    onSuccess: (
+                                                                        page,
+                                                                    ) => {
+                                                                        const nextProps =
+                                                                            page.props as unknown as Props;
+                                                                        const nextDelivery =
+                                                                            nextProps.deliveries.data.find(
+                                                                                (
+                                                                                    row,
+                                                                                ) =>
+                                                                                    row.id ===
+                                                                                    delivery.id,
+                                                                            );
+
+                                                                        if (
+                                                                            nextDelivery?.status ===
+                                                                            'delivered'
+                                                                        ) {
+                                                                            publishFeedback(
+                                                                                {
+                                                                                    tone: 'success',
+                                                                                    title: 'Retry delivered successfully',
+                                                                                    message: `${delivery.event_label} completed successfully after the retry.`,
+                                                                                    nextStep:
+                                                                                        'Use the delivery history row below for response timing and audit details.',
+                                                                                },
+                                                                            );
+
+                                                                            return;
+                                                                        }
+
+                                                                        if (
+                                                                            nextDelivery?.status ===
+                                                                                'dead' ||
+                                                                            nextDelivery?.status ===
+                                                                                'failed'
+                                                                        ) {
+                                                                            publishFeedback(
+                                                                                {
+                                                                                    tone: 'warning',
+                                                                                    title: 'Retry still needs attention',
+                                                                                    message: `${delivery.event_label} still shows a failed delivery state after the retry.`,
+                                                                                    nextStep:
+                                                                                        'Review the failure details below before retrying again.',
+                                                                                },
+                                                                            );
+
+                                                                            return;
+                                                                        }
+
+                                                                        publishFeedback(
+                                                                            {
+                                                                                tone: 'info',
+                                                                                title: 'Retry requested',
+                                                                                message: `${delivery.event_label} was queued for another delivery attempt.`,
+                                                                                nextStep:
+                                                                                    filters.status !== '' ||
+                                                                                    filters.event_type !== ''
+                                                                                        ? 'Clear the current delivery filters if the updated attempt is not visible below.'
+                                                                                        : 'Review the delivery history below for the updated status.',
+                                                                            },
+                                                                        );
+                                                                    },
+                                                                },
                                                             )
                                                         }
                                                     >
@@ -931,4 +1100,51 @@ function healthLabel(status: string): string {
         degraded: 'Degraded',
         inactive: 'Inactive',
     }[status] ?? status;
+}
+
+function OperationalResultPanel({
+    feedback,
+    onDismiss,
+}: {
+    feedback: OperationalFeedback;
+    onDismiss: () => void;
+}) {
+    const Icon =
+        feedback.tone === 'success'
+            ? CheckCircle2
+            : feedback.tone === 'warning'
+              ? TriangleAlert
+              : Info;
+
+    return (
+        <Alert
+            className={cn(
+                'border',
+                feedback.tone === 'success'
+                    ? 'border-[color:var(--status-success)]/20 bg-[color:var(--status-success-soft)] text-[color:var(--status-success-foreground)]'
+                    : feedback.tone === 'warning'
+                      ? 'border-[color:var(--status-warning)]/20 bg-[color:var(--status-warning-soft)] text-[color:var(--status-warning-foreground)]'
+                      : 'border-[color:var(--status-info)]/20 bg-[color:var(--status-info-soft)] text-[color:var(--status-info-foreground)]',
+            )}
+        >
+            <Icon className="size-4" />
+            <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                    <AlertTitle>{feedback.title}</AlertTitle>
+                    <AlertDescription className="space-y-1">
+                        <p>{feedback.message}</p>
+                        {feedback.nextStep && <p>{feedback.nextStep}</p>}
+                    </AlertDescription>
+                </div>
+                <button
+                    type="button"
+                    className="rounded-[var(--radius-control)] p-1 opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+                    onClick={onDismiss}
+                    aria-label="Dismiss delivery feedback"
+                >
+                    <X className="size-4" />
+                </button>
+            </div>
+        </Alert>
+    );
 }
