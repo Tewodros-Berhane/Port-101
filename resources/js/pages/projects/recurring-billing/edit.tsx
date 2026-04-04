@@ -120,7 +120,8 @@ export default function ProjectRecurringBillingEdit({
                         auto_create_invoice_draft: data.auto_create_invoice_draft
                             ? 1
                             : 0,
-                    })).put(
+                    }));
+                    form.put(
                         `/company/projects/recurring-billing/${recurringBilling.id}`,
                     );
                 }}

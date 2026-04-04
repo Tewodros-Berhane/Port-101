@@ -12,6 +12,7 @@ use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\PlatformReportExportService;
 use App\Core\Platform\PlatformReportsService;
 use App\Http\Controllers\Controller;
+use App\Support\Http\Feedback;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -299,7 +300,7 @@ class DashboardController extends Controller
 
         return redirect()
             ->route($targetRoute)
-            ->with('success', 'Operations report preset saved.');
+            ->with('success', Feedback::flash($request, 'Operations report preset saved.'));
     }
 
     public function destroyReportPreset(
@@ -320,9 +321,15 @@ class DashboardController extends Controller
 
         return redirect()
             ->route($targetRoute)
-            ->with($deleted ? 'success' : 'warning', $deleted
-                ? 'Operations report preset deleted.'
-                : 'Preset was not found.');
+            ->with(
+                $deleted ? 'success' : 'warning',
+                Feedback::flash(
+                    $request,
+                    $deleted
+                        ? 'Operations report preset deleted.'
+                        : 'Preset was not found.',
+                ),
+            );
     }
 
     public function updatePreferences(

@@ -351,7 +351,7 @@ export default function InventoryReorderingIndex({
                                         {rule.min_quantity.toFixed(4)} / {rule.max_quantity.toFixed(4)}
                                     </td>
                                     <td className="px-3 py-2">
-                                        {rule.reorder_quantity !== null ? rule.reorder_quantity.toFixed(4) : '-'}
+                                        {rule.reorder_quantity != null ? rule.reorder_quantity.toFixed(4) : '-'}
                                     </td>
                                     <td className="px-3 py-2">{rule.metrics.available_quantity.toFixed(4)}</td>
                                     <td className="px-3 py-2">{rule.metrics.projected_quantity.toFixed(4)}</td>

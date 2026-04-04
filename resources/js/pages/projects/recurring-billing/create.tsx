@@ -125,7 +125,8 @@ export default function ProjectRecurringBillingCreate({
                         auto_create_invoice_draft: data.auto_create_invoice_draft
                             ? 1
                             : 0,
-                    })).post('/company/projects/recurring-billing');
+                    }));
+                    form.post('/company/projects/recurring-billing');
                 }}
             >
                 <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-4">

@@ -7,7 +7,9 @@ import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 
 type Summary = {
@@ -163,6 +165,21 @@ export default function HrAttendanceIndex({
     const rejectForm = useForm({
         reason: '',
     });
+    const { clientToastHeaders, showError, showPageFlashToast } =
+        useFeedbackToast();
+
+    const showCorrectionActionError = (
+        actionLabel: string,
+        requestNumber: string,
+        errors: Record<string, string | string[] | undefined | null>,
+    ) => {
+        showError({
+            title: `${actionLabel} not completed`,
+            message:
+                firstFormErrorMessage(errors) ??
+                `${requestNumber} could not be updated.`,
+        });
+    };
 
     const closeShiftModal = (open: boolean) => {
         setShowShiftModal(open);
@@ -193,8 +210,10 @@ export default function HrAttendanceIndex({
         rejectForm.post(
             `/company/hr/attendance/requests/${rejectingRequest.id}/reject`,
             {
+                headers: clientToastHeaders,
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    showPageFlashToast(page);
                     closeRejectDialog(false);
                 },
             },
@@ -203,7 +222,11 @@ export default function HrAttendanceIndex({
 
     const submitPunch = (endpoint: 'check-in' | 'check-out') => {
         punchForm.post(`/company/hr/attendance/${endpoint}`, {
+            headers: clientToastHeaders,
             preserveScroll: true,
+            onSuccess: (page) => {
+                showPageFlashToast(page);
+            },
         });
     };
 
@@ -548,8 +571,18 @@ export default function HrAttendanceIndex({
                                             <td className="px-3 py-2 align-top">
                                                 <div className="flex flex-wrap gap-2">
                                                     {requestRecord.can_edit && <Button variant="outline" size="sm" asChild><Link href={`/company/hr/attendance/requests/${requestRecord.id}/edit`}>Edit</Link></Button>}
-                                                    {requestRecord.can_submit && <Button variant="outline" size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/submit`, {}, { preserveScroll: true })}>Submit</Button>}
-                                                    {requestRecord.can_approve && <Button size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/approve`, {}, { preserveScroll: true })}>Approve</Button>}
+                                                    {requestRecord.can_submit && <Button variant="outline" size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/submit`, {}, {
+                                                        headers: clientToastHeaders,
+                                                        preserveScroll: true,
+                                                        onSuccess: (page) => showPageFlashToast(page),
+                                                        onError: (errors) => showCorrectionActionError('Submit', requestRecord.request_number, errors),
+                                                    })}>Submit</Button>}
+                                                    {requestRecord.can_approve && <Button size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/approve`, {}, {
+                                                        headers: clientToastHeaders,
+                                                        preserveScroll: true,
+                                                        onSuccess: (page) => showPageFlashToast(page),
+                                                        onError: (errors) => showCorrectionActionError('Approval', requestRecord.request_number, errors),
+                                                    })}>Approve</Button>}
                                                     {requestRecord.can_reject && (
                                                         <Button
                                                             variant="outline"
@@ -567,7 +600,12 @@ export default function HrAttendanceIndex({
                                                             Reject
                                                         </Button>
                                                     )}
-                                                    {requestRecord.can_cancel && <Button variant="ghost" size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/cancel`, {}, { preserveScroll: true })}>Cancel</Button>}
+                                                    {requestRecord.can_cancel && <Button variant="ghost" size="sm" type="button" onClick={() => router.post(`/company/hr/attendance/requests/${requestRecord.id}/cancel`, {}, {
+                                                        headers: clientToastHeaders,
+                                                        preserveScroll: true,
+                                                        onSuccess: (page) => showPageFlashToast(page),
+                                                        onError: (errors) => showCorrectionActionError('Cancellation', requestRecord.request_number, errors),
+                                                    })}>Cancel</Button>}
                                                 </div>
                                             </td>
                                         </tr>

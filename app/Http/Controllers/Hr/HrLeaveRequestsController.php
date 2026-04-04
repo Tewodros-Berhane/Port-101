@@ -7,6 +7,7 @@ use App\Http\Requests\Hr\HrLeaveDecisionRequest;
 use App\Http\Requests\Hr\HrLeaveRequestStoreRequest;
 use App\Http\Requests\Hr\HrLeaveRequestUpdateRequest;
 use App\Models\User;
+use App\Support\Http\Feedback;
 use App\Modules\Approvals\ApprovalQueueService;
 use App\Modules\Hr\HrLeaveService;
 use App\Modules\Hr\HrLeaveWorkspaceService;
@@ -276,7 +277,7 @@ class HrLeaveRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Leave request submitted.');
+        return back()->with('success', Feedback::flash($request, 'Leave request submitted.'));
     }
 
     public function approve(Request $request, HrLeaveRequest $leaveRequest, HrLeaveService $leaveService, ApprovalQueueService $approvalQueueService): RedirectResponse
@@ -290,7 +291,7 @@ class HrLeaveRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Leave request approved.');
+        return back()->with('success', Feedback::flash($request, 'Leave request approved.'));
     }
 
     public function reject(HrLeaveDecisionRequest $request, HrLeaveRequest $leaveRequest, HrLeaveService $leaveService, ApprovalQueueService $approvalQueueService): RedirectResponse
@@ -304,7 +305,7 @@ class HrLeaveRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Leave request rejected.');
+        return back()->with('success', Feedback::flash($request, 'Leave request rejected.'));
     }
 
     public function cancel(Request $request, HrLeaveRequest $leaveRequest, HrLeaveService $leaveService, ApprovalQueueService $approvalQueueService): RedirectResponse
@@ -318,6 +319,6 @@ class HrLeaveRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Leave request cancelled.');
+        return back()->with('success', Feedback::flash($request, 'Leave request cancelled.'));
     }
 }

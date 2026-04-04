@@ -18,8 +18,42 @@ type Option = {
     slug?: string;
 };
 
+type EmployeeFormData = {
+    first_name: string;
+    last_name: string;
+    employee_number: string;
+    user_id: string;
+    employment_status: string;
+    employment_type: string;
+    department_id: string;
+    department_name: string;
+    designation_id: string;
+    designation_name: string;
+    work_email: string;
+    work_phone: string;
+    personal_email: string;
+    personal_phone: string;
+    hire_date: string;
+    date_of_birth: string;
+    manager_employee_id: string;
+    work_location: string;
+    leave_approver_user_id: string;
+    attendance_approver_user_id: string;
+    reimbursement_approver_user_id: string;
+    timezone: string;
+    country_code: string;
+    bank_account_reference: string;
+    emergency_contact_name: string;
+    emergency_contact_phone: string;
+    termination_date: string;
+    requires_system_access: boolean;
+    system_role_id: string;
+    login_email: string;
+    notes: string;
+};
+
 type Props = {
-    employee: Record<string, string | boolean>;
+    employee: EmployeeFormData;
     employeeId: string;
     statuses: string[];
     employmentTypes: string[];
@@ -34,7 +68,7 @@ export default function HrEmployeeEdit({ employee, employeeId, statuses, employm
     const { hasPermission } = usePermissions();
     const canManage = hasPermission('hr.employees.manage');
     const canManageAccess = hasPermission('hr.employee_access.manage');
-    const form = useForm(employee);
+    const form = useForm<EmployeeFormData>(employee);
 
     return (
         <AppLayout

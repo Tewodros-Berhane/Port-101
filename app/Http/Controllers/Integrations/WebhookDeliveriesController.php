@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Integrations;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Http\Feedback;
 use App\Modules\Integrations\IntegrationWorkspaceService;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
@@ -138,9 +139,11 @@ class WebhookDeliveriesController extends Controller
 
         [$flashKey, $message] = $this->retryOutcomeMessage($delivery);
 
-        return redirect()
-            ->route('company.integrations.deliveries.show', $delivery)
-            ->with($flashKey, $message);
+        $redirect = Feedback::wantsClientToast($request)
+            ? back(303)
+            : redirect()->route('company.integrations.deliveries.show', $delivery);
+
+        return $redirect->with($flashKey, Feedback::flash($request, $message));
     }
 
     /**

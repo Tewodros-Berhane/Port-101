@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Platform;
 use App\Core\Platform\PlatformOperationalAlertingService;
 use App\Core\Platform\QueueHealthService;
 use App\Http\Controllers\Controller;
+use App\Support\Http\Feedback;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Reports\Models\ReportExport;
 use Illuminate\Http\RedirectResponse;
@@ -58,7 +59,7 @@ class QueueHealthController extends Controller
 
         return back(303)->with(
             $result['status'] === 'retried' ? 'success' : 'warning',
-            $result['message'],
+            Feedback::flash($request, $result['message']),
         );
     }
 
@@ -71,9 +72,12 @@ class QueueHealthController extends Controller
 
         return back(303)->with(
             $deleted ? 'success' : 'warning',
-            $deleted
-                ? 'Failed job was removed from the failure queue.'
-                : 'Failed job was not found.',
+            Feedback::flash(
+                $request,
+                $deleted
+                    ? 'Failed job was removed from the failure queue.'
+                    : 'Failed job was not found.',
+            ),
         );
     }
 
@@ -89,7 +93,10 @@ class QueueHealthController extends Controller
 
         return back(303)->with(
             'success',
-            'Failed job was discarded as a poison message and recorded for operator review.',
+            Feedback::flash(
+                $request,
+                'Failed job was discarded as a poison message and recorded for operator review.',
+            ),
         );
     }
 
@@ -107,7 +114,7 @@ class QueueHealthController extends Controller
             default => ['success', 'Webhook delivery retry queued.'],
         };
 
-        return back(303)->with($flash[0], $flash[1]);
+        return back(303)->with($flash[0], Feedback::flash($request, $flash[1]));
     }
 
     public function retryReportExport(
@@ -125,6 +132,6 @@ class QueueHealthController extends Controller
             default => ['success', 'Report export retry queued.'],
         };
 
-        return back(303)->with($flash[0], $flash[1]);
+        return back(303)->with($flash[0], Feedback::flash($request, $flash[1]));
     }
 }

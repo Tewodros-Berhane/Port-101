@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Hr;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\HrAttendancePunchRequest;
 use App\Models\User;
+use App\Support\Http\Feedback;
 use App\Modules\Hr\HrAttendanceService;
 use App\Modules\Hr\HrAttendanceWorkspaceService;
 use App\Modules\Hr\Models\HrAttendanceCheckin;
@@ -173,7 +174,7 @@ class HrAttendanceController extends Controller
 
         $attendanceService->checkIn($request->validated(), $request->user());
 
-        return back()->with('success', 'Check-in recorded.');
+        return back()->with('success', Feedback::flash($request, 'Check-in recorded.'));
     }
 
     public function checkOut(HrAttendancePunchRequest $request, HrAttendanceService $attendanceService): RedirectResponse
@@ -182,6 +183,6 @@ class HrAttendanceController extends Controller
 
         $attendanceService->checkOut($request->validated(), $request->user());
 
-        return back()->with('success', 'Check-out recorded.');
+        return back()->with('success', Feedback::flash($request, 'Check-out recorded.'));
     }
 }

@@ -8,6 +8,7 @@ import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
 import { cn } from '@/lib/utils';
@@ -154,6 +155,7 @@ export default function ShowWebhookEndpoint({
             null,
             'integrations.webhooks.show.feedback',
         );
+    const { clientToastHeaders } = useFeedbackToast();
     const filterForm = useForm({
         status: filters.status,
         event_type: filters.event_type,
@@ -207,6 +209,7 @@ export default function ShowWebhookEndpoint({
                                         `/company/integrations/webhooks/${endpoint.id}/test`,
                                         {},
                                         {
+                                            headers: clientToastHeaders,
                                             preserveScroll: true,
                                             onSuccess: (page) => {
                                                 const nextProps =
@@ -873,6 +876,7 @@ export default function ShowWebhookEndpoint({
                                                                 `/company/integrations/deliveries/${delivery.id}/retry`,
                                                                 {},
                                                                 {
+                                                                    headers: clientToastHeaders,
                                                                     preserveScroll:
                                                                         true,
                                                                     onSuccess: (
@@ -1031,6 +1035,7 @@ export default function ShowWebhookEndpoint({
                     rotateForm.post(
                         `/company/integrations/webhooks/${endpoint.id}/rotate-secret`,
                         {
+                            headers: clientToastHeaders,
                             preserveScroll: true,
                             onSuccess: () => setRotateDialogOpen(false),
                         },

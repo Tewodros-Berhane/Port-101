@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { platformBreadcrumbs } from '@/lib/page-navigation';
 import { cn } from '@/lib/utils';
@@ -191,6 +192,7 @@ export default function PlatformQueueHealth({
             null,
             'platform.queue-health.feedback',
         );
+    const { clientToastHeaders } = useFeedbackToast();
     const form = useForm({
         search: filters.search,
         queue: filters.queue,
@@ -218,6 +220,7 @@ export default function PlatformQueueHealth({
 
         const actionDialog = jobActionDialog;
         const options = {
+            headers: clientToastHeaders,
             preserveScroll: true,
             onSuccess: (page: { props: unknown }) => {
                 setJobActionDialog(null);
@@ -698,6 +701,7 @@ export default function PlatformQueueHealth({
                                                             `/platform/operations/queue-health/failed-jobs/${job.id}/retry`,
                                                             {},
                                                             {
+                                                                headers: clientToastHeaders,
                                                                 preserveScroll:
                                                                     true,
                                                                 onSuccess: (
@@ -904,6 +908,7 @@ export default function PlatformQueueHealth({
                                                     `/platform/operations/queue-health/webhook-deliveries/${delivery.id}/retry`,
                                                     {},
                                                     {
+                                                        headers: clientToastHeaders,
                                                         preserveScroll: true,
                                                         onSuccess: (page) => {
                                                             const nextProps =
@@ -996,6 +1001,7 @@ export default function PlatformQueueHealth({
                                                     `/platform/operations/queue-health/report-exports/${exportRow.id}/retry`,
                                                     {},
                                                     {
+                                                        headers: clientToastHeaders,
                                                         preserveScroll: true,
                                                         onSuccess: (page) => {
                                                             const nextProps =

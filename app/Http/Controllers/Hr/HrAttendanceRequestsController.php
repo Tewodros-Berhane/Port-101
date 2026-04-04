@@ -7,6 +7,7 @@ use App\Http\Requests\Hr\HrAttendanceDecisionRequest;
 use App\Http\Requests\Hr\HrAttendanceRequestStoreRequest;
 use App\Http\Requests\Hr\HrAttendanceRequestUpdateRequest;
 use App\Models\User;
+use App\Support\Http\Feedback;
 use App\Modules\Approvals\ApprovalQueueService;
 use App\Modules\Hr\HrAttendanceService;
 use App\Modules\Hr\HrAttendanceWorkspaceService;
@@ -133,7 +134,7 @@ class HrAttendanceRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Attendance correction submitted.');
+        return back()->with('success', Feedback::flash($request, 'Attendance correction submitted.'));
     }
 
     public function approve(Request $request, HrAttendanceRequest $attendanceRequest, HrAttendanceService $attendanceService, ApprovalQueueService $approvalQueueService): RedirectResponse
@@ -147,7 +148,7 @@ class HrAttendanceRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Attendance correction approved.');
+        return back()->with('success', Feedback::flash($request, 'Attendance correction approved.'));
     }
 
     public function reject(HrAttendanceDecisionRequest $request, HrAttendanceRequest $attendanceRequest, HrAttendanceService $attendanceService, ApprovalQueueService $approvalQueueService): RedirectResponse
@@ -161,7 +162,7 @@ class HrAttendanceRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Attendance correction rejected.');
+        return back()->with('success', Feedback::flash($request, 'Attendance correction rejected.'));
     }
 
     public function cancel(Request $request, HrAttendanceRequest $attendanceRequest, HrAttendanceService $attendanceService, ApprovalQueueService $approvalQueueService): RedirectResponse
@@ -175,6 +176,6 @@ class HrAttendanceRequestsController extends Controller
             return back()->withErrors($exception->errors());
         }
 
-        return back()->with('success', 'Attendance correction cancelled.');
+        return back()->with('success', Feedback::flash($request, 'Attendance correction cancelled.'));
     }
 }

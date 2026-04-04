@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Integrations\WebhookEndpointStoreRequest;
 use App\Http\Requests\Integrations\WebhookEndpointUpdateRequest;
 use App\Models\User;
+use App\Support\Http\Feedback;
 use App\Modules\Integrations\IntegrationWorkspaceService;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
@@ -264,7 +265,7 @@ class WebhookEndpointsController extends Controller
 
         return redirect()
             ->route('company.integrations.webhooks.show', $endpoint)
-            ->with('success', 'Webhook signing secret rotated.')
+            ->with('success', Feedback::flash($request, 'Webhook signing secret rotated.'))
             ->with('webhook_signing_secret', $rotated['signing_secret']);
     }
 
@@ -278,7 +279,7 @@ class WebhookEndpointsController extends Controller
 
         return redirect()
             ->route('company.integrations.webhooks.show', $endpoint)
-            ->with($flashKey, $message);
+            ->with($flashKey, Feedback::flash($request, $message));
     }
 
     /**

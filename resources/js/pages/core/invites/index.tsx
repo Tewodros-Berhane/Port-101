@@ -6,6 +6,7 @@ import { ModalFormShell } from '@/components/modals/modal-form-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { companyBreadcrumbs } from '@/lib/page-navigation';
 
@@ -37,6 +38,7 @@ const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
 export default function CompanyInvitesIndex({ invites }: Props) {
+    const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
     const deleteForm = useForm({});
     const resendForm = useForm({});
     const retryDeliveryForm = useForm({});
@@ -80,7 +82,10 @@ export default function CompanyInvitesIndex({ invites }: Props) {
         }
 
         deleteForm.delete(`/core/invites/${revokeDialog.id}`, {
-            onSuccess: () => {
+            headers: clientToastHeaders,
+            preserveScroll: true,
+            onSuccess: (page) => {
+                showPageFlashToast(page);
                 deleteForm.reset();
                 deleteForm.clearErrors();
                 setRevokeDialog(null);
@@ -89,11 +94,19 @@ export default function CompanyInvitesIndex({ invites }: Props) {
     };
 
     const handleResend = (inviteId: string) => {
-        resendForm.post(`/core/invites/${inviteId}/resend`);
+        resendForm.post(`/core/invites/${inviteId}/resend`, {
+            headers: clientToastHeaders,
+            preserveScroll: true,
+            onSuccess: (page) => showPageFlashToast(page),
+        });
     };
 
     const handleRetryDelivery = (inviteId: string) => {
-        retryDeliveryForm.post(`/core/invites/${inviteId}/retry-delivery`);
+        retryDeliveryForm.post(`/core/invites/${inviteId}/retry-delivery`, {
+            headers: clientToastHeaders,
+            preserveScroll: true,
+            onSuccess: (page) => showPageFlashToast(page),
+        });
     };
 
     return (

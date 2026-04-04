@@ -136,7 +136,14 @@ export default function InventoryReorderingEdit({ rule, products, locations, ven
                             step="0.0001"
                             className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                             value={form.data.reorder_quantity}
-                            onChange={(event) => form.setData('reorder_quantity', event.target.value)}
+                            onChange={(event) =>
+                                form.setData(
+                                    'reorder_quantity',
+                                    event.target.value === ''
+                                        ? ''
+                                        : Number(event.target.value),
+                                )
+                            }
                         />
                         <InputError message={form.errors.reorder_quantity} />
                     </div>
@@ -169,7 +176,14 @@ export default function InventoryReorderingEdit({ rule, products, locations, ven
                             step="1"
                             className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                             value={form.data.lead_time_days}
-                            onChange={(event) => form.setData('lead_time_days', event.target.value)}
+                            onChange={(event) =>
+                                form.setData(
+                                    'lead_time_days',
+                                    event.target.value === ''
+                                        ? ''
+                                        : Number(event.target.value),
+                                )
+                            }
                         />
                         <InputError message={form.errors.lead_time_days} />
                     </div>

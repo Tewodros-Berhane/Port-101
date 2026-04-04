@@ -6,6 +6,7 @@ use App\Core\Access\Models\Invite;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\CompanyInviteStoreRequest;
 use App\Jobs\SendInviteLinkMail;
+use App\Support\Http\Feedback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -91,7 +92,7 @@ class CompanyInvitesController extends Controller
 
         return redirect()
             ->route('core.invites.index')
-            ->with('success', 'Owner invite created and queued for delivery.');
+            ->with('success', Feedback::flash($request, 'Owner invite created and queued for delivery.'));
     }
 
     public function resend(Request $request, Invite $invite): RedirectResponse
@@ -105,14 +106,14 @@ class CompanyInvitesController extends Controller
         if ($invite->accepted_at) {
             return redirect()
                 ->route('core.invites.index')
-                ->with('error', 'Invite already accepted.');
+                ->with('error', Feedback::flash($request, 'Invite already accepted.'));
         }
 
         $this->queueDelivery($invite);
 
         return redirect()
             ->route('core.invites.index')
-            ->with('success', 'Invite resend queued.');
+            ->with('success', Feedback::flash($request, 'Invite resend queued.'));
     }
 
     public function retryDelivery(Request $request, Invite $invite): RedirectResponse
@@ -126,14 +127,14 @@ class CompanyInvitesController extends Controller
         if ($invite->accepted_at) {
             return redirect()
                 ->route('core.invites.index')
-                ->with('error', 'Accepted invites do not require delivery retry.');
+                ->with('error', Feedback::flash($request, 'Accepted invites do not require delivery retry.'));
         }
 
         $this->queueDelivery($invite);
 
         return redirect()
             ->route('core.invites.index')
-            ->with('success', 'Invite delivery retry queued.');
+            ->with('success', Feedback::flash($request, 'Invite delivery retry queued.'));
     }
 
     public function destroy(Request $request, Invite $invite): RedirectResponse
@@ -148,7 +149,7 @@ class CompanyInvitesController extends Controller
 
         return redirect()
             ->route('core.invites.index')
-            ->with('success', 'Invite removed.');
+            ->with('success', Feedback::flash($request, 'Invite removed.'));
     }
 
     private function queueDelivery(Invite $invite): void

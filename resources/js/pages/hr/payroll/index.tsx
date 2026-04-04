@@ -108,7 +108,13 @@ export default function HrPayrollIndex({ summary, structures, assignments, perio
                                     <td className="px-3 py-2">{assignment.salary_structure_name ?? '-'}</td>
                                     <td className="px-3 py-2 capitalize">{assignment.pay_frequency}</td>
                                     <td className="px-3 py-2 capitalize">{assignment.salary_basis}</td>
-                                    <td className="px-3 py-2">{assignment.base_salary_amount !== null ? `${assignment.currency_code ?? ''} ${assignment.base_salary_amount.toFixed(2)}` : assignment.hourly_rate !== null ? `${assignment.currency_code ?? ''} ${assignment.hourly_rate.toFixed(2)}/hr` : '-'}</td>
+                                    <td className="px-3 py-2">
+                                        {assignment.base_salary_amount != null
+                                            ? `${assignment.currency_code ?? ''} ${assignment.base_salary_amount.toFixed(2)}`
+                                            : assignment.hourly_rate != null
+                                              ? `${assignment.currency_code ?? ''} ${assignment.hourly_rate.toFixed(2)}/hr`
+                                              : '-'}
+                                    </td>
                                     <td className="px-3 py-2">{assignment.can_edit && <Button variant="outline" size="sm" asChild><Link href={`/company/hr/payroll/assignments/${assignment.id}/edit`}>Edit</Link></Button>}</td>
                                 </tr>
                             ))}

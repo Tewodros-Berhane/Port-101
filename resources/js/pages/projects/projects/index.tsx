@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -161,17 +161,13 @@ export default function ProjectsIndex({
                         type="button"
                         variant="outline"
                         onClick={() => {
-                            form.setData({
+                            const reset = {
                                 search: '',
                                 status: '',
                                 billing_type: '',
-                            });
-                            form.get('/company/projects/workspace', {
-                                data: {
-                                    search: '',
-                                    status: '',
-                                    billing_type: '',
-                                },
+                            };
+                            form.setData(reset);
+                            router.get('/company/projects/workspace', reset, {
                                 preserveState: true,
                                 replace: true,
                             });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Approvals;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Approvals\ApprovalRequestRejectRequest;
+use App\Support\Http\Feedback;
 use App\Modules\Approvals\ApprovalQueueService;
 use App\Modules\Approvals\Models\ApprovalRequest;
 use Illuminate\Http\RedirectResponse;
@@ -129,12 +130,18 @@ class ApprovalsDashboardController extends Controller
         } catch (ValidationException $exception) {
             return back()
                 ->withErrors($exception->errors())
-                ->with('error', collect($exception->errors())
-                    ->flatten()
-                    ->first() ?? 'Approval failed.');
+                ->with(
+                    'error',
+                    Feedback::flash(
+                        $request,
+                        collect($exception->errors())
+                            ->flatten()
+                            ->first() ?? 'Approval failed.',
+                    ),
+                );
         }
 
-        return back()->with('success', 'Approval request approved.');
+        return back()->with('success', Feedback::flash($request, 'Approval request approved.'));
     }
 
     public function reject(
@@ -158,12 +165,18 @@ class ApprovalsDashboardController extends Controller
         } catch (ValidationException $exception) {
             return back()
                 ->withErrors($exception->errors())
-                ->with('error', collect($exception->errors())
-                    ->flatten()
-                    ->first() ?? 'Rejection failed.');
+                ->with(
+                    'error',
+                    Feedback::flash(
+                        $request,
+                        collect($exception->errors())
+                            ->flatten()
+                            ->first() ?? 'Rejection failed.',
+                    ),
+                );
         }
 
-        return back()->with('success', 'Approval request rejected.');
+        return back()->with('success', Feedback::flash($request, 'Approval request rejected.'));
     }
 
     /**

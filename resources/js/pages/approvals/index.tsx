@@ -24,6 +24,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { companyBreadcrumbs } from '@/lib/page-navigation';
@@ -96,6 +97,7 @@ export default function ApprovalsIndex({
     approvalRequests,
 }: Props) {
     const { hasPermission } = usePermissions();
+    const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
     const canManage = hasPermission('approvals.requests.manage');
     const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(
         null,
@@ -120,7 +122,15 @@ export default function ApprovalsIndex({
     );
 
     const handleApprove = (requestId: string) => {
-        router.post(`/company/approvals/${requestId}/approve`, {}, { preserveScroll: true });
+        router.post(
+            `/company/approvals/${requestId}/approve`,
+            {},
+            {
+                headers: clientToastHeaders,
+                preserveScroll: true,
+                onSuccess: (page) => showPageFlashToast(page),
+            },
+        );
     };
 
     const handleRejectOpenChange = (open: boolean) => {
@@ -141,8 +151,10 @@ export default function ApprovalsIndex({
         }
 
         rejectForm.post(`/company/approvals/${rejectingRequest.id}/reject`, {
+            headers: clientToastHeaders,
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
+                showPageFlashToast(page);
                 handleRejectOpenChange(false);
             },
         });

@@ -100,13 +100,14 @@ export default function ClaimForm({
 
     const submit = (action: 'draft' | 'save' | 'submit') => {
         const payload = { ...form.data, action };
+        form.transform(() => payload);
 
         if (method === 'put') {
-            form.transform(() => payload).put(submitUrl);
+            form.put(submitUrl);
             return;
         }
 
-        form.transform(() => payload).post(submitUrl);
+        form.post(submitUrl);
     };
 
     const uploadReceipt = (lineId: string) => {

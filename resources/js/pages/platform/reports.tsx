@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
 import { platformBreadcrumbs } from '@/lib/page-navigation';
 import { cn } from '@/lib/utils';
@@ -80,6 +81,7 @@ export default function PlatformReports({
             null,
             'platform.reports.feedback',
         );
+    const { clientToastHeaders } = useFeedbackToast();
     const form = useForm({
         trend_window: String(operationsFilters.trend_window ?? 30),
         admin_action: operationsFilters.admin_action ?? '',
@@ -340,6 +342,7 @@ export default function PlatformReports({
                                 }));
 
                                 presetForm.post('/platform/reports/report-presets', {
+                                    headers: clientToastHeaders,
                                     preserveScroll: true,
                                     onSuccess: () => {
                                         const presetName =
@@ -528,6 +531,7 @@ export default function PlatformReports({
                                                         deletePresetForm.delete(
                                                             `/platform/reports/report-presets/${preset.id}`,
                                                             {
+                                                                headers: clientToastHeaders,
                                                                 preserveScroll: true,
                                                                 onSuccess: () =>
                                                                     publishFeedback(
