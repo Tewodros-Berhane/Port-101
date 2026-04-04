@@ -1,9 +1,16 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, useRemember } from '@inertiajs/react';
+import {
+    OperationResultPanel,
+    type OperationResultFeedback,
+} from '@/components/feedback/operation-result-panel';
 import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
+import { resolveFlashToast } from '@/lib/feedback-toast';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
+import type { SharedData } from '@/types';
 
 type Line = {
     id: string;
@@ -70,6 +77,25 @@ type Props = {
     };
 };
 
+type CycleCountAction = 'save' | 'start' | 'review' | 'post' | 'cancel';
+
+type CycleCountActionContext = {
+    action: CycleCountAction;
+    reference: string;
+    warehouseName?: string | null;
+    locationName?: string | null;
+};
+
+type CycleCountResultPage = {
+    props: Props &
+        SharedData & {
+            errors?: Record<string, string | string[] | undefined | null>;
+        };
+};
+
+const labelize = (value: string) =>
+    value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
 export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentMoves, permissions }: Props) {
     const form = useForm({
         lines: lines.map((line) => ({
@@ -79,6 +105,95 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                     ? ''
                     : String(line.counted_quantity),
         })),
+    });
+    const actionForm = useForm({});
+    const [operationFeedback, setOperationFeedback] =
+        useRemember<OperationResultFeedback | null>(
+            null,
+            'inventory.cycle-counts.operation-feedback',
+        );
+
+    const buildActionContext = (
+        action: CycleCountAction,
+    ): CycleCountActionContext => ({
+        action,
+        reference: cycleCount.reference,
+        warehouseName: cycleCount.warehouse_name,
+        locationName: cycleCount.location_name,
+    });
+
+    const buildCycleCountFeedback = (
+        page: CycleCountResultPage,
+        context: CycleCountActionContext,
+    ): OperationResultFeedback => {
+        const flash = resolveFlashToast(page.props.flash, {
+            includeSuppressed: true,
+        });
+        const nextCycleCount = page.props.cycleCount;
+
+        return {
+            tone:
+                flash?.level === 'error'
+                    ? 'error'
+                    : flash?.level === 'warning'
+                      ? 'warning'
+                      : 'success',
+            title:
+                context.action === 'post'
+                    ? 'Cycle count posted'
+                    : context.action === 'cancel'
+                      ? 'Cycle count cancelled'
+                      : context.action === 'review'
+                        ? 'Cycle count reviewed'
+                        : context.action === 'start'
+                          ? 'Cycle count started'
+                          : 'Cycle count saved',
+            message:
+                flash?.message ??
+                'The cycle count workflow was updated successfully.',
+            details: [
+                `${context.reference}${context.warehouseName ? ` | ${context.warehouseName}` : ''}${context.locationName ? ` | ${context.locationName}` : ''}`,
+                `Current status: ${labelize(nextCycleCount.status)}`,
+                context.action === 'post'
+                    ? `${page.props.adjustmentMoves.length} adjustment move${
+                          page.props.adjustmentMoves.length === 1 ? '' : 's'
+                      } now visible on this page`
+                    : `${page.props.lines.length} count line${
+                          page.props.lines.length === 1 ? '' : 's'
+                      } in scope`,
+            ],
+            nextStep:
+                context.action === 'save'
+                    ? 'Continue counting lines or move the session to review when the quantities are ready.'
+                    : context.action === 'start'
+                      ? 'Record counted quantities on the line table before sending the session for review.'
+                      : context.action === 'review'
+                        ? 'Inspect the variances and approval context, then post adjustments or resolve the blocking issue.'
+                        : context.action === 'post'
+                          ? page.props.adjustmentMoves.length > 0
+                              ? 'Review the generated adjustment moves below and confirm stock effects before leaving the session.'
+                              : 'Review the posted session status and generated stock adjustments before leaving this page.'
+                          : 'This session is now closed. Start a new cycle count if inventory still needs to be recounted.',
+        };
+    };
+
+    const buildCycleCountErrorFeedback = (
+        context: CycleCountActionContext,
+        errors: Record<string, string | string[] | undefined | null>,
+        title: string,
+    ): OperationResultFeedback => ({
+        tone: 'error',
+        title,
+        message:
+            firstFormErrorMessage(errors) ??
+            'The cycle count action could not be completed.',
+        details: [
+            `${context.reference}${context.warehouseName ? ` | ${context.warehouseName}` : ''}${context.locationName ? ` | ${context.locationName}` : ''}`,
+        ],
+        nextStep:
+            context.action === 'save'
+                ? 'Correct the line quantities below and try saving the session again.'
+                : 'Review the cycle count status, approval requirements, or generated adjustments before trying again.',
     });
 
     return (
@@ -92,7 +207,7 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                 <div>
                     <h1 className="text-xl font-semibold">{cycleCount.reference}</h1>
                     <p className="text-sm text-muted-foreground">
-                        {cycleCount.warehouse_name ?? 'No warehouse scope'} � {cycleCount.location_name ?? 'All scoped locations'}
+                        {cycleCount.warehouse_name ?? 'No warehouse scope'} | {cycleCount.location_name ?? 'All scoped locations'}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -100,11 +215,29 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                     {permissions.can_start && (
                         <Button
                             variant="outline"
-                            onClick={() =>
-                                form.post(`/company/inventory/cycle-counts/${cycleCount.id}/start`, {
+                            disabled={actionForm.processing}
+                            onClick={() => {
+                                const context = buildActionContext('start');
+
+                                actionForm.post(`/company/inventory/cycle-counts/${cycleCount.id}/start`, {
                                     preserveScroll: true,
-                                })
-                            }
+                                    onSuccess: (page) =>
+                                        setOperationFeedback(
+                                            buildCycleCountFeedback(
+                                                page as unknown as CycleCountResultPage,
+                                                context,
+                                            ),
+                                        ),
+                                    onError: (errors) =>
+                                        setOperationFeedback(
+                                            buildCycleCountErrorFeedback(
+                                                context,
+                                                errors,
+                                                'Cycle count start failed',
+                                            ),
+                                        ),
+                                });
+                            }}
                         >
                             Start count
                         </Button>
@@ -112,22 +245,58 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                     {permissions.can_review && (
                         <Button
                             variant="outline"
-                            onClick={() =>
-                                form.post(`/company/inventory/cycle-counts/${cycleCount.id}/review`, {
+                            disabled={actionForm.processing}
+                            onClick={() => {
+                                const context = buildActionContext('review');
+
+                                actionForm.post(`/company/inventory/cycle-counts/${cycleCount.id}/review`, {
                                     preserveScroll: true,
-                                })
-                            }
+                                    onSuccess: (page) =>
+                                        setOperationFeedback(
+                                            buildCycleCountFeedback(
+                                                page as unknown as CycleCountResultPage,
+                                                context,
+                                            ),
+                                        ),
+                                    onError: (errors) =>
+                                        setOperationFeedback(
+                                            buildCycleCountErrorFeedback(
+                                                context,
+                                                errors,
+                                                'Cycle count review failed',
+                                            ),
+                                        ),
+                                });
+                            }}
                         >
                             Review count
                         </Button>
                     )}
                     {permissions.can_post && (
                         <Button
-                            onClick={() =>
-                                form.post(`/company/inventory/cycle-counts/${cycleCount.id}/post`, {
+                            disabled={actionForm.processing}
+                            onClick={() => {
+                                const context = buildActionContext('post');
+
+                                actionForm.post(`/company/inventory/cycle-counts/${cycleCount.id}/post`, {
                                     preserveScroll: true,
-                                })
-                            }
+                                    onSuccess: (page) =>
+                                        setOperationFeedback(
+                                            buildCycleCountFeedback(
+                                                page as unknown as CycleCountResultPage,
+                                                context,
+                                            ),
+                                        ),
+                                    onError: (errors) =>
+                                        setOperationFeedback(
+                                            buildCycleCountErrorFeedback(
+                                                context,
+                                                errors,
+                                                'Cycle count posting failed',
+                                            ),
+                                        ),
+                                });
+                            }}
                         >
                             Post adjustments
                         </Button>
@@ -135,17 +304,44 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                     {permissions.can_cancel && (
                         <Button
                             variant="destructive"
-                            onClick={() =>
-                                form.post(`/company/inventory/cycle-counts/${cycleCount.id}/cancel`, {
+                            disabled={actionForm.processing}
+                            onClick={() => {
+                                const context = buildActionContext('cancel');
+
+                                actionForm.post(`/company/inventory/cycle-counts/${cycleCount.id}/cancel`, {
                                     preserveScroll: true,
-                                })
-                            }
+                                    onSuccess: (page) =>
+                                        setOperationFeedback(
+                                            buildCycleCountFeedback(
+                                                page as unknown as CycleCountResultPage,
+                                                context,
+                                            ),
+                                        ),
+                                    onError: (errors) =>
+                                        setOperationFeedback(
+                                            buildCycleCountErrorFeedback(
+                                                context,
+                                                errors,
+                                                'Cycle count cancellation failed',
+                                            ),
+                                        ),
+                                });
+                            }}
                         >
                             Cancel
                         </Button>
                     )}
                 </div>
             </div>
+
+            {operationFeedback ? (
+                <div className="mt-6">
+                    <OperationResultPanel
+                        feedback={operationFeedback}
+                        onDismiss={() => setOperationFeedback(null)}
+                    />
+                </div>
+            ) : null}
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                 <Metric label="Status" value={cycleCount.status.replaceAll('_', ' ')} />
@@ -171,14 +367,24 @@ export default function InventoryCycleCountShow({ cycleCount, lines, adjustmentM
                 className="mt-6 rounded-xl border p-4"
                 onSubmit={(event) => {
                     event.preventDefault();
+                    const context = buildActionContext('save');
+
                     form.transform((data) => ({
                         lines: data.lines.map((line) => ({
                             id: line.id,
                             counted_quantity:
                                 line.counted_quantity === '' ? null : Number(line.counted_quantity),
                         })),
-                    })).put(`/company/inventory/cycle-counts/${cycleCount.id}`, {
+                    }));
+                    form.put(`/company/inventory/cycle-counts/${cycleCount.id}`, {
                         preserveScroll: true,
+                        onSuccess: (page) =>
+                            setOperationFeedback(
+                                buildCycleCountFeedback(
+                                    page as unknown as CycleCountResultPage,
+                                    context,
+                                ),
+                            ),
                     });
                 }}
             >

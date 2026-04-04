@@ -1,4 +1,8 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, useRemember } from '@inertiajs/react';
+import {
+    OperationResultPanel,
+    type OperationResultFeedback,
+} from '@/components/feedback/operation-result-panel';
 import InputError from '@/components/input-error';
 import InventoryMoveLinesEditor, {
     type InventoryMoveLineInput,
@@ -9,7 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
+import { resolveFlashToast } from '@/lib/feedback-toast';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
+import type { SharedData } from '@/types';
 
 type ProductOption = {
     id: string;
@@ -68,6 +75,25 @@ type Props = {
     salesOrders: SalesOrderOption[];
 };
 
+type MoveAction = 'save' | 'reserve' | 'complete' | 'cancel';
+
+type MoveActionContext = {
+    action: MoveAction;
+    reference: string;
+    moveType: string;
+    productLabel?: string | null;
+};
+
+type InventoryMoveResultPage = {
+    props: Props &
+        SharedData & {
+            errors?: Record<string, string | string[] | undefined | null>;
+        };
+};
+
+const labelize = (value: string) =>
+    value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
 export default function InventoryMoveEdit({
     move,
     moveTypes,
@@ -91,6 +117,11 @@ export default function InventoryMoveEdit({
     });
 
     const actionForm = useForm({});
+    const [operationFeedback, setOperationFeedback] =
+        useRemember<OperationResultFeedback | null>(
+            null,
+            'inventory.moves.edit.operation-feedback',
+        );
     const isDraft = move.status === 'draft';
     const isReserved = move.status === 'reserved';
     const isDone = move.status === 'done';
@@ -100,6 +131,77 @@ export default function InventoryMoveEdit({
     );
     const trackingMode =
         selectedProduct?.tracking_mode ?? move.product_tracking_mode ?? 'none';
+    const buildActionContext = (action: MoveAction): MoveActionContext => ({
+        action,
+        reference: move.reference ?? 'Unreferenced move',
+        moveType: move.move_type,
+        productLabel: selectedProduct?.name ?? null,
+    });
+
+    const buildMoveFeedback = (
+        page: InventoryMoveResultPage,
+        context: MoveActionContext,
+    ): OperationResultFeedback => {
+        const flash = resolveFlashToast(page.props.flash, {
+            includeSuppressed: true,
+        });
+        const nextMove = page.props.move;
+
+        return {
+            tone:
+                flash?.level === 'error'
+                    ? 'error'
+                    : flash?.level === 'warning'
+                      ? 'warning'
+                      : 'success',
+            title:
+                context.action === 'complete'
+                    ? 'Stock move completed'
+                    : context.action === 'cancel'
+                      ? 'Stock move cancelled'
+                      : context.action === 'reserve'
+                        ? 'Stock move reserved'
+                        : 'Stock move saved',
+            message:
+                flash?.message ??
+                'The stock move was updated successfully.',
+            details: [
+                `${context.reference} | ${labelize(context.moveType)}`,
+                context.productLabel
+                    ? `Product: ${context.productLabel}`
+                    : 'Review the linked product on this move',
+                `Current status: ${labelize(nextMove.status)}`,
+            ],
+            nextStep:
+                context.action === 'save'
+                    ? 'Review the move lines and reserve stock when the document is ready to execute.'
+                    : context.action === 'reserve'
+                      ? 'Review reserved quantities before completing or cancelling the move.'
+                      : context.action === 'complete'
+                        ? 'Verify the completed stock movement and any linked downstream documents before leaving this page.'
+                        : 'This move is now closed. Create a replacement stock move if inventory still needs to be transferred.',
+        };
+    };
+
+    const buildMoveErrorFeedback = (
+        context: MoveActionContext,
+        errors: Record<string, string | string[] | undefined | null>,
+        title: string,
+    ): OperationResultFeedback => ({
+        tone: 'error',
+        title,
+        message:
+            firstFormErrorMessage(errors) ??
+            'The stock move action could not be completed.',
+        details: [
+            `${context.reference} | ${labelize(context.moveType)}`,
+            context.productLabel
+                ? `Product: ${context.productLabel}`
+                : 'Review the selected product on this move',
+        ],
+        nextStep:
+            'Review stock availability, move lines, and the current move status before trying again.',
+    });
 
     return (
         <AppLayout
@@ -136,11 +238,30 @@ export default function InventoryMoveEdit({
                 </div>
             </div>
 
+            {operationFeedback ? (
+                <div className="mt-6">
+                    <OperationResultPanel
+                        feedback={operationFeedback}
+                        onDismiss={() => setOperationFeedback(null)}
+                    />
+                </div>
+            ) : null}
+
             <form
                 className="mt-6 grid gap-6"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.put(`/company/inventory/moves/${move.id}`);
+                    const context = buildActionContext('save');
+
+                    form.put(`/company/inventory/moves/${move.id}`, {
+                        onSuccess: (page) =>
+                            setOperationFeedback(
+                                buildMoveFeedback(
+                                    page as unknown as InventoryMoveResultPage,
+                                    context,
+                                ),
+                            ),
+                    });
                 }}
             >
                 <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-2">
@@ -343,11 +464,30 @@ export default function InventoryMoveEdit({
                                 type="button"
                                 variant="outline"
                                 disabled={actionForm.processing}
-                                onClick={() =>
+                                onClick={() => {
+                                    const context = buildActionContext('reserve');
+
                                     actionForm.post(
                                         `/company/inventory/moves/${move.id}/reserve`,
-                                    )
-                                }
+                                        {
+                                            onSuccess: (page) =>
+                                                setOperationFeedback(
+                                                    buildMoveFeedback(
+                                                        page as unknown as InventoryMoveResultPage,
+                                                        context,
+                                                    ),
+                                                ),
+                                            onError: (errors) =>
+                                                setOperationFeedback(
+                                                    buildMoveErrorFeedback(
+                                                        context,
+                                                        errors,
+                                                        'Stock reservation failed',
+                                                    ),
+                                                ),
+                                        },
+                                    );
+                                }}
                             >
                                 Reserve
                             </Button>
@@ -357,11 +497,31 @@ export default function InventoryMoveEdit({
                             <Button
                                 type="button"
                                 disabled={actionForm.processing}
-                                onClick={() =>
+                                onClick={() => {
+                                    const context =
+                                        buildActionContext('complete');
+
                                     actionForm.post(
                                         `/company/inventory/moves/${move.id}/complete`,
-                                    )
-                                }
+                                        {
+                                            onSuccess: (page) =>
+                                                setOperationFeedback(
+                                                    buildMoveFeedback(
+                                                        page as unknown as InventoryMoveResultPage,
+                                                        context,
+                                                    ),
+                                                ),
+                                            onError: (errors) =>
+                                                setOperationFeedback(
+                                                    buildMoveErrorFeedback(
+                                                        context,
+                                                        errors,
+                                                        'Stock move completion failed',
+                                                    ),
+                                                ),
+                                        },
+                                    );
+                                }}
                             >
                                 Complete
                             </Button>
@@ -372,11 +532,30 @@ export default function InventoryMoveEdit({
                                 type="button"
                                 variant="outline"
                                 disabled={actionForm.processing}
-                                onClick={() =>
+                                onClick={() => {
+                                    const context = buildActionContext('cancel');
+
                                     actionForm.post(
                                         `/company/inventory/moves/${move.id}/cancel`,
-                                    )
-                                }
+                                        {
+                                            onSuccess: (page) =>
+                                                setOperationFeedback(
+                                                    buildMoveFeedback(
+                                                        page as unknown as InventoryMoveResultPage,
+                                                        context,
+                                                    ),
+                                                ),
+                                            onError: (errors) =>
+                                                setOperationFeedback(
+                                                    buildMoveErrorFeedback(
+                                                        context,
+                                                        errors,
+                                                        'Stock move cancellation failed',
+                                                    ),
+                                                ),
+                                        },
+                                    );
+                                }}
                             >
                                 Cancel
                             </Button>

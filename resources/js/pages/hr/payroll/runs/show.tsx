@@ -1,11 +1,18 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, useRemember } from '@inertiajs/react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/feedback/confirm-dialog';
+import {
+    OperationResultPanel,
+    type OperationResultFeedback,
+} from '@/components/feedback/operation-result-panel';
 import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
+import { resolveFlashToast } from '@/lib/feedback-toast';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleLinks, moduleBreadcrumbs } from '@/lib/page-navigation';
+import type { SharedData } from '@/types';
 
 type PayrollRun = {
     id: string;
@@ -79,6 +86,20 @@ type Props = {
     abilities: Abilities;
 };
 
+type PayrollActionContext = {
+    action: 'prepare' | 'approve' | 'reject' | 'post';
+    runNumber: string;
+    periodName?: string | null;
+    totalNet: number;
+};
+
+type PayrollRunResultPage = {
+    props: Props &
+        SharedData & {
+            errors?: Record<string, string | string[] | undefined | null>;
+        };
+};
+
 const labelize = (value: string) =>
     value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -91,10 +112,93 @@ export default function HrPayrollRunShow({
 }: Props) {
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [postDialogOpen, setPostDialogOpen] = useState(false);
+    const [operationFeedback, setOperationFeedback] =
+        useRemember<OperationResultFeedback | null>(
+            null,
+            'hr.payroll.run.operation-feedback',
+        );
     const rejectForm = useForm({
         reason: '',
     });
     const postForm = useForm({});
+
+    const buildActionContext = (
+        action: PayrollActionContext['action'],
+    ): PayrollActionContext => ({
+        action,
+        runNumber: run.run_number,
+        periodName: run.period.name,
+        totalNet: run.total_net,
+    });
+
+    const buildRunFeedback = (
+        page: PayrollRunResultPage,
+        context: PayrollActionContext,
+    ): OperationResultFeedback => {
+        const flash = resolveFlashToast(page.props.flash, {
+            includeSuppressed: true,
+        });
+        const nextRun = page.props.run;
+
+        return {
+            tone:
+                flash?.level === 'error'
+                    ? 'error'
+                    : flash?.level === 'warning'
+                      ? 'warning'
+                      : 'success',
+            title:
+                context.action === 'post'
+                    ? 'Payroll run posted'
+                    : context.action === 'reject'
+                      ? 'Payroll run rejected'
+                      : context.action === 'approve'
+                        ? 'Payroll run approved'
+                        : 'Payroll run prepared',
+            message:
+                flash?.message ??
+                'The payroll run state was updated successfully.',
+            details: [
+                `${context.runNumber}${context.periodName ? ` | ${context.periodName}` : ''}`,
+                `${page.props.workEntries.length} work entr${
+                    page.props.workEntries.length === 1 ? 'y' : 'ies'
+                } | ${page.props.payslips.length} payslip${
+                    page.props.payslips.length === 1 ? '' : 's'
+                }`,
+                nextRun.journal_entry_number
+                    ? `Journal entry: ${nextRun.journal_entry_number}`
+                    : `Current status: ${labelize(nextRun.status)}`,
+            ],
+            nextStep:
+                context.action === 'prepare'
+                    ? 'Review work-entry conflicts and payslips, then approve the run when payroll is ready.'
+                    : context.action === 'approve'
+                      ? 'Finance can now post the payroll run when the accrual journal and payslips are ready to publish.'
+                      : context.action === 'reject'
+                        ? 'Correct the payroll inputs, then prepare or approve the run again when it is ready.'
+                        : nextRun.journal_entry_number
+                          ? 'Review the posted journal entry and published payslips before closing the payroll period.'
+                          : 'Review the posted status and published payslips before closing the payroll period.',
+        };
+    };
+
+    const buildRunErrorFeedback = (
+        context: PayrollActionContext,
+        errors: Record<string, string | string[] | undefined | null>,
+        title: string,
+    ): OperationResultFeedback => ({
+        tone: 'error',
+        title,
+        message:
+            firstFormErrorMessage(errors) ??
+            'The payroll action could not be completed.',
+        details: [
+            `${context.runNumber}${context.periodName ? ` | ${context.periodName}` : ''}`,
+            `Net payroll ${context.totalNet.toFixed(2)}`,
+        ],
+        nextStep:
+            'Review the payroll run state and any blocking workflow requirements before trying again.',
+    });
 
     const openRejectDialog = () => {
         rejectForm.setData('reason', run.decision_notes ?? '');
@@ -115,12 +219,26 @@ export default function HrPayrollRunShow({
     };
 
     const rejectRun = () => {
+        const context = buildActionContext('reject');
+
         rejectForm.post(`/company/hr/payroll/runs/${run.id}/reject`, {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
+                setOperationFeedback(
+                    buildRunFeedback(page as unknown as PayrollRunResultPage, context),
+                );
                 rejectForm.reset();
                 rejectForm.clearErrors();
                 setRejectDialogOpen(false);
+            },
+            onError: (errors) => {
+                setOperationFeedback(
+                    buildRunErrorFeedback(
+                        context,
+                        errors,
+                        'Payroll rejection failed',
+                    ),
+                );
             },
         });
     };
@@ -138,12 +256,26 @@ export default function HrPayrollRunShow({
     };
 
     const postPayroll = () => {
+        const context = buildActionContext('post');
+
         postForm.post(`/company/hr/payroll/runs/${run.id}/post`, {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
+                setOperationFeedback(
+                    buildRunFeedback(page as unknown as PayrollRunResultPage, context),
+                );
                 postForm.reset();
                 postForm.clearErrors();
                 setPostDialogOpen(false);
+            },
+            onError: (errors) => {
+                setOperationFeedback(
+                    buildRunErrorFeedback(
+                        context,
+                        errors,
+                        'Payroll posting failed',
+                    ),
+                );
             },
         });
     };
@@ -186,13 +318,34 @@ export default function HrPayrollRunShow({
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() =>
+                                onClick={() => {
+                                    const context = buildActionContext('prepare');
+
                                     router.post(
                                         `/company/hr/payroll/runs/${run.id}/prepare`,
                                         {},
-                                        { preserveScroll: true },
-                                    )
-                                }
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: (page) => {
+                                                setOperationFeedback(
+                                                    buildRunFeedback(
+                                                        page as unknown as PayrollRunResultPage,
+                                                        context,
+                                                    ),
+                                                );
+                                            },
+                                            onError: (errors) => {
+                                                setOperationFeedback(
+                                                    buildRunErrorFeedback(
+                                                        context,
+                                                        errors,
+                                                        'Payroll preparation failed',
+                                                    ),
+                                                );
+                                            },
+                                        },
+                                    );
+                                }}
                             >
                                 Prepare run
                             </Button>
@@ -201,13 +354,34 @@ export default function HrPayrollRunShow({
                         {abilities.can_approve && run.status === 'prepared' ? (
                             <Button
                                 type="button"
-                                onClick={() =>
+                                onClick={() => {
+                                    const context = buildActionContext('approve');
+
                                     router.post(
                                         `/company/hr/payroll/runs/${run.id}/approve`,
                                         {},
-                                        { preserveScroll: true },
-                                    )
-                                }
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: (page) => {
+                                                setOperationFeedback(
+                                                    buildRunFeedback(
+                                                        page as unknown as PayrollRunResultPage,
+                                                        context,
+                                                    ),
+                                                );
+                                            },
+                                            onError: (errors) => {
+                                                setOperationFeedback(
+                                                    buildRunErrorFeedback(
+                                                        context,
+                                                        errors,
+                                                        'Payroll approval failed',
+                                                    ),
+                                                );
+                                            },
+                                        },
+                                    );
+                                }}
                             >
                                 Approve run
                             </Button>
@@ -234,6 +408,13 @@ export default function HrPayrollRunShow({
                         ) : null}
                     </div>
                 </div>
+
+                {operationFeedback ? (
+                    <OperationResultPanel
+                        feedback={operationFeedback}
+                        onDismiss={() => setOperationFeedback(null)}
+                    />
+                ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <Metric label="Gross" value={run.total_gross.toFixed(2)} />
