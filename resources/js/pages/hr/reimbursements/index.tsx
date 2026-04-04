@@ -1,5 +1,9 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, useRemember } from '@inertiajs/react';
 import { useState } from 'react';
+import {
+    OperationResultPanel,
+    type OperationResultFeedback,
+} from '@/components/feedback/operation-result-panel';
 import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import InputError from '@/components/input-error';
 import { ModalFormShell } from '@/components/modals/modal-form-shell';
@@ -10,7 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFeedbackToast } from '@/hooks/use-feedback-toast';
 import AppLayout from '@/layouts/app-layout';
+import { resolveFlashToast } from '@/lib/feedback-toast';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
+import type { SharedData } from '@/types';
 
 type Summary = {
     open_claims: number;
@@ -61,6 +68,21 @@ type ClaimRow = {
     can_pay: boolean;
 };
 
+type ClaimActionContext = {
+    action: 'submit' | 'approve' | 'reject' | 'post' | 'pay';
+    id: string;
+    claimNumber: string;
+    employeeName?: string | null;
+    amount: number;
+};
+
+type ReimbursementsResultPage = {
+    props: Props &
+        SharedData & {
+            errors?: Record<string, string | string[] | undefined | null>;
+        };
+};
+
 type Props = {
     summary: Summary;
     filters: { status: string; employee_id: string };
@@ -105,6 +127,11 @@ export default function HrReimbursementsIndex({
         claimNumber: string;
     } | null>(null);
     const { clientToastHeaders, showPageFlashToast } = useFeedbackToast();
+    const [operationFeedback, setOperationFeedback] =
+        useRemember<OperationResultFeedback | null>(
+            null,
+            'hr.reimbursements.operation-feedback',
+        );
     const categoryForm = useForm({
         name: '',
         code: '',
@@ -114,6 +141,95 @@ export default function HrReimbursementsIndex({
     });
     const rejectForm = useForm({
         reason: '',
+    });
+
+    const buildClaimActionContext = (
+        claim: ClaimRow,
+        action: ClaimActionContext['action'],
+    ): ClaimActionContext => ({
+        action,
+        id: claim.id,
+        claimNumber: claim.claim_number,
+        employeeName: claim.employee_name,
+        amount: claim.total_amount,
+    });
+
+    const buildClaimFeedback = (
+        page: ReimbursementsResultPage,
+        context: ClaimActionContext,
+    ): OperationResultFeedback => {
+        const flash = resolveFlashToast(page.props.flash, {
+            includeSuppressed: true,
+        });
+        const nextClaim = page.props.claims.data.find(
+            (claim) => claim.id === context.id,
+        );
+        const tone =
+            flash?.level === 'error'
+                ? 'error'
+                : flash?.level === 'warning'
+                  ? 'warning'
+                  : 'success';
+
+        return {
+            tone,
+            title:
+                context.action === 'post'
+                    ? tone === 'error'
+                        ? 'Accounting handoff failed'
+                        : 'Claim sent to accounting'
+                    : context.action === 'pay'
+                      ? tone === 'error'
+                          ? 'Payment update failed'
+                          : 'Claim marked as paid'
+                      : context.action === 'reject'
+                        ? tone === 'error'
+                            ? 'Claim rejection failed'
+                            : 'Claim rejected'
+                        : 'Claim updated',
+            message:
+                flash?.message ??
+                'The reimbursement claim was updated successfully.',
+            details: [
+                `${context.claimNumber}${context.employeeName ? ` | ${context.employeeName}` : ''}`,
+                `${context.amount.toFixed(2)} total amount`,
+                nextClaim?.status
+                    ? `Current status: ${labelize(nextClaim.status)}`
+                    : 'Refresh the current filters if the claim is no longer visible on this page',
+            ],
+            nextStep:
+                context.action === 'post'
+                    ? nextClaim?.invoice_number
+                        ? `Vendor bill ${nextClaim.invoice_number} is now linked to the claim.`
+                        : 'Review the linked accounting bill on this page before moving to payment.'
+                    : context.action === 'pay'
+                      ? nextClaim?.payment_number
+                          ? `Payment ${nextClaim.payment_number} is now linked to the claim.`
+                          : 'Review the payment status from this queue before leaving the claim.'
+                      : context.action === 'reject'
+                        ? 'The requester must revise or resubmit the claim before it can move back into the approval queue.'
+                        : context.action === 'approve'
+                          ? 'The claim can now move to accounting once receipts and approval requirements are satisfied.'
+                          : 'Review the updated claim status from this queue before taking the next action.',
+        };
+    };
+
+    const buildClaimErrorFeedback = (
+        context: ClaimActionContext,
+        errors: Record<string, string | string[] | undefined | null>,
+        title: string,
+    ): OperationResultFeedback => ({
+        tone: 'error',
+        title,
+        message:
+            firstFormErrorMessage(errors) ??
+            'The reimbursement action could not be completed.',
+        details: [
+            `${context.claimNumber}${context.employeeName ? ` | ${context.employeeName}` : ''}`,
+            `${context.amount.toFixed(2)} total amount`,
+        ],
+        nextStep:
+            'Review the claim state and any missing accounting or approval requirements before trying again.',
     });
 
     const closeCategoryModal = (open: boolean) => {
@@ -142,11 +258,26 @@ export default function HrReimbursementsIndex({
             return;
         }
 
+        const claim = claims.data.find((row) => row.id === rejectingClaim.id);
+        const actionContext: ClaimActionContext = {
+            action: 'reject',
+            id: rejectingClaim.id,
+            claimNumber: rejectingClaim.claimNumber,
+            employeeName: claim?.employee_name,
+            amount: claim?.total_amount ?? 0,
+        };
+
         rejectForm.post(
             `/company/hr/reimbursements/claims/${rejectingClaim.id}/reject`,
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    setOperationFeedback(
+                        buildClaimFeedback(
+                            page as unknown as ReimbursementsResultPage,
+                            actionContext,
+                        ),
+                    );
                     closeRejectDialog(false);
                 },
             },
@@ -185,6 +316,14 @@ export default function HrReimbursementsIndex({
                         )}
                     </div>
                 </div>
+
+                {operationFeedback && (
+                    <OperationResultPanel
+                        feedback={operationFeedback}
+                        onDismiss={() => setOperationFeedback(null)}
+                        dismissLabel="Dismiss reimbursement feedback"
+                    />
+                )}
 
                 <ModalFormShell
                     open={showCategoryModal}
@@ -463,13 +602,43 @@ export default function HrReimbursementsIndex({
                                                         variant="outline"
                                                         size="sm"
                                                         type="button"
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            const actionContext =
+                                                                buildClaimActionContext(
+                                                                    claim,
+                                                                    'submit',
+                                                                );
+
                                                             router.post(
                                                                 `/company/hr/reimbursements/claims/${claim.id}/submit`,
                                                                 {},
-                                                                { preserveScroll: true },
-                                                            )
-                                                        }
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                    onSuccess: (
+                                                                        page,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimFeedback(
+                                                                                page as unknown as ReimbursementsResultPage,
+                                                                                actionContext,
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                    onError: (
+                                                                        errors,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimErrorFeedback(
+                                                                                actionContext,
+                                                                                errors,
+                                                                                'Claim submission failed',
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                },
+                                                            );
+                                                        }}
                                                     >
                                                         Submit
                                                     </Button>
@@ -478,13 +647,43 @@ export default function HrReimbursementsIndex({
                                                     <Button
                                                         size="sm"
                                                         type="button"
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            const actionContext =
+                                                                buildClaimActionContext(
+                                                                    claim,
+                                                                    'approve',
+                                                                );
+
                                                             router.post(
                                                                 `/company/hr/reimbursements/claims/${claim.id}/approve`,
                                                                 {},
-                                                                { preserveScroll: true },
-                                                            )
-                                                        }
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                    onSuccess: (
+                                                                        page,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimFeedback(
+                                                                                page as unknown as ReimbursementsResultPage,
+                                                                                actionContext,
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                    onError: (
+                                                                        errors,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimErrorFeedback(
+                                                                                actionContext,
+                                                                                errors,
+                                                                                'Claim approval failed',
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                },
+                                                            );
+                                                        }}
                                                     >
                                                         Approve
                                                     </Button>
@@ -511,13 +710,43 @@ export default function HrReimbursementsIndex({
                                                         variant="outline"
                                                         size="sm"
                                                         type="button"
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            const actionContext =
+                                                                buildClaimActionContext(
+                                                                    claim,
+                                                                    'post',
+                                                                );
+
                                                             router.post(
                                                                 `/company/hr/reimbursements/claims/${claim.id}/post`,
                                                                 {},
-                                                                { preserveScroll: true },
-                                                            )
-                                                        }
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                    onSuccess: (
+                                                                        page,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimFeedback(
+                                                                                page as unknown as ReimbursementsResultPage,
+                                                                                actionContext,
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                    onError: (
+                                                                        errors,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimErrorFeedback(
+                                                                                actionContext,
+                                                                                errors,
+                                                                                'Accounting handoff failed',
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                },
+                                                            );
+                                                        }}
                                                     >
                                                         Post to accounting
                                                     </Button>
@@ -527,13 +756,43 @@ export default function HrReimbursementsIndex({
                                                         variant="ghost"
                                                         size="sm"
                                                         type="button"
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            const actionContext =
+                                                                buildClaimActionContext(
+                                                                    claim,
+                                                                    'pay',
+                                                                );
+
                                                             router.post(
                                                                 `/company/hr/reimbursements/claims/${claim.id}/pay`,
                                                                 {},
-                                                                { preserveScroll: true },
-                                                            )
-                                                        }
+                                                                {
+                                                                    preserveScroll:
+                                                                        true,
+                                                                    onSuccess: (
+                                                                        page,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimFeedback(
+                                                                                page as unknown as ReimbursementsResultPage,
+                                                                                actionContext,
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                    onError: (
+                                                                        errors,
+                                                                    ) => {
+                                                                        setOperationFeedback(
+                                                                            buildClaimErrorFeedback(
+                                                                                actionContext,
+                                                                                errors,
+                                                                                'Payment update failed',
+                                                                            ),
+                                                                        );
+                                                                    },
+                                                                },
+                                                            );
+                                                        }}
                                                     >
                                                         Mark paid
                                                     </Button>

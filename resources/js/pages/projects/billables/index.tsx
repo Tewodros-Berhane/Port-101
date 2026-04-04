@@ -1,5 +1,9 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, useRemember } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
+import {
+    OperationResultPanel,
+    type OperationResultFeedback,
+} from '@/components/feedback/operation-result-panel';
 import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 
@@ -26,7 +30,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { resolveFlashToast } from '@/lib/feedback-toast';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
+import type { SharedData } from '@/types';
 
 type FilterOption = {
     id: string;
@@ -111,6 +118,18 @@ type BillableDecisionDialogState = {
     currencyCode?: string | null;
 };
 
+type InvoiceDraftActionContext = {
+    billableIds: string[];
+    groupBy: string;
+};
+
+type BillablesResultPage = {
+    props: Props &
+        SharedData & {
+            errors?: Record<string, string | string[] | undefined | null>;
+        };
+};
+
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -134,6 +153,11 @@ export default function ProjectBillablesIndex({
     );
     const [decisionDialog, setDecisionDialog] =
         useState<BillableDecisionDialogState | null>(null);
+    const [operationFeedback, setOperationFeedback] =
+        useRemember<OperationResultFeedback | null>(
+            null,
+            'projects.billables.operation-feedback',
+        );
     const form = useForm({
         project_id: filters.project_id,
         customer_id: filters.customer_id,
@@ -143,6 +167,71 @@ export default function ProjectBillablesIndex({
     });
     const decisionForm = useForm({
         reason: '',
+    });
+
+    const buildInvoiceDraftSuccessFeedback = (
+        page: BillablesResultPage,
+        context: InvoiceDraftActionContext,
+    ): OperationResultFeedback => {
+        const flash = resolveFlashToast(page.props.flash, {
+            includeSuppressed: true,
+        });
+        const nextRowsById = new Map(
+            page.props.billables.data.map((billable) => [billable.id, billable]),
+        );
+        const stillEligibleCount = context.billableIds.filter((id) =>
+            nextRowsById.get(id)?.can_create_invoice,
+        ).length;
+        const noLongerEligibleCount =
+            context.billableIds.length - stillEligibleCount;
+        const tone =
+            flash?.level === 'error'
+                ? 'error'
+                : stillEligibleCount > 0
+                  ? 'warning'
+                  : 'success';
+
+        return {
+            tone,
+            title:
+                flash?.level === 'error'
+                    ? 'Invoice draft handoff failed'
+                    : stillEligibleCount > 0
+                      ? 'Invoice draft handoff needs review'
+                      : 'Invoice drafts created',
+            message:
+                flash?.message ??
+                'Selected billables were sent to Accounting for draft invoice creation.',
+            details: [
+                `${context.billableIds.length} selected from the billing queue`,
+                `Grouped by ${formatLabel(context.groupBy)}`,
+                `${noLongerEligibleCount} selected row${
+                    noLongerEligibleCount === 1 ? '' : 's'
+                } are no longer invoice-eligible on this page`,
+            ],
+            nextStep:
+                tone === 'error'
+                    ? 'Review the selected rows and retry once the billing blockers are resolved.'
+                    : stillEligibleCount > 0
+                      ? 'Some selected rows are still in the queue. Review them before retrying the draft creation.'
+                      : 'Review the draft invoices in Accounting or continue working through the billing queue.',
+        };
+    };
+
+    const buildInvoiceDraftErrorFeedback = (
+        context: InvoiceDraftActionContext,
+        errors: Record<string, string | string[] | undefined | null>,
+    ): OperationResultFeedback => ({
+        tone: 'error',
+        title: 'Invoice draft handoff failed',
+        message:
+            firstFormErrorMessage(errors) ?? 'Invoice draft handoff failed.',
+        details: [
+            `${context.billableIds.length} selected from the billing queue`,
+            `Grouped by ${formatLabel(context.groupBy)}`,
+        ],
+        nextStep:
+            'Review the selected billables and retry once the missing billing requirements are resolved.',
     });
 
     const openDecisionDialog = (
@@ -260,7 +349,13 @@ export default function ProjectBillablesIndex({
                                         <Button
                                             type="button"
                                             disabled={activeSelectedBillableIds.length === 0}
-                                            onClick={() =>
+                                            onClick={() => {
+                                                const actionContext = {
+                                                    billableIds:
+                                                        activeSelectedBillableIds,
+                                                    groupBy,
+                                                };
+
                                                 router.post(
                                                     '/company/projects/billables/invoice-drafts',
                                                     {
@@ -270,9 +365,26 @@ export default function ProjectBillablesIndex({
                                                     },
                                                     {
                                                         preserveScroll: true,
+                                                        onSuccess: (page) => {
+                                                            setSelectedBillableIds([]);
+                                                            setOperationFeedback(
+                                                                buildInvoiceDraftSuccessFeedback(
+                                                                    page as unknown as BillablesResultPage,
+                                                                    actionContext,
+                                                                ),
+                                                            );
+                                                        },
+                                                        onError: (errors) => {
+                                                            setOperationFeedback(
+                                                                buildInvoiceDraftErrorFeedback(
+                                                                    actionContext,
+                                                                    errors,
+                                                                ),
+                                                            );
+                                                        },
                                                     },
-                                                )
-                                            }
+                                                );
+                                            }}
                                         >
                                             Create draft invoice
                                             {activeSelectedBillableIds.length > 0 &&
@@ -551,6 +663,13 @@ export default function ProjectBillablesIndex({
                 }
                 pagination={<PaginationBar links={billables.links} />}
             >
+                {operationFeedback && (
+                    <OperationResultPanel
+                        feedback={operationFeedback}
+                        onDismiss={() => setOperationFeedback(null)}
+                        dismissLabel="Dismiss billing queue feedback"
+                    />
+                )}
                 <FilterToolbar
                     onSubmit={(event) => {
                         event.preventDefault();

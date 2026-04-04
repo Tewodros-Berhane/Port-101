@@ -1,11 +1,18 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, useRemember } from '@inertiajs/react';
 import { useState } from 'react';
+import {
+    OperationResultPanel,
+    type OperationResultFeedback,
+} from '@/components/feedback/operation-result-panel';
 import { ReasonDialog } from '@/components/feedback/reason-dialog';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { resolveFlashToast } from '@/lib/feedback-toast';
+import { firstFormErrorMessage } from '@/lib/form-feedback';
 import { companyModuleBreadcrumbs, companyModuleLinks } from '@/lib/page-navigation';
+import type { SharedData } from '@/types';
 
 type FilterOption = {
     id: string;
@@ -87,6 +94,21 @@ type CancelDialogState = {
     nextRunOn?: string | null;
 };
 
+type ScheduleActionContext = {
+    action: 'run' | 'activate' | 'pause' | 'cancel';
+    id: string;
+    projectLabel: string;
+    scheduleName: string;
+    nextRunOn?: string | null;
+};
+
+type RecurringBillingResultPage = {
+    props: Props &
+        SharedData & {
+            errors?: Record<string, string | string[] | undefined | null>;
+        };
+};
+
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -113,6 +135,90 @@ export default function ProjectRecurringBillingIndex({
     const [cancelDialog, setCancelDialog] = useState<CancelDialogState | null>(
         null,
     );
+    const [operationFeedback, setOperationFeedback] =
+        useRemember<OperationResultFeedback | null>(
+            null,
+            'projects.recurring-billing.operation-feedback',
+        );
+
+    const buildScheduleFeedback = (
+        page: RecurringBillingResultPage,
+        context: ScheduleActionContext,
+    ): OperationResultFeedback => {
+        const flash = resolveFlashToast(page.props.flash, {
+            includeSuppressed: true,
+        });
+        const schedule = page.props.schedules.data.find(
+            (row) => row.id === context.id,
+        );
+        const tone =
+            flash?.level === 'error'
+                ? 'error'
+                : flash?.level === 'warning'
+                  ? 'warning'
+                  : 'success';
+
+        return {
+            tone,
+            title:
+                context.action === 'run'
+                    ? tone === 'error'
+                        ? 'Recurring run needs attention'
+                        : 'Recurring run updated'
+                    : 'Recurring schedule updated',
+            message:
+                flash?.message ??
+                (context.action === 'run'
+                    ? 'The recurring billing run was processed.'
+                    : 'The recurring billing schedule was updated.'),
+            details: [
+                `${context.projectLabel} | ${context.scheduleName}`,
+                schedule?.latest_run_status
+                    ? `Latest run: ${formatLabel(schedule.latest_run_status)}`
+                    : context.nextRunOn
+                      ? `Next run: ${context.nextRunOn}`
+                      : 'No upcoming run is currently scheduled on this page',
+                schedule?.latest_invoice_number
+                    ? `Latest invoice: ${schedule.latest_invoice_number}`
+                    : schedule?.status
+                      ? `Current status: ${formatLabel(schedule.status)}`
+                      : 'Refresh the table filters if the schedule is no longer visible on this page',
+            ],
+            nextStep:
+                context.action === 'run'
+                    ? tone === 'error'
+                        ? schedule?.latest_error_message
+                          ? `Latest run error: ${schedule.latest_error_message}`
+                          : 'Review the latest run status in the table and correct the schedule before trying again.'
+                        : schedule?.latest_invoice_number
+                          ? 'Open the latest invoice or keep monitoring the latest run status from this list.'
+                          : 'Review the latest run status from this list before the next billing cycle.'
+                    : tone === 'error'
+                      ? 'Review the schedule status on this page before trying the action again.'
+                      : context.action === 'cancel'
+                        ? 'Future recurring billing runs for this schedule are now stopped until a replacement schedule is created.'
+                        : 'Review the next run date and automation state from this list.',
+        };
+    };
+
+    const buildScheduleErrorFeedback = (
+        context: ScheduleActionContext,
+        errors: Record<string, string | string[] | undefined | null>,
+    ): OperationResultFeedback => ({
+        tone: 'error',
+        title:
+            context.action === 'run'
+                ? 'Recurring run failed'
+                : 'Recurring schedule update failed',
+        message:
+            firstFormErrorMessage(errors) ??
+            'The recurring billing action could not be completed.',
+        details: [`${context.projectLabel} | ${context.scheduleName}`],
+        nextStep:
+            context.action === 'run'
+                ? 'Review the schedule setup and latest run details before trying again.'
+                : 'Review the schedule state and retry once the blocking issue is resolved.',
+    });
 
     const closeCancelDialog = (open: boolean) => {
         if (cancelForm.processing) {
@@ -141,16 +247,45 @@ export default function ProjectRecurringBillingIndex({
         });
     };
 
+    const buildActionContext = (
+        schedule: ScheduleRow,
+        action: ScheduleActionContext['action'],
+    ): ScheduleActionContext => ({
+        action,
+        id: schedule.id,
+        projectLabel: schedule.project_code
+            ? schedule.project_name
+                ? `${schedule.project_code} - ${schedule.project_name}`
+                : schedule.project_code
+            : schedule.project_name ?? 'Unknown project',
+        scheduleName: schedule.name,
+        nextRunOn: schedule.next_run_on,
+    });
+
     const submitCancel = () => {
         if (!cancelDialog) {
             return;
         }
 
+        const actionContext: ScheduleActionContext = {
+            action: 'cancel',
+            id: cancelDialog.id,
+            projectLabel: cancelDialog.projectLabel,
+            scheduleName: cancelDialog.scheduleName,
+            nextRunOn: cancelDialog.nextRunOn,
+        };
+
         cancelForm.post(
             `/company/projects/recurring-billing/${cancelDialog.id}/cancel`,
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    setOperationFeedback(
+                        buildScheduleFeedback(
+                            page as unknown as RecurringBillingResultPage,
+                            actionContext,
+                        ),
+                    );
                     cancelForm.reset();
                     cancelForm.clearErrors();
                     setCancelDialog(null);
@@ -197,6 +332,14 @@ export default function ProjectRecurringBillingIndex({
                         )}
                     </div>
                 </div>
+
+                {operationFeedback && (
+                    <OperationResultPanel
+                        feedback={operationFeedback}
+                        onDismiss={() => setOperationFeedback(null)}
+                        dismissLabel="Dismiss recurring billing feedback"
+                    />
+                )}
 
                 <form
                     className="grid gap-4 rounded-xl border p-4 md:grid-cols-2 xl:grid-cols-5"
@@ -489,16 +632,42 @@ export default function ProjectRecurringBillingIndex({
                                                 <button
                                                     type="button"
                                                     className="font-medium text-primary"
-                                                    onClick={() =>
+                                                    onClick={() => {
+                                                        const actionContext =
+                                                            buildActionContext(
+                                                                schedule,
+                                                                'run',
+                                                            );
+
                                                         router.post(
                                                             `/company/projects/recurring-billing/${schedule.id}/run-now`,
                                                             {},
                                                             {
                                                                 preserveScroll:
                                                                     true,
+                                                                onSuccess: (
+                                                                    page,
+                                                                ) => {
+                                                                    setOperationFeedback(
+                                                                        buildScheduleFeedback(
+                                                                            page as unknown as RecurringBillingResultPage,
+                                                                            actionContext,
+                                                                        ),
+                                                                    );
+                                                                },
+                                                                onError: (
+                                                                    errors,
+                                                                ) => {
+                                                                    setOperationFeedback(
+                                                                        buildScheduleErrorFeedback(
+                                                                            actionContext,
+                                                                            errors,
+                                                                        ),
+                                                                    );
+                                                                },
                                                             },
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                 >
                                                     Run now
                                                 </button>
@@ -507,16 +676,42 @@ export default function ProjectRecurringBillingIndex({
                                                 <button
                                                     type="button"
                                                     className="font-medium text-primary"
-                                                    onClick={() =>
+                                                    onClick={() => {
+                                                        const actionContext =
+                                                            buildActionContext(
+                                                                schedule,
+                                                                'activate',
+                                                            );
+
                                                         router.post(
                                                             `/company/projects/recurring-billing/${schedule.id}/activate`,
                                                             {},
                                                             {
                                                                 preserveScroll:
                                                                     true,
+                                                                onSuccess: (
+                                                                    page,
+                                                                ) => {
+                                                                    setOperationFeedback(
+                                                                        buildScheduleFeedback(
+                                                                            page as unknown as RecurringBillingResultPage,
+                                                                            actionContext,
+                                                                        ),
+                                                                    );
+                                                                },
+                                                                onError: (
+                                                                    errors,
+                                                                ) => {
+                                                                    setOperationFeedback(
+                                                                        buildScheduleErrorFeedback(
+                                                                            actionContext,
+                                                                            errors,
+                                                                        ),
+                                                                    );
+                                                                },
                                                             },
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                 >
                                                     Activate
                                                 </button>
@@ -525,16 +720,42 @@ export default function ProjectRecurringBillingIndex({
                                                 <button
                                                     type="button"
                                                     className="font-medium text-primary"
-                                                    onClick={() =>
+                                                    onClick={() => {
+                                                        const actionContext =
+                                                            buildActionContext(
+                                                                schedule,
+                                                                'pause',
+                                                            );
+
                                                         router.post(
                                                             `/company/projects/recurring-billing/${schedule.id}/pause`,
                                                             {},
                                                             {
                                                                 preserveScroll:
                                                                     true,
+                                                                onSuccess: (
+                                                                    page,
+                                                                ) => {
+                                                                    setOperationFeedback(
+                                                                        buildScheduleFeedback(
+                                                                            page as unknown as RecurringBillingResultPage,
+                                                                            actionContext,
+                                                                        ),
+                                                                    );
+                                                                },
+                                                                onError: (
+                                                                    errors,
+                                                                ) => {
+                                                                    setOperationFeedback(
+                                                                        buildScheduleErrorFeedback(
+                                                                            actionContext,
+                                                                            errors,
+                                                                        ),
+                                                                    );
+                                                                },
                                                             },
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                 >
                                                     Pause
                                                 </button>

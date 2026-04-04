@@ -44,3 +44,27 @@ export function humanizeErrorField(
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (character) => character.toUpperCase());
 }
+
+export function firstFormErrorMessage(
+    errors: Record<string, string | string[] | undefined | null>,
+): string | undefined {
+    for (const value of Object.values(errors)) {
+        if (Array.isArray(value)) {
+            const message = value.find(
+                (entry) => typeof entry === 'string' && entry.trim() !== '',
+            );
+
+            if (message) {
+                return message;
+            }
+
+            continue;
+        }
+
+        if (typeof value === 'string' && value.trim() !== '') {
+            return value;
+        }
+    }
+
+    return undefined;
+}
