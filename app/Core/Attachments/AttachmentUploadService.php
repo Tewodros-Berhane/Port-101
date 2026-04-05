@@ -24,7 +24,8 @@ class AttachmentUploadService
         $this->securityService->validateUpload($file, $context);
 
         $disk = (string) config('core.attachments.disk', 'local');
-        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin'));
+        $extension = $this->securityService->normalizedExtension($file) ?: 'bin';
+        $mimeType = $this->securityService->detectedMimeType($file);
         $generatedName = (string) Str::ulid().'.'.$extension;
         $path = $file->storeAs(
             'attachments/'.$companyId.'/'.strtolower(class_basename($attachable)),
@@ -41,7 +42,7 @@ class AttachmentUploadService
             'path' => $path,
             'file_name' => basename($path),
             'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
+            'mime_type' => $mimeType,
             'extension' => $extension,
             'size' => $file->getSize(),
             'checksum' => hash_file('sha256', $file->getRealPath()),

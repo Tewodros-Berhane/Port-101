@@ -71,6 +71,8 @@ class AttachmentsController extends Controller
             abort(403, 'Attachment target is outside the active company.');
         }
 
+        $this->authorize('update', $attachable);
+
         $this->attachmentUploadService->store(
             file: $request->file('file'),
             attachable: $attachable,

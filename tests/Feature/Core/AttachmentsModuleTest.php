@@ -1,6 +1,7 @@
 <?php
 
 use App\Core\Attachments\AttachmentMalwareScanService;
+use App\Core\Attachments\AttachmentSecurityService;
 use App\Core\Attachments\Models\Attachment;
 use App\Core\Company\Models\Company;
 use App\Core\MasterData\Models\Address;
@@ -16,6 +17,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -150,6 +152,57 @@ test('attachments reject file types outside the context allowlist', function () 
     expect(Attachment::query()->count())->toBe(0);
 });
 
+test('attachments cannot be uploaded to same-company records the user cannot update', function () {
+    Storage::fake('attachments');
+    config()->set('core.attachments.disk', 'attachments');
+
+    [$user, $company] = createCompanyUserForAttachments([
+        'core.attachments.view',
+        'core.attachments.manage',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'code' => 'P-'.Str::upper(Str::random(6)),
+        'name' => 'Attachment Unauthorized Partner',
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    actingAs($user)
+        ->post(route('core.attachments.store'), [
+            'attachable_type' => 'partner',
+            'attachable_id' => $partner->id,
+            'file' => UploadedFile::fake()->create('quote.pdf', 50, 'application/pdf'),
+        ])
+        ->assertForbidden();
+
+    expect(Attachment::query()->count())->toBe(0);
+});
+
+test('attachment security validation prefers server detected mime type', function () {
+    $path = tempnam(sys_get_temp_dir(), 'attachment-mime-');
+
+    file_put_contents($path, 'plain text payload masquerading as a pdf');
+
+    $file = new UploadedFile(
+        $path,
+        'receipt.pdf',
+        'application/pdf',
+        null,
+        true,
+    );
+
+    expect(app(AttachmentSecurityService::class)->detectedMimeType($file))->toBe('text/plain');
+
+    expect(fn () => app(AttachmentSecurityService::class)->validateUpload($file, 'hr_reimbursement_receipt'))
+        ->toThrow(ValidationException::class);
+
+    @unlink($path);
+});
+
 test('infected attachments are quarantined and cannot be downloaded', function () {
     Storage::fake('attachments');
     config()->set('core.attachments.disk', 'attachments');
@@ -202,6 +255,47 @@ test('infected attachments are quarantined and cannot be downloaded', function (
     actingAs($user)
         ->get(route('core.attachments.download', $attachment))
         ->assertStatus(423);
+});
+
+test('basic attachment scanning is blocked outside local and testing unless explicitly allowed', function () {
+    Storage::fake('attachments');
+    config()->set('app.env', 'production');
+    config()->set('core.attachments.disk', 'attachments');
+    config()->set('core.attachments.scan.enabled', true);
+    config()->set('core.attachments.scan.driver', 'basic');
+    config()->set('core.attachments.scan.allow_basic_driver_in_non_local', false);
+
+    [$user, $company] = createCompanyUserForAttachments([
+        'core.partners.manage',
+        'core.attachments.view',
+        'core.attachments.manage',
+    ]);
+
+    $partner = Partner::create([
+        'company_id' => $company->id,
+        'code' => 'P-'.Str::upper(Str::random(6)),
+        'name' => 'Attachment Production Scan Partner',
+        'type' => 'customer',
+        'is_active' => true,
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    $file = UploadedFile::fake()->create('quote.pdf', 50, 'application/pdf');
+
+    actingAs($user)
+        ->post(route('core.attachments.store'), [
+            'attachable_type' => 'partner',
+            'attachable_id' => $partner->id,
+            'file' => $file,
+        ])
+        ->assertRedirect();
+
+    $attachment = Attachment::query()->latest('created_at')->first();
+
+    expect($attachment)->not->toBeNull()
+        ->and($attachment?->scan_status)->toBe(Attachment::SCAN_FAILED)
+        ->and($attachment?->scan_message)->toContain('not allowed outside local/testing');
 });
 
 test('attachment metadata is available on all supported master-data edit pages', function () {

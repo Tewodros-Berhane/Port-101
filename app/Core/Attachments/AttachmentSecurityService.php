@@ -8,6 +8,16 @@ use Illuminate\Validation\ValidationException;
 
 class AttachmentSecurityService
 {
+    public function detectedMimeType(UploadedFile $file): string
+    {
+        return strtolower((string) ($file->getMimeType() ?: $file->getClientMimeType() ?: 'application/octet-stream'));
+    }
+
+    public function normalizedExtension(UploadedFile $file): string
+    {
+        return strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: ''));
+    }
+
     /**
      * @return array<string, array<int, string>>
      */
@@ -25,8 +35,8 @@ class AttachmentSecurityService
     public function validateUpload(UploadedFile $file, string $context): void
     {
         $allowlist = $this->allowlist($context);
-        $mimeType = strtolower((string) ($file->getClientMimeType() ?: $file->getMimeType() ?: 'application/octet-stream'));
-        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: ''));
+        $mimeType = $this->detectedMimeType($file);
+        $extension = $this->normalizedExtension($file);
 
         if (
             $allowlist['mime_types'] !== []

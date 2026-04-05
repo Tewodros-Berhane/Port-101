@@ -142,7 +142,16 @@ return [
                 env('ATTACHMENTS_SCAN_ENABLED', true),
                 FILTER_VALIDATE_BOOLEAN
             ),
-            'driver' => env('ATTACHMENTS_SCAN_DRIVER', 'basic'),
+            'driver' => env(
+                'ATTACHMENTS_SCAN_DRIVER',
+                in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)
+                    ? 'basic'
+                    : 'clamav_binary'
+            ),
+            'allow_basic_driver_in_non_local' => filter_var(
+                env('ATTACHMENTS_SCAN_ALLOW_BASIC_NON_LOCAL', false),
+                FILTER_VALIDATE_BOOLEAN
+            ),
             'binary' => env('ATTACHMENTS_SCAN_BINARY', 'clamscan'),
             'timeout_seconds' => (int) env('ATTACHMENTS_SCAN_TIMEOUT_SECONDS', 30),
         ],
