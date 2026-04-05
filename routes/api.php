@@ -47,14 +47,18 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
                 ->parameters(['payments' => 'payment']);
             Route::post('payments/{payment}/post', [ApiAccountingPaymentsController::class, 'post'])
                 ->middleware('api.idempotency');
-            Route::post('payments/{payment}/reconcile', [ApiAccountingPaymentsController::class, 'reconcile']);
-            Route::post('payments/{payment}/reverse', [ApiAccountingPaymentsController::class, 'reverse']);
+            Route::post('payments/{payment}/reconcile', [ApiAccountingPaymentsController::class, 'reconcile'])
+                ->middleware('api.idempotency');
+            Route::post('payments/{payment}/reverse', [ApiAccountingPaymentsController::class, 'reverse'])
+                ->middleware('api.idempotency');
         });
         Route::prefix('approvals')->group(function () {
             Route::get('requests', [ApiApprovalRequestsController::class, 'index']);
             Route::get('requests/{approvalRequest}', [ApiApprovalRequestsController::class, 'show']);
-            Route::post('requests/{approvalRequest}/approve', [ApiApprovalRequestsController::class, 'approve']);
-            Route::post('requests/{approvalRequest}/reject', [ApiApprovalRequestsController::class, 'reject']);
+            Route::post('requests/{approvalRequest}/approve', [ApiApprovalRequestsController::class, 'approve'])
+                ->middleware('api.idempotency');
+            Route::post('requests/{approvalRequest}/reject', [ApiApprovalRequestsController::class, 'reject'])
+                ->middleware('api.idempotency');
         });
         Route::prefix('hr')->group(function () {
             Route::get('me', [ApiHrProfileController::class, 'show']);
@@ -111,10 +115,14 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::apiResource('stock-moves', ApiInventoryStockMovesController::class)
                 ->parameters(['stock-moves' => 'move']);
             Route::post('stock-moves/{move}/reserve', [ApiInventoryStockMovesController::class, 'reserve']);
-            Route::post('stock-moves/{move}/dispatch', [ApiInventoryStockMovesController::class, 'dispatch']);
-            Route::post('stock-moves/{move}/receive', [ApiInventoryStockMovesController::class, 'receive']);
-            Route::post('stock-moves/{move}/complete', [ApiInventoryStockMovesController::class, 'complete']);
-            Route::post('stock-moves/{move}/cancel', [ApiInventoryStockMovesController::class, 'cancel']);
+            Route::post('stock-moves/{move}/dispatch', [ApiInventoryStockMovesController::class, 'dispatch'])
+                ->middleware('api.idempotency');
+            Route::post('stock-moves/{move}/receive', [ApiInventoryStockMovesController::class, 'receive'])
+                ->middleware('api.idempotency');
+            Route::post('stock-moves/{move}/complete', [ApiInventoryStockMovesController::class, 'complete'])
+                ->middleware('api.idempotency');
+            Route::post('stock-moves/{move}/cancel', [ApiInventoryStockMovesController::class, 'cancel'])
+                ->middleware('api.idempotency');
         });
         Route::prefix('purchasing')->group(function () {
             Route::apiResource('rfqs', ApiPurchaseRfqsController::class)

@@ -222,7 +222,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         ->assertOk()
         ->assertJsonPath('data.status', AccountingPayment::STATUS_POSTED);
 
-    $reconcileResponse = postJson('/api/v1/accounting/payments/'.$paymentId.'/reconcile')
+    $reconcileResponse = postJson('/api/v1/accounting/payments/'.$paymentId.'/reconcile', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingPayment::STATUS_RECONCILED)
         ->assertJsonPath('data.invoice_status', AccountingInvoice::STATUS_PARTIALLY_PAID);
@@ -231,7 +231,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
 
     $reverseResponse = postJson('/api/v1/accounting/payments/'.$paymentId.'/reverse', [
         'reason' => 'Customer transfer failed',
-    ])
+    ], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingPayment::STATUS_REVERSED)
         ->assertJsonPath('data.invoice_status', AccountingInvoice::STATUS_POSTED);
@@ -392,7 +392,7 @@ test('api v1 accounting permissions validation and lifecycle errors use the shar
 
     postJson('/api/v1/accounting/payments/'.$paymentId.'/reverse', [
         'reason' => 'bad',
-    ])
+    ], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonStructure([
             'message',
@@ -452,4 +452,105 @@ test('api v1 accounting idempotency replays duplicate invoice posting', function
         ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
         ->assertJsonPath('data.id', (string) $firstResponse->json('data.id'))
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
+});
+
+test('api v1 accounting idempotency replays payment reconcile and reverse transitions', function () {
+    [$financeUser, $company] = makeActiveCompanyMember();
+
+    assignAccountingApiRole($financeUser, $company->id, [
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+        'accounting.payments.view',
+        'accounting.payments.manage',
+        'accounting.payments.approve_reversal',
+    ]);
+
+    $customer = createAccountingApiPartner($company->id, $financeUser->id, 'Payment Replay Customer', 'customer');
+
+    Sanctum::actingAs($financeUser);
+
+    $invoiceId = (string) postJson('/api/v1/accounting/invoices', [
+        'partner_id' => $customer->id,
+        'document_type' => AccountingInvoice::TYPE_CUSTOMER_INVOICE,
+        'sales_order_id' => null,
+        'invoice_date' => now()->toDateString(),
+        'due_date' => now()->addDays(14)->toDateString(),
+        'notes' => 'Replay-safe payment transitions',
+        'lines' => [
+            [
+                'product_id' => null,
+                'description' => 'Payment workflow line',
+                'quantity' => 1,
+                'unit_price' => 120,
+                'tax_rate' => 0,
+            ],
+        ],
+    ])->json('data.id');
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post', [], apiIdempotencyHeaders())
+        ->assertOk();
+
+    $paymentId = (string) postJson('/api/v1/accounting/payments', [
+        'invoice_id' => $invoiceId,
+        'payment_date' => now()->toDateString(),
+        'amount' => 120,
+        'method' => 'bank_transfer',
+        'reference' => 'REPLAY-PAY',
+        'notes' => 'Replay-safe payment',
+    ])->json('data.id');
+
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/post', [], apiIdempotencyHeaders())
+        ->assertOk();
+
+    $reconcileKey = 'accounting-payment-reconcile';
+
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/reconcile')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstReconcileResponse = postJson('/api/v1/accounting/payments/'.$paymentId.'/reconcile', [], apiIdempotencyHeaders($reconcileKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $reconcileKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', AccountingPayment::STATUS_RECONCILED);
+
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/reconcile', [], apiIdempotencyHeaders($reconcileKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $reconcileKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstReconcileResponse->json('data.id'))
+        ->assertJsonPath('data.status', AccountingPayment::STATUS_RECONCILED);
+
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/reconcile', [], apiIdempotencyHeaders('accounting-payment-reconcile-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    $reverseKey = 'accounting-payment-reverse';
+
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/reverse', [
+        'reason' => 'bad',
+    ], apiIdempotencyHeaders($reverseKey))
+        ->assertUnprocessable()
+        ->assertJsonStructure([
+            'message',
+            'errors' => ['reason'],
+        ]);
+
+    $firstReverseResponse = postJson('/api/v1/accounting/payments/'.$paymentId.'/reverse', [
+        'reason' => 'Customer repayment was reversed',
+    ], apiIdempotencyHeaders($reverseKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $reverseKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', AccountingPayment::STATUS_REVERSED);
+
+    postJson('/api/v1/accounting/payments/'.$paymentId.'/reverse', [
+        'reason' => 'Customer repayment was reversed',
+    ], apiIdempotencyHeaders($reverseKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $reverseKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstReverseResponse->json('data.id'))
+        ->assertJsonPath('data.status', AccountingPayment::STATUS_REVERSED);
 });

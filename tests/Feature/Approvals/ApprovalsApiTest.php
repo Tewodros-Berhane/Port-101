@@ -174,7 +174,7 @@ test('api v1 approvals endpoints are company scoped and support approve and reje
         ->assertNotFound()
         ->assertJsonPath('message', 'Resource not found.');
 
-    postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve')
+    postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', ApprovalRequest::STATUS_APPROVED)
         ->assertJsonPath('data.approved_by_user_id', $approver->id)
@@ -185,7 +185,7 @@ test('api v1 approvals endpoints are company scoped and support approve and reje
 
     postJson('/api/v1/approvals/requests/'.$purchaseApprovalRequest->id.'/reject', [
         'reason' => 'Needs updated vendor terms',
-    ])
+    ], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', ApprovalRequest::STATUS_REJECTED)
         ->assertJsonPath('data.rejection_reason', 'Needs updated vendor terms')
@@ -241,7 +241,7 @@ test('api v1 approvals permissions and workflow errors use the shared contract',
         ->assertJsonPath('data.id', $approvalRequest->id)
         ->assertJsonPath('data.can_approve', false);
 
-    postJson('/api/v1/approvals/requests/'.$approvalRequest->id.'/approve')
+    postJson('/api/v1/approvals/requests/'.$approvalRequest->id.'/approve', [], apiIdempotencyHeaders())
         ->assertForbidden()
         ->assertJsonPath('message', 'This action is unauthorized.');
 
@@ -252,14 +252,129 @@ test('api v1 approvals permissions and workflow errors use the shared contract',
 
     Sanctum::actingAs($viewer);
 
-    postJson('/api/v1/approvals/requests/'.$approvalRequest->id.'/approve')
+    postJson('/api/v1/approvals/requests/'.$approvalRequest->id.'/approve', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', ApprovalRequest::STATUS_APPROVED);
 
-    postJson('/api/v1/approvals/requests/'.$approvalRequest->id.'/approve')
+    postJson('/api/v1/approvals/requests/'.$approvalRequest->id.'/approve', [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonStructure([
             'message',
             'errors' => ['approval'],
         ]);
+});
+
+test('api v1 approvals idempotency replays approve and reject transitions and does not cache unauthorized attempts', function () {
+    [$requester, $company] = makeActiveCompanyMember();
+    $approver = User::factory()->create();
+
+    $company->users()->attach($approver->id, [
+        'role_id' => null,
+        'is_owner' => false,
+    ]);
+
+    $approver->forceFill([
+        'current_company_id' => $company->id,
+    ])->save();
+
+    $partner = createApprovalsApiPartner($company->id, $requester->id, 'Approvals Replay Partner');
+
+    $quote = SalesQuote::create([
+        'company_id' => $company->id,
+        'partner_id' => $partner->id,
+        'quote_number' => 'QT-REPLAY-'.Str::upper(Str::random(4)),
+        'status' => SalesQuote::STATUS_SENT,
+        'quote_date' => now()->toDateString(),
+        'valid_until' => now()->addDays(7)->toDateString(),
+        'subtotal' => 450,
+        'discount_total' => 0,
+        'tax_total' => 0,
+        'grand_total' => 450,
+        'requires_approval' => true,
+        'created_by' => $requester->id,
+        'updated_by' => $requester->id,
+    ]);
+
+    $purchaseOrder = PurchaseOrder::create([
+        'company_id' => $company->id,
+        'partner_id' => $partner->id,
+        'order_number' => 'PO-REPLAY-'.Str::upper(Str::random(4)),
+        'status' => PurchaseOrder::STATUS_DRAFT,
+        'order_date' => now()->toDateString(),
+        'subtotal' => 640,
+        'tax_total' => 0,
+        'grand_total' => 640,
+        'requires_approval' => true,
+        'created_by' => $requester->id,
+        'updated_by' => $requester->id,
+    ]);
+
+    app(ApprovalQueueService::class)->syncPendingRequests($company, $requester->id);
+
+    $quoteApprovalRequest = ApprovalRequest::query()
+        ->where('company_id', $company->id)
+        ->where('source_type', SalesQuote::class)
+        ->where('source_id', $quote->id)
+        ->firstOrFail();
+
+    $purchaseApprovalRequest = ApprovalRequest::query()
+        ->where('company_id', $company->id)
+        ->where('source_type', PurchaseOrder::class)
+        ->where('source_id', $purchaseOrder->id)
+        ->firstOrFail();
+
+    Sanctum::actingAs($approver);
+
+    $approveKey = 'approval-approve-replay';
+
+    postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    assignApprovalsApiRole($approver, $company->id, [
+        'approvals.requests.view',
+        'approvals.requests.manage',
+    ]);
+
+    Sanctum::actingAs($approver);
+
+    postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstApproveResponse = postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', ApprovalRequest::STATUS_APPROVED);
+
+    postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstApproveResponse->json('data.id'))
+        ->assertJsonPath('data.status', ApprovalRequest::STATUS_APPROVED);
+
+    postJson('/api/v1/approvals/requests/'.$quoteApprovalRequest->id.'/approve', [], apiIdempotencyHeaders('approval-approve-second-key'))
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.approval.0', 'Only pending approval requests can be processed.');
+
+    $rejectKey = 'approval-reject-replay';
+
+    $firstRejectResponse = postJson('/api/v1/approvals/requests/'.$purchaseApprovalRequest->id.'/reject', [
+        'reason' => 'Requires updated pricing approval',
+    ], apiIdempotencyHeaders($rejectKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $rejectKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', ApprovalRequest::STATUS_REJECTED);
+
+    postJson('/api/v1/approvals/requests/'.$purchaseApprovalRequest->id.'/reject', [
+        'reason' => 'Requires updated pricing approval',
+    ], apiIdempotencyHeaders($rejectKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $rejectKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstRejectResponse->json('data.id'))
+        ->assertJsonPath('data.status', ApprovalRequest::STATUS_REJECTED);
 });

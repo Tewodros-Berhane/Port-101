@@ -161,7 +161,7 @@ test('api v1 inventory endpoints are company scoped and support stock move workf
 
     $receiptMoveId = (string) $receiptResponse->json('data.id');
 
-    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive")
+    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE)
         ->assertJsonPath('data.can_receive', false);
@@ -206,7 +206,7 @@ test('api v1 inventory endpoints are company scoped and support stock move workf
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED)
         ->assertJsonPath('data.can_reserve', false);
 
-    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/dispatch")
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/dispatch", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE)
         ->assertJsonPath('data.can_dispatch', false);
@@ -261,7 +261,7 @@ test('api v1 inventory endpoints are company scoped and support stock move workf
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
 
-    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/complete")
+    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/complete", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE)
         ->assertJsonPath('data.can_complete', false);
@@ -333,7 +333,7 @@ test('api v1 inventory permissions and workflow errors use the shared contract',
         ->assertForbidden()
         ->assertJsonPath('message', 'This action is unauthorized.');
 
-    postJson('/api/v1/inventory/stock-moves/'.$move->id.'/dispatch')
+    postJson('/api/v1/inventory/stock-moves/'.$move->id.'/dispatch', [], apiIdempotencyHeaders())
         ->assertForbidden()
         ->assertJsonPath('message', 'This action is unauthorized.');
 
@@ -345,7 +345,7 @@ test('api v1 inventory permissions and workflow errors use the shared contract',
 
     Sanctum::actingAs($viewer);
 
-    postJson('/api/v1/inventory/stock-moves/'.$move->id.'/dispatch')
+    postJson('/api/v1/inventory/stock-moves/'.$move->id.'/dispatch', [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Delivery moves must be reserved before completion.');
 });
@@ -406,7 +406,7 @@ test('api v1 inventory supports tracked lot and serial move lines', function () 
 
     $receiptMoveId = (string) $receiptMove->json('data.id');
 
-    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive")
+    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive", [], apiIdempotencyHeaders())
         ->assertOk();
 
     $deliveryMove = postJson('/api/v1/inventory/stock-moves', [
@@ -425,4 +425,170 @@ test('api v1 inventory supports tracked lot and serial move lines', function () 
     postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve")
         ->assertOk()
         ->assertJsonCount(2, 'data.lines');
+});
+
+test('api v1 inventory idempotency replays terminal stock move transitions and does not cache invalid attempts', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignInventoryApiRole($manager, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+        'inventory.moves.manage',
+    ]);
+
+    app(InventorySetupService::class)->ensureDefaults($company->id, $manager->id);
+
+    $stockLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'STOCK')
+        ->firstOrFail();
+    $customerLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'CUSTOMERS')
+        ->firstOrFail();
+    $vendorLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'VENDORS')
+        ->firstOrFail();
+
+    $product = createInventoryApiProduct($company->id, $manager->id, 'Inventory Replay Widget');
+
+    InventoryStockLevel::create([
+        'company_id' => $company->id,
+        'location_id' => $stockLocation->id,
+        'product_id' => $product->id,
+        'on_hand_quantity' => 10,
+        'reserved_quantity' => 0,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    $receiptMoveId = (string) postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'RCV-REPLAY-001',
+        'move_type' => InventoryStockMove::TYPE_RECEIPT,
+        'source_location_id' => $vendorLocation->id,
+        'destination_location_id' => $stockLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 3,
+        'notes' => 'Replay-safe receipt',
+    ])->json('data.id');
+
+    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive")
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $receiveKey = 'inventory-receive-replay';
+
+    $firstReceiveResponse = postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive", [], apiIdempotencyHeaders($receiveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $receiveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE);
+
+    postJson("/api/v1/inventory/stock-moves/{$receiptMoveId}/receive", [], apiIdempotencyHeaders($receiveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $receiveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstReceiveResponse->json('data.id'))
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE);
+
+    $deliveryMoveId = (string) postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'DLV-REPLAY-001',
+        'move_type' => InventoryStockMove::TYPE_DELIVERY,
+        'source_location_id' => $stockLocation->id,
+        'destination_location_id' => $customerLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 2,
+        'notes' => 'Replay-safe dispatch',
+    ])->json('data.id');
+
+    $dispatchKey = 'inventory-dispatch-replay';
+
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/dispatch", [], apiIdempotencyHeaders($dispatchKey))
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'Delivery moves must be reserved before completion.');
+
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve")
+        ->assertOk()
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
+
+    $firstDispatchResponse = postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/dispatch", [], apiIdempotencyHeaders($dispatchKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $dispatchKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE);
+
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/dispatch", [], apiIdempotencyHeaders($dispatchKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $dispatchKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstDispatchResponse->json('data.id'))
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE);
+
+    $transferLocation = InventoryLocation::create([
+        'company_id' => $company->id,
+        'warehouse_id' => $stockLocation->warehouse_id,
+        'code' => 'COMP-'.Str::upper(Str::random(4)),
+        'name' => 'Completion Bay '.Str::upper(Str::random(3)),
+        'type' => InventoryLocation::TYPE_INTERNAL,
+        'is_active' => true,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    $transferMoveId = (string) postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'TRF-REPLAY-001',
+        'move_type' => InventoryStockMove::TYPE_TRANSFER,
+        'source_location_id' => $stockLocation->id,
+        'destination_location_id' => $transferLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 1,
+        'notes' => 'Replay-safe completion',
+    ])->json('data.id');
+
+    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/reserve")
+        ->assertOk()
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
+
+    $completeKey = 'inventory-complete-replay';
+
+    $firstCompleteResponse = postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/complete", [], apiIdempotencyHeaders($completeKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $completeKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE);
+
+    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/complete", [], apiIdempotencyHeaders($completeKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $completeKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstCompleteResponse->json('data.id'))
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_DONE);
+
+    $cancelMoveId = (string) postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'CAN-REPLAY-001',
+        'move_type' => InventoryStockMove::TYPE_RECEIPT,
+        'source_location_id' => $vendorLocation->id,
+        'destination_location_id' => $stockLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 1,
+        'notes' => 'Replay-safe cancellation',
+    ])->json('data.id');
+
+    $cancelKey = 'inventory-cancel-replay';
+
+    $firstCancelResponse = postJson("/api/v1/inventory/stock-moves/{$cancelMoveId}/cancel", [], apiIdempotencyHeaders($cancelKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $cancelKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_CANCELLED);
+
+    postJson("/api/v1/inventory/stock-moves/{$cancelMoveId}/cancel", [], apiIdempotencyHeaders($cancelKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $cancelKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstCancelResponse->json('data.id'))
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_CANCELLED);
 });
