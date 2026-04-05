@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AttachApiVersionHeaders;
 use App\Http\Middleware\AttachRequestCorrelationId;
+use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\EnsureCompanyMembership;
 use App\Http\Middleware\EnsureCompanyWorkspaceUser;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -36,6 +37,21 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->trustHosts();
+
+        $trustedProxies = env('TRUSTED_PROXIES');
+
+        if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
+            $middleware->trustProxies(
+                at: $trustedProxies,
+                headers: Request::HEADER_X_FORWARDED_FOR
+                    | Request::HEADER_X_FORWARDED_HOST
+                    | Request::HEADER_X_FORWARDED_PORT
+                    | Request::HEADER_X_FORWARDED_PROTO
+                    | Request::HEADER_X_FORWARDED_PREFIX
+                    | Request::HEADER_X_FORWARDED_AWS_ELB,
+            );
+        }
 
         $middleware->alias([
             'api.idempotency' => RequireIdempotency::class,
@@ -47,6 +63,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
+            AddSecurityHeaders::class,
             HandleAppearance::class,
             ResolveCompanyContext::class,
             HandleInertiaRequests::class,
