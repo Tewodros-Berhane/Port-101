@@ -10,12 +10,15 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse as FailedPasswordResetLinkRequestResponseContract;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
+use Laravel\Fortify\Contracts\SuccessfulPasswordResetLinkRequestResponse as SuccessfulPasswordResetLinkRequestResponseContract;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\LogoutResponse;
+use App\Http\Responses\PasswordResetLinkRequestResponse;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -26,6 +29,14 @@ class FortifyServiceProvider extends ServiceProvider
     {
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
         $this->app->singleton(LogoutResponseContract::class, LogoutResponse::class);
+        $this->app->singleton(
+            SuccessfulPasswordResetLinkRequestResponseContract::class,
+            PasswordResetLinkRequestResponse::class,
+        );
+        $this->app->singleton(
+            FailedPasswordResetLinkRequestResponseContract::class,
+            PasswordResetLinkRequestResponse::class,
+        );
     }
 
     /**

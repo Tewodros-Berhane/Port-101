@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
 test('reset password link screen can be rendered', function () {
@@ -16,6 +17,34 @@ test('reset password link can be requested', function () {
     $user = User::factory()->create();
 
     $this->post(route('password.email'), ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPassword::class);
+});
+
+test('reset password link request is outwardly indistinguishable for existing and non-existing emails', function () {
+    Notification::fake();
+
+    $user = User::factory()->create([
+        'remember_token' => 'existing-remember-token',
+    ]);
+
+    $existingResponse = $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => $user->email]);
+
+    $missingResponse = $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => 'missing-user@example.com']);
+
+    $expectedMessage = trans(\Illuminate\Support\Facades\Password::RESET_LINK_SENT);
+
+    $existingResponse
+        ->assertRedirect(route('password.request'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', $expectedMessage);
+
+    $missingResponse
+        ->assertRedirect(route('password.request'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', $expectedMessage);
 
     Notification::assertSentTo($user, ResetPassword::class);
 });
@@ -39,11 +68,15 @@ test('reset password screen can be rendered', function () {
 test('password can be reset with valid token', function () {
     Notification::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'remember_token' => 'old-reset-token',
+    ]);
 
     $this->post(route('password.email'), ['email' => $user->email]);
 
     Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+        $oldPasswordHash = $user->getAuthPassword();
+
         $response = $this->post(route('password.update'), [
             'token' => $notification->token,
             'email' => $user->email,
@@ -53,6 +86,17 @@ test('password can be reset with valid token', function () {
 
         $response
             ->assertSessionHasNoErrors()
+            ->assertRedirect(route('login'));
+
+        $freshUser = $user->fresh();
+
+        expect($freshUser)->not->toBeNull();
+        expect(Hash::check('password', $freshUser->password))->toBeTrue();
+        expect($freshUser?->remember_token)->not->toBe('old-reset-token');
+
+        $this->actingAs($freshUser)
+            ->withSession(['password_hash_web' => $oldPasswordHash])
+            ->get(route('user-password.edit'))
             ->assertRedirect(route('login'));
 
         return true;
