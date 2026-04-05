@@ -13,6 +13,20 @@ trait CompanyScoped
 
             if ($company) {
                 $builder->where($builder->getModel()->getTable().'.company_id', $company->id);
+                return;
+            }
+
+            $user = auth()->user();
+
+            if (
+                $user
+                && ! $user->is_super_admin
+                && $user->current_company_id
+            ) {
+                $builder->where(
+                    $builder->getModel()->getTable().'.company_id',
+                    $user->current_company_id,
+                );
             }
         });
 

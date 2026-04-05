@@ -11,6 +11,7 @@ use App\Core\MasterData\Models\Tax;
 use App\Core\MasterData\Models\Uom;
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
+use App\Core\Support\CompanyContext;
 use App\Models\User;
 use Illuminate\Support\Str;
 use function Pest\Laravel\actingAs;
@@ -464,3 +465,23 @@ test('master data manage routes deny users without manage permission', function 
         ->delete(route($resource['routes']['destroy'], $record))
         ->assertForbidden();
 })->with('masterDataResources');
+
+test('company scoped models fall back to current company when explicit company context is absent', function () {
+    [$user, $company] = createCompanyUserWithPermissions(['core.partners.view']);
+    [, $otherCompany] = createCompanyUserWithPermissions(['core.partners.view']);
+
+    $visiblePartner = makePartner($company, $user);
+    $hiddenPartner = makePartner($otherCompany, User::factory()->create(), [
+        'company_id' => $otherCompany->id,
+    ]);
+
+    actingAs($user);
+    app(CompanyContext::class)->set(null);
+
+    $partnerIds = Partner::query()
+        ->pluck('id')
+        ->all();
+
+    expect($partnerIds)->toContain($visiblePartner->id)
+        ->and($partnerIds)->not->toContain($hiddenPartner->id);
+});

@@ -272,14 +272,14 @@ test('superadmins cannot access company owner invite management', function () {
 
     actingAs($superAdmin)
         ->get(route('core.invites.index'))
-        ->assertForbidden();
+        ->assertRedirect(route('platform.dashboard'));
 
     actingAs($superAdmin)
         ->post(route('core.invites.store'), [
             'email' => 'superadmin-blocked.'.Str::lower(Str::random(5)).'@example.com',
             'name' => 'Superadmin Blocked',
         ])
-        ->assertForbidden();
+        ->assertRedirect(route('platform.dashboard'));
 });
 
 test('company invite store ignores non owner role payloads', function () {

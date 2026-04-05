@@ -14,7 +14,7 @@ use App\Http\Controllers\Core\TaxesController;
 use App\Http\Controllers\Core\UomsController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified', 'company'])
+Route::middleware(['auth', 'verified', 'company', 'company.workspace'])
     ->prefix('core')
     ->name('core.')
     ->group(function () {
