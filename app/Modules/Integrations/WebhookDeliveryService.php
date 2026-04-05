@@ -25,6 +25,7 @@ class WebhookDeliveryService
     public function __construct(
         private readonly WebhookSignatureService $signatureService,
         private readonly IntegrationEventPayloadFactory $payloadFactory,
+        private readonly WebhookTargetSecurityService $targetSecurityService,
     ) {}
 
     public function fanOutById(string $integrationEventId): ?IntegrationEvent
@@ -119,6 +120,21 @@ class WebhookDeliveryService
             'attempt_count' => (int) $delivery->attempt_count + 1,
             'updated_by' => $delivery->updated_by ?? $delivery->created_by,
         ]);
+
+        $delivery = $delivery->fresh(['endpoint', 'integrationEvent']) ?? $delivery;
+
+        $validationError = $this->targetSecurityService
+            ->validationError($endpoint->target_url, 'Webhook target URL');
+
+        if ($validationError !== null) {
+            return $this->markFailed(
+                delivery: $delivery,
+                failureMessage: $validationError,
+                responseStatus: null,
+                responseBody: null,
+                retryable: false,
+            );
+        }
 
         $payload = is_array($integrationEvent->payload)
             ? $integrationEvent->payload

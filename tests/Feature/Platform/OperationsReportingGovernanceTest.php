@@ -9,6 +9,7 @@ use App\Core\Platform\OperationsReportingSettingsService;
 use App\Core\Settings\Models\Setting;
 use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
+use App\Modules\Integrations\WebhookTargetSecurityService;
 use App\Notifications\InviteAcceptedNotification;
 use App\Notifications\InviteDeliveryFailedNotification;
 use App\Notifications\NotificationGovernanceEscalationNotification;
@@ -230,6 +231,46 @@ test('superadmin can save and delete operations report presets and update schedu
         ->first();
 
     expect($updatedSchedule?->value['preset_id'] ?? null)->toBeNull();
+});
+
+test('superadmin cannot save scheduled report URLs that resolve to private ranges', function () {
+    $superAdmin = createSuperAdmin();
+    $presetId = app(OperationsReportingSettingsService::class)
+        ->savePreset('SSRF preset', ['trend_window' => 30])['id'];
+
+    config()->set('core.webhooks.allow_private_targets', false);
+    app()->instance(WebhookTargetSecurityService::class, new class extends WebhookTargetSecurityService
+    {
+        protected function resolveHostIps(string $host): array
+        {
+            return match ($host) {
+                'private-ops.example.com' => ['10.0.0.12'],
+                'private-slack.example.com' => ['172.16.0.20'],
+                default => parent::resolveHostIps($host),
+            };
+        }
+    });
+
+    actingAs($superAdmin)
+        ->put(route('platform.dashboard.report-delivery-schedule.update'), [
+            'enabled' => true,
+            'preset_id' => $presetId,
+            'format' => 'xlsx',
+            'frequency' => 'weekly',
+            'day_of_week' => 2,
+            'time' => '08:30',
+            'timezone' => 'UTC',
+            'channels' => ['webhook', 'slack'],
+            'recipient_mode' => 'all_superadmins',
+            'recipient_user_ids' => [],
+            'additional_emails' => '',
+            'webhook_url' => 'https://private-ops.example.com/ops-report',
+            'slack_webhook_url' => 'https://private-slack.example.com/services/T111/B222/XYZ',
+        ])
+        ->assertSessionHasErrors([
+            'webhook_url',
+            'slack_webhook_url',
+        ]);
 });
 
 test('scheduled operations report delivery command sends notifications', function () {

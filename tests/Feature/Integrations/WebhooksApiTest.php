@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Integrations\WebhookEventCatalog;
+use App\Modules\Integrations\WebhookTargetSecurityService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -253,7 +254,30 @@ test('api v1 webhook management enforces permissions and validation contracts', 
         ->assertUnprocessable()
         ->assertJsonPath(
             'errors.target_url.0',
-            'Webhook endpoints cannot target localhost or local-only hostnames.',
+            'Webhook target URL cannot target localhost or local-only hostnames.',
+        );
+
+    app()->instance(WebhookTargetSecurityService::class, new class extends WebhookTargetSecurityService
+    {
+        protected function resolveHostIps(string $host): array
+        {
+            if ($host === 'private-resolved.example.com') {
+                return ['10.0.0.44'];
+            }
+
+            return parent::resolveHostIps($host);
+        }
+    });
+
+    postJson('/api/v1/webhooks/endpoints', [
+        'name' => 'Rebound Endpoint',
+        'target_url' => 'https://private-resolved.example.com/hooks',
+        'subscribed_events' => [WebhookEventCatalog::SALES_ORDER_CONFIRMED],
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath(
+            'errors.target_url.0',
+            'Webhook target URL cannot resolve to private or reserved IP ranges.',
         );
 
     $delivered = WebhookDelivery::create([
@@ -280,6 +304,52 @@ test('api v1 webhook management enforces permissions and validation contracts', 
     postJson('/api/v1/webhooks/deliveries/'.$delivered->id.'/retry', [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Only failed or dead deliveries can be retried.');
+});
+
+test('api v1 webhook test deliveries revalidate targets before sending', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookApiRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = WebhookEndpoint::create([
+        'company_id' => $company->id,
+        'name' => 'DNS Rebound Endpoint',
+        'target_url' => 'https://runtime-private.example.com/hooks',
+        'signing_secret' => Str::random(64),
+        'api_version' => 'v1',
+        'is_active' => true,
+        'subscribed_events' => [WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED],
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Config::set('core.webhooks.allow_private_targets', false);
+    app()->instance(WebhookTargetSecurityService::class, new class extends WebhookTargetSecurityService
+    {
+        protected function resolveHostIps(string $host): array
+        {
+            if ($host === 'runtime-private.example.com') {
+                return ['10.10.10.10'];
+            }
+
+            return parent::resolveHostIps($host);
+        }
+    });
+
+    Sanctum::actingAs($manager);
+
+    postJson('/api/v1/webhooks/endpoints/'.$endpoint->id.'/test', [], apiIdempotencyHeaders())
+        ->assertOk()
+        ->assertJsonPath('data.status', WebhookDelivery::STATUS_DEAD)
+        ->assertJsonPath(
+            'data.failure_message',
+            'Webhook target URL cannot resolve to private or reserved IP ranges.',
+        );
+
+    Http::assertNothingSent();
 });
 
 test('api v1 webhook test deliveries replay duplicate idempotent requests without re-sending', function () {

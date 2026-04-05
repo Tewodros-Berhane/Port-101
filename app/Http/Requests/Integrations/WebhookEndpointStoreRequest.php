@@ -35,7 +35,7 @@ class WebhookEndpointStoreRequest extends FormRequest
     {
         $validator->after(function ($validator): void {
             $error = app(WebhookTargetSecurityService::class)
-                ->validationError($this->input('target_url'));
+                ->validationError($this->input('target_url'), 'Webhook target URL');
 
             if ($error !== null) {
                 $validator->errors()->add('target_url', $error);

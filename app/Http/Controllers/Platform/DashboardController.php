@@ -14,6 +14,7 @@ use App\Core\Platform\PlatformReportsService;
 use App\Http\Controllers\Controller;
 use App\Support\Http\Feedback;
 use App\Models\User;
+use App\Modules\Integrations\WebhookTargetSecurityService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -395,7 +396,8 @@ class DashboardController extends Controller
 
     public function updateReportDeliverySchedule(
         Request $request,
-        OperationsReportingSettingsService $operationsSettings
+        OperationsReportingSettingsService $operationsSettings,
+        WebhookTargetSecurityService $targetSecurityService,
     ): RedirectResponse {
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
@@ -490,6 +492,31 @@ class DashboardController extends Controller
                 ->withErrors([
                     'slack_webhook_url' => 'Slack webhook URL is required when Slack delivery is enabled.',
                 ]);
+        }
+
+        $urlErrors = [];
+
+        foreach ([
+            'webhook_url' => 'Webhook URL',
+            'slack_webhook_url' => 'Slack webhook URL',
+        ] as $field => $label) {
+            $url = trim((string) ($data[$field] ?? ''));
+
+            if ($url === '') {
+                continue;
+            }
+
+            $error = $targetSecurityService->validationError($url, $label);
+
+            if ($error !== null) {
+                $urlErrors[$field] = $error;
+            }
+        }
+
+        if ($urlErrors !== []) {
+            return redirect()
+                ->route('platform.governance')
+                ->withErrors($urlErrors);
         }
 
         $operationsSettings->setDeliverySchedule([

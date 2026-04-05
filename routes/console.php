@@ -20,6 +20,7 @@ use App\Core\Settings\Models\Setting;
 use App\Core\Settings\SettingsService;
 use App\Mail\PlatformOperationsReportDeliveryMail;
 use App\Models\User;
+use App\Modules\Integrations\WebhookTargetSecurityService;
 use App\Modules\Accounting\AccountingLedgerBackfillService;
 use App\Modules\Approvals\ApprovalQueueService;
 use App\Modules\Inventory\InventoryReorderService;
@@ -36,6 +37,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schedule;
@@ -242,6 +244,7 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
     $settings = app(OperationsReportingSettingsService::class);
     $reportsService = app(PlatformReportsService::class);
     $exportService = app(PlatformReportExportService::class);
+    $targetSecurity = app(WebhookTargetSecurityService::class);
     $schedule = $settings->getDeliverySchedule();
     $force = (bool) $this->option('force');
 
@@ -429,13 +432,29 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
     if (in_array('webhook', $channels, true) && is_string($schedule['webhook_url'] ?? null)) {
         $webhookUrl = trim((string) $schedule['webhook_url']);
         if ($webhookUrl !== '') {
-            try {
-                Http::timeout(15)->post($webhookUrl, $webhookPayload)->throw();
-                $webhookDispatches++;
-                $deliverySucceeded = true;
-            } catch (\Throwable $exception) {
-                report($exception);
-                $this->warn('Webhook delivery failed for scheduled operations report.');
+            $validationError = $targetSecurity->validationError(
+                $webhookUrl,
+                'Scheduled report webhook URL'
+            );
+
+            if ($validationError !== null) {
+                Log::warning('Scheduled operations report webhook target rejected by SSRF guard.', [
+                    'module' => 'platform',
+                    'entity' => 'operations_report_schedule',
+                    'action' => 'webhook_target_rejected',
+                    'target_url' => $webhookUrl,
+                    'reason' => $validationError,
+                ]);
+                $this->warn($validationError);
+            } else {
+                try {
+                    Http::timeout(15)->post($webhookUrl, $webhookPayload)->throw();
+                    $webhookDispatches++;
+                    $deliverySucceeded = true;
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $this->warn('Webhook delivery failed for scheduled operations report.');
+                }
             }
         }
     }
@@ -443,48 +462,64 @@ Artisan::command('platform:operations-reports:deliver-scheduled {--force}', func
     if (in_array('slack', $channels, true) && is_string($schedule['slack_webhook_url'] ?? null)) {
         $slackUrl = trim((string) $schedule['slack_webhook_url']);
         if ($slackUrl !== '') {
-            try {
-                Http::timeout(15)->post($slackUrl, [
-                    'text' => "Port-101 scheduled operations reports ready ({$trendWindow}-day window, {$format}).",
-                    'blocks' => [
-                        [
-                            'type' => 'section',
-                            'text' => [
-                                'type' => 'mrkdwn',
-                                'text' => "*Port-101 Scheduled Reports*\nPreset: {$presetName}\nWindow: {$trendWindow}-day window\nFormat: ".strtoupper($format),
-                            ],
-                        ],
-                        [
-                            'type' => 'section',
-                            'fields' => [
-                                ['type' => 'mrkdwn', 'text' => "*Admin actions*\n{$adminActionsCount}"],
-                                ['type' => 'mrkdwn', 'text' => "*Invite deliveries*\n{$deliveryTotal}"],
-                                ['type' => 'mrkdwn', 'text' => "*Failures*\n{$failed}"],
-                                ['type' => 'mrkdwn', 'text' => "*Failure rate*\n{$failureRate}%"],
-                            ],
-                        ],
-                        [
-                            'type' => 'actions',
-                            'elements' => [
-                                [
-                                    'type' => 'button',
-                                    'text' => ['type' => 'plain_text', 'text' => 'Admin Actions'],
-                                    'url' => url($links['admin_actions']),
-                                ],
-                                [
-                                    'type' => 'button',
-                                    'text' => ['type' => 'plain_text', 'text' => 'Delivery Trends'],
-                                    'url' => url($links['delivery_trends']),
+            $validationError = $targetSecurity->validationError(
+                $slackUrl,
+                'Slack webhook URL'
+            );
+
+            if ($validationError !== null) {
+                Log::warning('Scheduled operations Slack webhook target rejected by SSRF guard.', [
+                    'module' => 'platform',
+                    'entity' => 'operations_report_schedule',
+                    'action' => 'slack_target_rejected',
+                    'target_url' => $slackUrl,
+                    'reason' => $validationError,
+                ]);
+                $this->warn($validationError);
+            } else {
+                try {
+                    Http::timeout(15)->post($slackUrl, [
+                        'text' => "Port-101 scheduled operations reports ready ({$trendWindow}-day window, {$format}).",
+                        'blocks' => [
+                            [
+                                'type' => 'section',
+                                'text' => [
+                                    'type' => 'mrkdwn',
+                                    'text' => "*Port-101 Scheduled Reports*\nPreset: {$presetName}\nWindow: {$trendWindow}-day window\nFormat: ".strtoupper($format),
                                 ],
                             ],
+                            [
+                                'type' => 'section',
+                                'fields' => [
+                                    ['type' => 'mrkdwn', 'text' => "*Admin actions*\n{$adminActionsCount}"],
+                                    ['type' => 'mrkdwn', 'text' => "*Invite deliveries*\n{$deliveryTotal}"],
+                                    ['type' => 'mrkdwn', 'text' => "*Failures*\n{$failed}"],
+                                    ['type' => 'mrkdwn', 'text' => "*Failure rate*\n{$failureRate}%"],
+                                ],
+                            ],
+                            [
+                                'type' => 'actions',
+                                'elements' => [
+                                    [
+                                        'type' => 'button',
+                                        'text' => ['type' => 'plain_text', 'text' => 'Admin Actions'],
+                                        'url' => url($links['admin_actions']),
+                                    ],
+                                    [
+                                        'type' => 'button',
+                                        'text' => ['type' => 'plain_text', 'text' => 'Delivery Trends'],
+                                        'url' => url($links['delivery_trends']),
+                                    ],
+                                ],
+                            ],
                         ],
-                    ],
-                ])->throw();
-                $slackDispatches++;
-                $deliverySucceeded = true;
-            } catch (\Throwable $exception) {
-                report($exception);
-                $this->warn('Slack delivery failed for scheduled operations report.');
+                    ])->throw();
+                    $slackDispatches++;
+                    $deliverySucceeded = true;
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $this->warn('Slack delivery failed for scheduled operations report.');
+                }
             }
         }
     }
