@@ -5,6 +5,8 @@ use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Modules\Reports\CompanyReportsService;
 use App\Modules\Reports\Models\ReportExport;
+use App\Modules\Reports\ReportExportWorkflowService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
@@ -248,4 +250,51 @@ test('api v1 report export creation is throttled', function () {
         'trend_window' => 30,
     ], apiIdempotencyHeaders('report-export-throttle-11'))
         ->assertTooManyRequests();
+});
+
+test('api v1 report export failures expose sanitized messages and safe logs', function () {
+    [$reportUser, $company] = makeActiveCompanyMember();
+
+    assignReportsApiRole($reportUser, $company->id, [
+        'reports.view',
+        'reports.export',
+    ]);
+
+    Sanctum::actingAs($reportUser);
+    Log::spy();
+
+    $export = ReportExport::create([
+        'company_id' => $company->id,
+        'report_key' => CompanyReportsService::REPORT_FINANCE_SNAPSHOT,
+        'format' => ReportExport::FORMAT_PDF,
+        'status' => ReportExport::STATUS_PROCESSING,
+        'filters' => ['trend_window' => 30],
+        'requested_by_user_id' => $reportUser->id,
+        'created_by' => $reportUser->id,
+        'updated_by' => $reportUser->id,
+    ]);
+
+    app(ReportExportWorkflowService::class)->markFailed(
+        $export->id,
+        new RuntimeException('SQLSTATE[08006] password=supersecret token=abc123'),
+    );
+
+    getJson('/api/v1/reports/exports/'.$export->id)
+        ->assertOk()
+        ->assertJsonPath('data.status', ReportExport::STATUS_FAILED)
+        ->assertJsonPath('data.failure_message', 'The export failed while generating the output file.');
+
+    expect($export->fresh()->failure_message)->toBe('The export failed while generating the output file.');
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(function (string $message, array $context): bool {
+            $serialized = json_encode($context);
+
+            return $message === 'Report export failed.'
+                && ($context['failure_code'] ?? null) === 'export_generation_failed'
+                && ($context['failure_message'] ?? null) === 'The export failed while generating the output file.'
+                && ! str_contains((string) $serialized, 'supersecret')
+                && ! str_contains((string) $serialized, 'abc123');
+        })
+        ->once();
 });

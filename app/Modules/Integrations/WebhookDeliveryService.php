@@ -3,6 +3,7 @@
 namespace App\Modules\Integrations;
 
 use App\Jobs\DeliverWebhook;
+use App\Support\Operations\OperationalFailureSanitizer;
 use App\Modules\Integrations\Models\IntegrationEvent;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
@@ -26,6 +27,7 @@ class WebhookDeliveryService
         private readonly WebhookSignatureService $signatureService,
         private readonly IntegrationEventPayloadFactory $payloadFactory,
         private readonly WebhookTargetSecurityService $targetSecurityService,
+        private readonly OperationalFailureSanitizer $failureSanitizer,
     ) {}
 
     public function fanOutById(string $integrationEventId): ?IntegrationEvent
@@ -182,6 +184,7 @@ class WebhookDeliveryService
                 responseBody: null,
                 retryable: true,
                 durationMs: $durationMs,
+                exception: $exception,
             );
         } catch (Throwable $exception) {
             $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
@@ -193,6 +196,7 @@ class WebhookDeliveryService
                 responseBody: null,
                 retryable: false,
                 durationMs: $durationMs,
+                exception: $exception,
             );
         }
     }
@@ -310,7 +314,7 @@ class WebhookDeliveryService
             'status' => WebhookDelivery::STATUS_DELIVERED,
             'response_status' => $responseStatus,
             'duration_ms' => $durationMs,
-            'response_body_excerpt' => $this->excerpt($responseBody),
+            'response_body_excerpt' => null,
             'failure_message' => null,
             'next_retry_at' => null,
             'delivered_at' => now(),
@@ -346,19 +350,25 @@ class WebhookDeliveryService
         ?string $responseBody,
         bool $retryable,
         ?int $durationMs = null,
+        ?Throwable $exception = null,
     ): WebhookDelivery {
         $attemptCount = (int) $delivery->attempt_count;
         $shouldRetry = $retryable && $attemptCount < self::MAX_ATTEMPTS;
         $nextRetryAt = $shouldRetry
             ? now()->addSeconds($this->backoffSeconds($attemptCount))
             : null;
+        $normalized = $this->failureSanitizer->normalizeWebhookFailure(
+            responseStatus: $responseStatus,
+            failureMessage: $failureMessage,
+            exception: $exception,
+        );
 
         $delivery->update([
             'status' => $shouldRetry ? WebhookDelivery::STATUS_FAILED : WebhookDelivery::STATUS_DEAD,
             'response_status' => $responseStatus,
             'duration_ms' => $durationMs,
-            'response_body_excerpt' => $this->excerpt($responseBody),
-            'failure_message' => $this->excerpt($failureMessage, 1000),
+            'response_body_excerpt' => $normalized['response_body_excerpt'],
+            'failure_message' => $normalized['message'],
             'next_retry_at' => $nextRetryAt,
             'delivered_at' => null,
             'dead_lettered_at' => $shouldRetry ? null : now(),
@@ -383,9 +393,9 @@ class WebhookDeliveryService
             'response_status' => $responseStatus,
             'duration_ms' => $durationMs,
             'attempt_count' => (int) $delivery->attempt_count,
-            'failure_message' => $this->excerpt($failureMessage, 500),
             'next_retry_at' => $nextRetryAt?->toIso8601String(),
             'dead_lettered_at' => $shouldRetry ? null : now()->toIso8601String(),
+            ...$normalized['log_context'],
         ]);
 
         if ($shouldRetry) {
@@ -419,22 +429,4 @@ class WebhookDeliveryService
         return self::BACKOFF_SECONDS[$index];
     }
 
-    private function excerpt(?string $value, int $limit = 2000): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        if ($trimmed === '') {
-            return null;
-        }
-
-        if (strlen($trimmed) <= $limit) {
-            return $trimmed;
-        }
-
-        return substr($trimmed, 0, $limit - 3).'...';
-    }
 }

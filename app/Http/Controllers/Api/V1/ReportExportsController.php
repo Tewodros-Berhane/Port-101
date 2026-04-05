@@ -7,12 +7,17 @@ use App\Models\User;
 use App\Modules\Reports\CompanyReportingSettingsService;
 use App\Modules\Reports\Models\ReportExport;
 use App\Modules\Reports\ReportExportWorkflowService;
+use App\Support\Operations\OperationalFailureSanitizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class ReportExportsController extends ApiController
 {
+    public function __construct(
+        private readonly OperationalFailureSanitizer $failureSanitizer,
+    ) {}
+
     public function store(
         ReportExportStoreRequest $request,
         ReportExportWorkflowService $workflowService,
@@ -102,7 +107,9 @@ class ReportExportsController extends ApiController
             'completed_at' => $reportExport->completed_at?->toIso8601String(),
             'failed_at' => $reportExport->failed_at?->toIso8601String(),
             'expires_at' => $reportExport->expires_at?->toIso8601String(),
-            'failure_message' => $reportExport->failure_message,
+            'failure_message' => $this->failureSanitizer->sanitizeStoredReportFailureMessage(
+                $reportExport->failure_message
+            ),
             'download_url' => $downloadUrl,
             'can_download' => $downloadUrl !== null,
             'created_at' => $reportExport->created_at?->toIso8601String(),

@@ -259,3 +259,27 @@ test('superadmin can retry failed report exports from queue health', function ()
     expect($export->status)->toBe(ReportExport::STATUS_COMPLETED)
         ->and($export->file_path)->not->toBeNull();
 });
+
+test('queue health sanitizes stored webhook and report failure messages for display', function () {
+    $superAdmin = createQueueHealthSuperAdmin();
+    $company = createQueueHealthCompany($superAdmin);
+
+    $delivery = createQueueHealthDeadWebhookDelivery($company->id, $superAdmin->id);
+    $delivery->forceFill([
+        'failure_message' => 'upstream token=secret-value',
+        'response_status' => 500,
+        'response_body_excerpt' => 'api_key=secret-value stack trace',
+    ])->save();
+
+    $export = createFailedQueueHealthReportExport($company->id, $superAdmin->id);
+    $export->forceFill([
+        'failure_message' => 'SQLSTATE[08006] password=secret',
+    ])->save();
+
+    actingAs($superAdmin)
+        ->get(route('platform.queue-health'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('deadWebhookDeliveries.0.failure_message', 'Endpoint returned a server error (HTTP 500).')
+            ->where('failedReportExports.0.failure_message', 'The export failed while generating the output file.'));
+});

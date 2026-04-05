@@ -3,6 +3,7 @@
 namespace App\Modules\Integrations;
 
 use App\Models\User;
+use App\Support\Operations\OperationalFailureSanitizer;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Integrations\Models\WebhookSecretRotation;
@@ -13,6 +14,7 @@ class IntegrationWorkspaceService
     public function __construct(
         private readonly WebhookEventCatalog $eventCatalog,
         private readonly WebhookEndpointService $endpointService,
+        private readonly OperationalFailureSanitizer $failureSanitizer,
     ) {}
 
     /**
@@ -201,8 +203,13 @@ class IntegrationWorkspaceService
             'next_retry_at' => $delivery->next_retry_at?->toIso8601String(),
             'response_status' => $delivery->response_status,
             'duration_ms' => $delivery->duration_ms,
-            'response_body_excerpt' => $delivery->response_body_excerpt,
-            'failure_message' => $delivery->failure_message,
+            'response_body_excerpt' => $this->failureSanitizer->sanitizeStoredWebhookResponseExcerpt(
+                $delivery->response_body_excerpt
+            ),
+            'failure_message' => $this->failureSanitizer->sanitizeStoredWebhookFailureMessage(
+                $delivery->failure_message,
+                $delivery->response_status,
+            ),
             'delivered_at' => $delivery->delivered_at?->toIso8601String(),
             'dead_lettered_at' => $delivery->dead_lettered_at?->toIso8601String(),
             'created_at' => $delivery->created_at?->toIso8601String(),

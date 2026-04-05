@@ -6,6 +6,7 @@ use App\Core\Audit\Models\AuditLog;
 use App\Core\Company\Models\Company;
 use App\Core\Platform\Models\QueueFailureReview;
 use App\Models\User;
+use App\Support\Operations\OperationalFailureSanitizer;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\WebhookDeliveryService;
 use App\Modules\Integrations\WebhookEventCatalog;
@@ -39,6 +40,7 @@ class QueueHealthService
         private readonly WebhookDeliveryService $webhookDeliveryService,
         private readonly ReportExportWorkflowService $reportExportWorkflowService,
         private readonly WebhookEventCatalog $webhookEventCatalog,
+        private readonly OperationalFailureSanitizer $failureSanitizer,
         private readonly ?Encrypter $encrypter = null,
     ) {}
 
@@ -358,7 +360,10 @@ class QueueHealthService
                     'endpoint_name' => $delivery->endpoint?->name,
                     'event_label' => $this->webhookEventCatalog->label((string) $delivery->event_type),
                     'attempt_count' => (int) $delivery->attempt_count,
-                    'failure_message' => $delivery->failure_message,
+                    'failure_message' => $this->failureSanitizer->sanitizeStoredWebhookFailureMessage(
+                        $delivery->failure_message,
+                        $delivery->response_status,
+                    ),
                     'response_status' => $delivery->response_status,
                     'dead_lettered_at' => $delivery->dead_lettered_at?->toIso8601String(),
                 ];
@@ -391,7 +396,9 @@ class QueueHealthService
                     'format' => $export->format,
                     'requested_by_name' => $export->requestedBy?->name,
                     'failed_at' => $export->failed_at?->toIso8601String(),
-                    'failure_message' => $export->failure_message,
+                    'failure_message' => $this->failureSanitizer->sanitizeStoredReportFailureMessage(
+                        $export->failure_message
+                    ),
                 ];
             })
             ->values()

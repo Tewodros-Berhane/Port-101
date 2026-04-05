@@ -23,7 +23,11 @@ class GenerateCompanyReportExport implements ShouldQueue
 
     public function handle(ReportExportWorkflowService $workflowService): void
     {
-        $workflowService->process($this->reportExportId);
+        try {
+            $workflowService->process($this->reportExportId);
+        } catch (Throwable $exception) {
+            $workflowService->throwSanitizedFailure($this->reportExportId, $exception);
+        }
     }
 
     public function failed(Throwable $exception): void

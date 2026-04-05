@@ -10,6 +10,7 @@ use App\Modules\Integrations\WebhookEventCatalog;
 use App\Modules\Integrations\WebhookTargetSecurityService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 
@@ -522,4 +523,68 @@ test('api v1 webhook delivery retries are throttled', function () {
         [],
         apiIdempotencyHeaders('webhook-retry-throttle-11'),
     )->assertTooManyRequests();
+});
+
+test('api v1 webhook delivery failures expose sanitized messages and redact response excerpts', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookApiRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = WebhookEndpoint::create([
+        'company_id' => $company->id,
+        'name' => 'Sanitized Failure Endpoint',
+        'target_url' => 'https://hooks.example.com/sanitized-failure',
+        'signing_secret' => Str::random(64),
+        'api_version' => 'v1',
+        'is_active' => true,
+        'subscribed_events' => [WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED],
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+    Log::spy();
+
+    Http::fake([
+        'https://hooks.example.com/sanitized-failure' => Http::response(
+            'api_key=super-secret-token stack trace line 1',
+            500
+        ),
+    ]);
+
+    $response = postJson(
+        '/api/v1/webhooks/endpoints/'.$endpoint->id.'/test',
+        [],
+        apiIdempotencyHeaders('webhook-sanitized-failure'),
+    )
+        ->assertOk()
+        ->assertJsonPath('data.status', WebhookDelivery::STATUS_FAILED)
+        ->assertJsonPath('data.failure_message', 'Endpoint returned a server error (HTTP 500).')
+        ->assertJsonPath('data.response_body_excerpt', null);
+
+    $deliveryId = (string) $response->json('data.id');
+    $delivery = WebhookDelivery::query()->findOrFail($deliveryId);
+
+    expect($delivery->failure_message)->toBe('Endpoint returned a server error (HTTP 500).')
+        ->and($delivery->response_body_excerpt)->toBeNull();
+
+    getJson('/api/v1/webhooks/deliveries/'.$deliveryId)
+        ->assertOk()
+        ->assertJsonPath('data.failure_message', 'Endpoint returned a server error (HTTP 500).')
+        ->assertJsonPath('data.response_body_excerpt', null);
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(function (string $message, array $context): bool {
+            $serialized = json_encode($context);
+
+            return $message === 'Webhook delivery failed.'
+                && ($context['failure_code'] ?? null) === 'endpoint_server_error'
+                && ($context['failure_message'] ?? null) === 'Endpoint returned a server error (HTTP 500).'
+                && ! str_contains((string) $serialized, 'super-secret-token')
+                && ! str_contains((string) $serialized, 'stack trace line 1');
+        })
+        ->once();
 });

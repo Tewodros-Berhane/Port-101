@@ -6,6 +6,8 @@ use App\Core\Company\Models\Company;
 use App\Jobs\GenerateCompanyReportExport;
 use App\Models\User;
 use App\Modules\Reports\Models\ReportExport;
+use App\Support\Operations\OperationalFailureSanitizer;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
@@ -15,6 +17,7 @@ class ReportExportWorkflowService
     public function __construct(
         private readonly CompanyReportsService $reportsService,
         private readonly CompanyReportExportService $companyReportExportService,
+        private readonly OperationalFailureSanitizer $failureSanitizer,
     ) {}
 
     /**
@@ -149,12 +152,26 @@ class ReportExportWorkflowService
             return;
         }
 
+        $normalized = $this->failureSanitizer->normalizeReportExportFailure($exception);
+
         $export->forceFill([
             'status' => ReportExport::STATUS_FAILED,
             'failed_at' => now(),
-            'failure_message' => $this->truncateFailureMessage($exception),
+            'failure_message' => $normalized['message'],
             'updated_by' => $export->requested_by_user_id,
         ])->save();
+
+        Log::warning('Report export failed.', [
+            'module' => 'reports',
+            'entity' => 'report_export',
+            'action' => 'generation_failed',
+            'company_id' => $export->company_id,
+            'report_export_id' => $export->id,
+            'report_key' => $export->report_key,
+            'format' => $export->format,
+            'requested_by_user_id' => $export->requested_by_user_id,
+            ...$normalized['log_context'],
+        ]);
     }
 
     public function downloadResponse(ReportExport $reportExport): HttpResponse
@@ -179,18 +196,26 @@ class ReportExportWorkflowService
         ]);
     }
 
-    private function truncateFailureMessage(Throwable $exception): string
+    public function throwSanitizedFailure(string $reportExportId, Throwable $exception): never
     {
-        $message = trim($exception->getMessage());
+        $normalized = $this->failureSanitizer->normalizeReportExportFailure($exception);
 
-        if ($message === '') {
-            $message = 'Report export failed.';
-        }
+        $export = ReportExport::withoutGlobalScopes()
+            ->select(['id', 'company_id', 'report_key', 'format', 'requested_by_user_id'])
+            ->find($reportExportId);
 
-        if (strlen($message) <= 1000) {
-            return $message;
-        }
+        Log::warning('Report export processing threw an exception.', [
+            'module' => 'reports',
+            'entity' => 'report_export',
+            'action' => 'processing_exception',
+            'company_id' => $export?->company_id,
+            'report_export_id' => $reportExportId,
+            'report_key' => $export?->report_key,
+            'format' => $export?->format,
+            'requested_by_user_id' => $export?->requested_by_user_id,
+            ...$normalized['log_context'],
+        ]);
 
-        return substr($message, 0, 997).'...';
+        throw new \RuntimeException($normalized['message']);
     }
 }
