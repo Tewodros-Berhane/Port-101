@@ -241,3 +241,71 @@ test('company webhook viewers can inspect workspace but cannot manage endpoints 
         ->post(route('company.integrations.deliveries.retry', $delivery))
         ->assertForbidden();
 });
+
+test('company webhook test deliveries are throttled in the workspace', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookWorkspaceRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = createWebhookWorkspaceEndpoint($company->id, $manager->id);
+
+    Http::fake([
+        'https://hooks.example.com/finance' => Http::response(['ok' => true], 200),
+    ]);
+
+    foreach (range(1, 10) as $attempt) {
+        actingAs($manager)
+            ->from(route('company.integrations.webhooks.show', $endpoint))
+            ->post(route('company.integrations.webhooks.test', $endpoint))
+            ->assertRedirect(route('company.integrations.webhooks.show', $endpoint));
+    }
+
+    actingAs($manager)
+        ->from(route('company.integrations.webhooks.show', $endpoint))
+        ->post(route('company.integrations.webhooks.test', $endpoint))
+        ->assertRedirect(route('company.integrations.webhooks.show', $endpoint))
+        ->assertSessionHas('warning', 'Too many requests were sent from this browser or account in a short period.');
+
+    expect(
+        WebhookDelivery::query()
+            ->where('company_id', $company->id)
+            ->count()
+    )->toBe(10);
+});
+
+test('company webhook delivery retries are throttled in the workspace', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookWorkspaceRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = createWebhookWorkspaceEndpoint($company->id, $manager->id);
+
+    Http::fake([
+        'https://hooks.example.com/finance' => Http::response('temporary failure', 500),
+    ]);
+
+    foreach (range(1, 10) as $attempt) {
+        $delivery = createWebhookWorkspaceDelivery($company->id, $manager->id, $endpoint);
+
+        actingAs($manager)
+            ->from(route('company.integrations.deliveries.show', $delivery))
+            ->post(route('company.integrations.deliveries.retry', $delivery))
+            ->assertRedirect(route('company.integrations.deliveries.show', $delivery));
+    }
+
+    $blockedDelivery = createWebhookWorkspaceDelivery($company->id, $manager->id, $endpoint);
+
+    actingAs($manager)
+        ->from(route('company.integrations.deliveries.show', $blockedDelivery))
+        ->post(route('company.integrations.deliveries.retry', $blockedDelivery))
+        ->assertRedirect(route('company.integrations.deliveries.show', $blockedDelivery))
+        ->assertSessionHas('warning', 'Too many requests were sent from this browser or account in a short period.');
+
+    expect($blockedDelivery->fresh()->attempt_count)->toBe(1);
+});

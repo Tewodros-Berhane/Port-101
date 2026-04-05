@@ -182,3 +182,109 @@ test('accepting a platform admin invite promotes the recipient to superadmin', f
         ->assertSee($email)
         ->assertSee('active');
 });
+
+test('platform admin invite creation is throttled', function () {
+    Mail::fake();
+
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    foreach (range(1, 5) as $attempt) {
+        actingAs($superAdmin)
+            ->from(route('platform.admin-users.index'))
+            ->post(route('platform.admin-users.store'), [
+                'name' => "Platform Admin {$attempt}",
+                'email' => "platform-admin-throttle-{$attempt}@example.com",
+            ])
+            ->assertRedirect(route('platform.admin-users.index'));
+    }
+
+    actingAs($superAdmin)
+        ->from(route('platform.admin-users.index'))
+        ->post(route('platform.admin-users.store'), [
+            'name' => 'Platform Admin 6',
+            'email' => 'platform-admin-throttle-6@example.com',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('warning', 'Too many requests were sent from this browser or account in a short period.');
+
+    expect(
+        Invite::query()
+            ->whereRaw('LOWER(email) like ?', ['platform-admin-throttle-%@example.com'])
+            ->count()
+    )->toBe(5);
+
+    Mail::assertSentCount(5);
+});
+
+test('platform invite resend is throttled', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    $invite = Invite::create([
+        'email' => 'platform-resend-throttle@example.com',
+        'name' => 'Platform Resend Throttle',
+        'role' => 'platform_admin',
+        'company_id' => null,
+        'token' => Str::random(40),
+        'expires_at' => now()->addDays(7),
+        'created_by' => $superAdmin->id,
+    ]);
+
+    foreach (range(1, 10) as $attempt) {
+        actingAs($superAdmin)
+            ->from(route('platform.admin-users.index'))
+            ->post(route('platform.invites.resend', $invite))
+            ->assertRedirect(route('platform.admin-users.index'));
+    }
+
+    actingAs($superAdmin)
+        ->from(route('platform.admin-users.index'))
+        ->post(route('platform.invites.resend', $invite))
+        ->assertRedirect(route('platform.admin-users.index'))
+        ->assertSessionHas('warning', 'Too many requests were sent from this browser or account in a short period.');
+
+    expect($invite->fresh()->delivery_attempts)->toBe(10);
+});
+
+test('platform admin invite creation refreshes existing pending invites instead of duplicating them', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    actingAs($superAdmin)
+        ->post(route('platform.admin-users.store'), [
+            'name' => 'Platform Duplicate First',
+            'email' => 'platform-duplicate@example.com',
+        ])
+        ->assertRedirect(route('platform.admin-users.index'));
+
+    $firstInvite = Invite::query()
+        ->where('role', 'platform_admin')
+        ->whereNull('company_id')
+        ->where('email', 'platform-duplicate@example.com')
+        ->firstOrFail();
+
+    actingAs($superAdmin)
+        ->post(route('platform.admin-users.store'), [
+            'name' => 'Platform Duplicate Refreshed',
+            'email' => 'platform-duplicate@example.com',
+        ])
+        ->assertRedirect(route('platform.admin-users.index'));
+
+    $matchingInvites = Invite::query()
+        ->where('role', 'platform_admin')
+        ->whereNull('company_id')
+        ->whereRaw('LOWER(email) = ?', ['platform-duplicate@example.com'])
+        ->get();
+
+    expect($matchingInvites)->toHaveCount(1);
+
+    $refreshedInvite = $matchingInvites->first();
+
+    expect($refreshedInvite?->id)->toBe($firstInvite->id)
+        ->and($refreshedInvite?->name)->toBe('Platform Duplicate Refreshed')
+        ->and($refreshedInvite?->token)->not->toBe($firstInvite->token);
+});

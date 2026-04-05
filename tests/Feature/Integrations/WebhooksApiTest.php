@@ -3,6 +3,7 @@
 use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
+use App\Modules\Integrations\Models\IntegrationEvent;
 use App\Modules\Integrations\Models\WebhookDelivery;
 use App\Modules\Integrations\Models\WebhookEndpoint;
 use App\Modules\Integrations\WebhookEventCatalog;
@@ -399,4 +400,126 @@ test('api v1 webhook test deliveries replay duplicate idempotent requests withou
 
     Http::assertSentCount(1);
     expect(WebhookDelivery::query()->where('company_id', $company->id)->count())->toBe(1);
+});
+
+test('api v1 webhook test deliveries are throttled', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookApiRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = WebhookEndpoint::create([
+        'company_id' => $company->id,
+        'name' => 'Throttle Test Endpoint',
+        'target_url' => 'https://hooks.example.com/throttle-test',
+        'signing_secret' => Str::random(64),
+        'api_version' => 'v1',
+        'is_active' => true,
+        'subscribed_events' => [WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED],
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    Http::fake([
+        'https://hooks.example.com/throttle-test' => Http::response(['ok' => true], 200),
+    ]);
+
+    foreach (range(1, 10) as $attempt) {
+        postJson(
+            '/api/v1/webhooks/endpoints/'.$endpoint->id.'/test',
+            [],
+            apiIdempotencyHeaders('webhook-test-throttle-'.$attempt),
+        )->assertOk();
+    }
+
+    postJson(
+        '/api/v1/webhooks/endpoints/'.$endpoint->id.'/test',
+        [],
+        apiIdempotencyHeaders('webhook-test-throttle-11'),
+    )->assertTooManyRequests();
+});
+
+test('api v1 webhook delivery retries are throttled', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignWebhookApiRole($manager, $company->id, [
+        'integrations.webhooks.view',
+        'integrations.webhooks.manage',
+    ]);
+
+    $endpoint = WebhookEndpoint::create([
+        'company_id' => $company->id,
+        'name' => 'Throttle Retry Endpoint',
+        'target_url' => 'https://hooks.example.com/throttle-retry',
+        'signing_secret' => Str::random(64),
+        'api_version' => 'v1',
+        'is_active' => true,
+        'subscribed_events' => [WebhookEventCatalog::ACCOUNTING_INVOICE_POSTED],
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    Http::fake([
+        'https://hooks.example.com/throttle-retry' => Http::response('failed again', 500),
+    ]);
+
+    foreach (range(1, 10) as $attempt) {
+        $delivery = WebhookDelivery::create([
+            'company_id' => $company->id,
+            'webhook_endpoint_id' => $endpoint->id,
+            'integration_event_id' => IntegrationEvent::create([
+                'company_id' => $company->id,
+                'event_type' => WebhookEventCatalog::SYSTEM_WEBHOOK_TEST,
+                'aggregate_type' => WebhookEndpoint::class,
+                'aggregate_id' => $endpoint->id,
+                'occurred_at' => now(),
+                'payload' => ['event_type' => WebhookEventCatalog::SYSTEM_WEBHOOK_TEST],
+                'created_by' => $manager->id,
+                'updated_by' => $manager->id,
+            ])->id,
+            'event_type' => WebhookEventCatalog::SYSTEM_WEBHOOK_TEST,
+            'status' => WebhookDelivery::STATUS_FAILED,
+            'attempt_count' => 1,
+            'created_by' => $manager->id,
+            'updated_by' => $manager->id,
+        ]);
+
+        postJson(
+            '/api/v1/webhooks/deliveries/'.$delivery->id.'/retry',
+            [],
+            apiIdempotencyHeaders('webhook-retry-throttle-'.$attempt),
+        )->assertOk();
+    }
+
+    $overflowDelivery = WebhookDelivery::create([
+        'company_id' => $company->id,
+        'webhook_endpoint_id' => $endpoint->id,
+        'integration_event_id' => IntegrationEvent::create([
+            'company_id' => $company->id,
+            'event_type' => WebhookEventCatalog::SYSTEM_WEBHOOK_TEST,
+            'aggregate_type' => WebhookEndpoint::class,
+            'aggregate_id' => $endpoint->id,
+            'occurred_at' => now(),
+            'payload' => ['event_type' => WebhookEventCatalog::SYSTEM_WEBHOOK_TEST],
+            'created_by' => $manager->id,
+            'updated_by' => $manager->id,
+        ])->id,
+        'event_type' => WebhookEventCatalog::SYSTEM_WEBHOOK_TEST,
+        'status' => WebhookDelivery::STATUS_FAILED,
+        'attempt_count' => 1,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    postJson(
+        '/api/v1/webhooks/deliveries/'.$overflowDelivery->id.'/retry',
+        [],
+        apiIdempotencyHeaders('webhook-retry-throttle-11'),
+    )->assertTooManyRequests();
 });

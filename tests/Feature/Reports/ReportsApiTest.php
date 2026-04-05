@@ -220,3 +220,32 @@ test('api v1 report export creation replays duplicate idempotent requests', func
 
     expect(ReportExport::query()->where('company_id', $company->id)->count())->toBe(1);
 });
+
+test('api v1 report export creation is throttled', function () {
+    Storage::fake('local');
+
+    [$reportUser, $company] = makeActiveCompanyMember();
+
+    assignReportsApiRole($reportUser, $company->id, [
+        'reports.view',
+        'reports.export',
+    ]);
+
+    Sanctum::actingAs($reportUser);
+
+    foreach (range(1, 10) as $attempt) {
+        postJson('/api/v1/reports/exports', [
+            'report_key' => CompanyReportsService::REPORT_FINANCE_SNAPSHOT,
+            'format' => ReportExport::FORMAT_XLSX,
+            'trend_window' => 30,
+        ], apiIdempotencyHeaders('report-export-throttle-'.$attempt))
+            ->assertAccepted();
+    }
+
+    postJson('/api/v1/reports/exports', [
+        'report_key' => CompanyReportsService::REPORT_FINANCE_SNAPSHOT,
+        'format' => ReportExport::FORMAT_XLSX,
+        'trend_window' => 30,
+    ], apiIdempotencyHeaders('report-export-throttle-11'))
+        ->assertTooManyRequests();
+});

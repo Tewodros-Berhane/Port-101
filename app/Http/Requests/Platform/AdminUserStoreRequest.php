@@ -22,7 +22,7 @@ class AdminUserStoreRequest extends FormRequest
                 'email',
                 'max:255',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    $email = strtolower(trim((string) $value));
+                    $email = Invite::normalizeEmail((string) $value);
 
                     $existingSuperAdmin = User::query()
                         ->whereRaw('LOWER(email) = ?', [$email])
@@ -33,16 +33,6 @@ class AdminUserStoreRequest extends FormRequest
                         $fail('This user is already a platform admin.');
 
                         return;
-                    }
-
-                    $pendingInviteExists = Invite::query()
-                        ->whereRaw('LOWER(email) = ?', [$email])
-                        ->where('role', 'platform_admin')
-                        ->whereNull('accepted_at')
-                        ->exists();
-
-                    if ($pendingInviteExists) {
-                        $fail('A pending platform admin invite already exists for this email.');
                     }
                 },
             ],

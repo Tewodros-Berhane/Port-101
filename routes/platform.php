@@ -30,6 +30,7 @@ Route::middleware(['auth', 'verified', 'superadmin'])
         Route::post('operations/queue-health/report-exports/{reportExport}/retry', [PlatformQueueHealthController::class, 'retryReportExport'])
             ->name('queue-health.report-exports.retry');
         Route::get('reports/export/{reportKey}', [PlatformReportsController::class, 'export'])
+            ->middleware('throttle:platform-report-export')
             ->name('reports.export');
         Route::post('reports/report-presets', [PlatformDashboardController::class, 'storeReportPreset'])
             ->name('reports.report-presets.store');
@@ -39,8 +40,10 @@ Route::middleware(['auth', 'verified', 'superadmin'])
         Route::get('governance', [PlatformDashboardController::class, 'governance'])
             ->name('governance');
         Route::get('dashboard/export/admin-actions', [PlatformDashboardController::class, 'exportAdminActions'])
+            ->middleware('throttle:platform-report-export')
             ->name('dashboard.export.admin-actions');
         Route::get('dashboard/export/delivery-trends', [PlatformDashboardController::class, 'exportDeliveryTrends'])
+            ->middleware('throttle:platform-report-export')
             ->name('dashboard.export.delivery-trends');
         Route::post('dashboard/report-presets', [PlatformDashboardController::class, 'storeReportPreset'])
             ->name('dashboard.report-presets.store');
@@ -58,7 +61,10 @@ Route::middleware(['auth', 'verified', 'superadmin'])
         Route::resource('companies', PlatformCompaniesController::class)
             ->only(['index', 'create', 'store', 'show', 'update']);
         Route::resource('admin-users', PlatformAdminUsersController::class)
-            ->only(['index', 'create', 'store']);
+            ->only(['index', 'create']);
+        Route::post('admin-users', [PlatformAdminUsersController::class, 'store'])
+            ->middleware('throttle:platform-invite-store')
+            ->name('admin-users.store');
         Route::get('contact-requests', [PlatformContactRequestsController::class, 'index'])
             ->name('contact-requests.index');
         Route::put('contact-requests/{contactRequest}', [PlatformContactRequestsController::class, 'update'])
@@ -68,8 +74,10 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->name('invites.destroy');
         Route::post('invites/{invite}/resend', [PlatformInvitesController::class, 'resend'])
             ->whereUuid('invite')
+            ->middleware('throttle:platform-invite-delivery')
             ->name('invites.resend');
         Route::post('invites/{invite}/retry-delivery', [PlatformInvitesController::class, 'retryDelivery'])
             ->whereUuid('invite')
+            ->middleware('throttle:platform-invite-delivery')
             ->name('invites.retry-delivery');
     });

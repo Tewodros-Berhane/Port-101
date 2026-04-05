@@ -59,9 +59,14 @@ Route::middleware(['auth', 'verified', 'company', 'company.workspace'])
             ->name('notifications.destroy');
 
         Route::resource('invites', CompanyInvitesController::class)
-            ->only(['index', 'create', 'store', 'destroy']);
+            ->only(['index', 'create', 'destroy']);
         Route::post('invites/{invite}/resend', [CompanyInvitesController::class, 'resend'])
+            ->middleware('throttle:company-invite-delivery')
             ->name('invites.resend');
         Route::post('invites/{invite}/retry-delivery', [CompanyInvitesController::class, 'retryDelivery'])
+            ->middleware('throttle:company-invite-delivery')
             ->name('invites.retry-delivery');
+        Route::post('invites', [CompanyInvitesController::class, 'store'])
+            ->middleware('throttle:company-invite-store')
+            ->name('invites.store');
     });

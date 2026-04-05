@@ -112,6 +112,30 @@ class AppServiceProvider extends ServiceProvider
                         ]);
                 });
         });
+
+        RateLimiter::for('company-invite-store', fn (Request $request) => Limit::perMinutes(10, 5)
+            ->by($this->actionThrottleKey($request, 'company-invite-store')));
+
+        RateLimiter::for('company-invite-delivery', fn (Request $request) => Limit::perMinutes(10, 10)
+            ->by($this->actionThrottleKey($request, 'company-invite-delivery')));
+
+        RateLimiter::for('platform-invite-store', fn (Request $request) => Limit::perMinutes(10, 5)
+            ->by($this->actionThrottleKey($request, 'platform-invite-store', 'platform')));
+
+        RateLimiter::for('platform-invite-delivery', fn (Request $request) => Limit::perMinutes(10, 10)
+            ->by($this->actionThrottleKey($request, 'platform-invite-delivery', 'platform')));
+
+        RateLimiter::for('webhook-test', fn (Request $request) => Limit::perMinute(10)
+            ->by($this->actionThrottleKey($request, 'webhook-test')));
+
+        RateLimiter::for('webhook-retry', fn (Request $request) => Limit::perMinute(10)
+            ->by($this->actionThrottleKey($request, 'webhook-retry')));
+
+        RateLimiter::for('report-export-api', fn (Request $request) => Limit::perMinutes(10, 10)
+            ->by($this->actionThrottleKey($request, 'report-export-api')));
+
+        RateLimiter::for('platform-report-export', fn (Request $request) => Limit::perMinutes(10, 10)
+            ->by($this->actionThrottleKey($request, 'platform-report-export', 'platform')));
     }
 
     protected function registerStructuredLogging(): void
@@ -329,5 +353,18 @@ class AppServiceProvider extends ServiceProvider
             'entity' => $jobName,
             'action' => 'handle',
         ];
+    }
+
+    private function actionThrottleKey(
+        Request $request,
+        string $action,
+        ?string $scopeOverride = null,
+    ): string {
+        return implode('|', [
+            $action,
+            $request->user()?->getAuthIdentifier() ?? 'guest',
+            $scopeOverride ?? ($request->user()?->current_company_id ?? 'no-company'),
+            $request->ip(),
+        ]);
     }
 }

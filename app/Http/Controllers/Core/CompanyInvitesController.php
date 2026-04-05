@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Core\Access\InviteProvisioningService;
 use App\Core\Access\Models\Invite;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\CompanyInviteStoreRequest;
@@ -10,12 +11,15 @@ use App\Support\Http\Feedback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CompanyInvitesController extends Controller
 {
+    public function __construct(
+        private readonly InviteProvisioningService $inviteProvisioningService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $this->authorizeOwnerInviteManagement($request);
@@ -75,18 +79,14 @@ class CompanyInvitesController extends Controller
             ? Carbon::parse($data['expires_at'])->endOfDay()
             : now()->addDays(14);
 
-        $invite = Invite::create([
-            'email' => $data['email'],
-            'name' => $data['name'] ?? null,
-            'role' => 'company_owner',
-            'company_id' => $request->user()?->current_company_id,
-            'token' => Str::random(40),
-            'expires_at' => $expiresAt,
-            'delivery_status' => Invite::DELIVERY_PENDING,
-            'delivery_attempts' => 0,
-            'last_delivery_error' => null,
-            'created_by' => $request->user()?->id,
-        ]);
+        $invite = $this->inviteProvisioningService->createOrRefreshPendingInvite(
+            email: (string) $data['email'],
+            name: $data['name'] ?? null,
+            role: 'company_owner',
+            companyId: (string) $request->user()?->current_company_id,
+            expiresAt: $expiresAt,
+            actorId: $request->user()?->id,
+        );
 
         $this->queueDelivery($invite);
 
@@ -160,7 +160,7 @@ class CompanyInvitesController extends Controller
             'last_delivery_error' => null,
         ])->save();
 
-        SendInviteLinkMail::dispatch($invite->id);
+        SendInviteLinkMail::dispatch($invite->id)->afterCommit();
     }
 
     private function authorizeOwnerInviteManagement(Request $request): void

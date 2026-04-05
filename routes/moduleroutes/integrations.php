@@ -26,6 +26,7 @@ Route::prefix('integrations')->name('integrations.')->group(function () {
     Route::post('webhooks/{endpoint}/rotate-secret', [WebhookEndpointsController::class, 'rotateSecret'])
         ->name('webhooks.rotate-secret');
     Route::post('webhooks/{endpoint}/test', [WebhookEndpointsController::class, 'test'])
+        ->middleware('throttle:webhook-test')
         ->name('webhooks.test');
 
     Route::get('deliveries', [WebhookDeliveriesController::class, 'index'])
@@ -33,5 +34,6 @@ Route::prefix('integrations')->name('integrations.')->group(function () {
     Route::get('deliveries/{delivery}', [WebhookDeliveriesController::class, 'show'])
         ->name('deliveries.show');
     Route::post('deliveries/{delivery}/retry', [WebhookDeliveriesController::class, 'retry'])
+        ->middleware('throttle:webhook-retry')
         ->name('deliveries.retry');
 });

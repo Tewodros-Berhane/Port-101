@@ -175,6 +175,28 @@ test('superadmin can export delivery trend report', function () {
         );
 });
 
+test('platform report exports are throttled', function () {
+    $superAdmin = createSuperAdmin();
+
+    foreach (range(1, 10) as $attempt) {
+        actingAs($superAdmin)
+            ->get(route('platform.reports.export', [
+                'reportKey' => 'admin-actions',
+                'format' => 'pdf',
+            ]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    actingAs($superAdmin)
+        ->get(route('platform.reports.export', [
+            'reportKey' => 'admin-actions',
+            'format' => 'pdf',
+        ]))
+        ->assertStatus(429)
+        ->assertSee('Too many requests were sent from this browser or account in a short period.');
+});
+
 test('superadmin can save and delete operations report presets and update schedule', function () {
     $superAdmin = createSuperAdmin();
 

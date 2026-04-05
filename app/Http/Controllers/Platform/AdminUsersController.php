@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Platform;
 
+use App\Core\Access\InviteProvisioningService;
 use App\Core\Access\Models\Invite;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\AdminUserStoreRequest;
@@ -10,12 +11,15 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminUsersController extends Controller
 {
+    public function __construct(
+        private readonly InviteProvisioningService $inviteProvisioningService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $activeAdmins = User::query()
@@ -91,20 +95,16 @@ class AdminUsersController extends Controller
     {
         $data = $request->validated();
 
-        $invite = Invite::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'role' => 'platform_admin',
-            'company_id' => null,
-            'token' => Str::random(40),
-            'expires_at' => now()->addDays(14),
-            'delivery_status' => Invite::DELIVERY_PENDING,
-            'delivery_attempts' => 0,
-            'last_delivery_error' => null,
-            'created_by' => $request->user()?->id,
-        ]);
+        $invite = $this->inviteProvisioningService->createOrRefreshPendingInvite(
+            email: (string) $data['email'],
+            name: (string) $data['name'],
+            role: 'platform_admin',
+            companyId: null,
+            expiresAt: now()->addDays(14),
+            actorId: $request->user()?->id,
+        );
 
-        SendInviteLinkMail::dispatch($invite->id);
+        SendInviteLinkMail::dispatch($invite->id)->afterCommit();
 
         return redirect()
             ->route('platform.admin-users.index')

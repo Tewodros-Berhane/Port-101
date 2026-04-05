@@ -88,7 +88,7 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
         Route::apiResource('products', ApiProductsController::class);
         Route::prefix('reports')->group(function () {
             Route::post('exports', [ApiReportExportsController::class, 'store'])
-                ->middleware('api.idempotency');
+                ->middleware(['api.idempotency', 'throttle:report-export-api']);
             Route::get('exports/{reportExport}', [ApiReportExportsController::class, 'show']);
             Route::get('exports/{reportExport}/download', [ApiReportExportsController::class, 'download']);
         });
@@ -100,11 +100,11 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::delete('endpoints/{endpoint}', [ApiWebhookEndpointsController::class, 'destroy']);
             Route::post('endpoints/{endpoint}/rotate-secret', [ApiWebhookEndpointsController::class, 'rotateSecret']);
             Route::post('endpoints/{endpoint}/test', [ApiWebhookEndpointsController::class, 'test'])
-                ->middleware('api.idempotency');
+                ->middleware(['api.idempotency', 'throttle:webhook-test']);
             Route::get('endpoints/{endpoint}/deliveries', [ApiWebhookEndpointsController::class, 'deliveries']);
             Route::get('deliveries/{delivery}', [ApiWebhookDeliveriesController::class, 'show']);
             Route::post('deliveries/{delivery}/retry', [ApiWebhookDeliveriesController::class, 'retry'])
-                ->middleware('api.idempotency');
+                ->middleware(['api.idempotency', 'throttle:webhook-retry']);
         });
         Route::prefix('inventory')->group(function () {
             Route::get('stock-balances', [ApiInventoryStockBalancesController::class, 'index']);

@@ -303,3 +303,101 @@ test('company invite store ignores non owner role payloads', function () {
     expect($invite)->not->toBeNull();
     expect($invite->role)->toBe('company_owner');
 });
+
+test('company invite creation is throttled', function () {
+    [$user] = makeCompanyOwnerUser();
+
+    foreach (range(1, 5) as $attempt) {
+        actingAs($user)
+            ->from(route('core.invites.index'))
+            ->post(route('core.invites.store'), [
+                'email' => "company-throttle-{$attempt}@example.com",
+                'name' => "Company Throttle {$attempt}",
+            ])
+            ->assertRedirect(route('core.invites.index'));
+    }
+
+    actingAs($user)
+        ->from(route('core.invites.index'))
+        ->post(route('core.invites.store'), [
+            'email' => 'company-throttle-6@example.com',
+            'name' => 'Company Throttle 6',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('warning', 'Too many requests were sent from this browser or account in a short period.');
+
+    expect(
+        Invite::query()
+            ->whereRaw('LOWER(email) like ?', ['company-throttle-%@example.com'])
+            ->count()
+    )->toBe(5);
+});
+
+test('company invite delivery retry is throttled', function () {
+    [$user, $company] = makeCompanyOwnerUser();
+
+    $invite = Invite::create([
+        'email' => 'company-retry-throttle@example.com',
+        'name' => 'Retry Throttle',
+        'role' => 'company_owner',
+        'company_id' => $company->id,
+        'token' => Str::random(40),
+        'expires_at' => now()->addDays(7),
+        'created_by' => $user->id,
+    ]);
+
+    foreach (range(1, 10) as $attempt) {
+        actingAs($user)
+            ->from(route('core.invites.index'))
+            ->post(route('core.invites.retry-delivery', $invite))
+            ->assertRedirect(route('core.invites.index'));
+    }
+
+    actingAs($user)
+        ->from(route('core.invites.index'))
+        ->post(route('core.invites.retry-delivery', $invite))
+        ->assertRedirect(route('core.invites.index'))
+        ->assertSessionHas('warning', 'Too many requests were sent from this browser or account in a short period.');
+
+    expect($invite->fresh()->delivery_attempts)->toBe(10);
+});
+
+test('company invite creation refreshes existing pending invites instead of duplicating them', function () {
+    Mail::fake();
+
+    [$user, $company] = makeCompanyOwnerUser();
+
+    actingAs($user)
+        ->post(route('core.invites.store'), [
+            'email' => 'duplicate-company-owner@example.com',
+            'name' => 'First Invite',
+        ])
+        ->assertRedirect(route('core.invites.index'));
+
+    $firstInvite = Invite::query()
+        ->where('company_id', $company->id)
+        ->where('role', 'company_owner')
+        ->where('email', 'duplicate-company-owner@example.com')
+        ->firstOrFail();
+
+    actingAs($user)
+        ->post(route('core.invites.store'), [
+            'email' => 'duplicate-company-owner@example.com',
+            'name' => 'Refreshed Invite',
+        ])
+        ->assertRedirect(route('core.invites.index'));
+
+    $matchingInvites = Invite::query()
+        ->where('company_id', $company->id)
+        ->where('role', 'company_owner')
+        ->whereRaw('LOWER(email) = ?', ['duplicate-company-owner@example.com'])
+        ->get();
+
+    expect($matchingInvites)->toHaveCount(1);
+
+    $refreshedInvite = $matchingInvites->first();
+
+    expect($refreshedInvite?->id)->toBe($firstInvite->id)
+        ->and($refreshedInvite?->name)->toBe('Refreshed Invite')
+        ->and($refreshedInvite?->token)->not->toBe($firstInvite->token);
+});
