@@ -1,5 +1,7 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { buildBreadcrumbs } from '@/lib/page-navigation';
@@ -22,12 +24,16 @@ type Props = {
         data: AppNotification[];
         links: { url: string | null; label: string; active: boolean }[];
     };
+    filters: {
+        search?: string;
+        notification?: string;
+    };
 };
 
 const formatDate = (value?: string | null) =>
     value ? new Date(value).toLocaleString() : '-';
 
-export default function NotificationsIndex({ notifications }: Props) {
+export default function NotificationsIndex({ notifications, filters }: Props) {
     const { hasPermission } = usePermissions();
     const { auth } = usePage<SharedData>().props;
     const isSuperAdmin = Boolean(auth?.user?.is_super_admin);
@@ -35,21 +41,60 @@ export default function NotificationsIndex({ notifications }: Props) {
     const notificationsBasePath = isSuperAdmin
         ? '/platform/notifications'
         : '/core/notifications';
+    const [search, setSearch] = useState(filters.search ?? '');
 
     const markReadForm = useForm({});
     const markAllReadForm = useForm({});
     const deleteForm = useForm({});
+    const queryParams = new URLSearchParams();
+
+    if (filters.search) {
+        queryParams.set('search', filters.search);
+    }
+
+    if (filters.notification) {
+        queryParams.set('notification', filters.notification);
+    }
+
+    const querySuffix = queryParams.toString() ? `?${queryParams.toString()}` : '';
+
+    const applySearch = () => {
+        const nextSearch = search.trim();
+
+        router.get(
+            notificationsBasePath,
+            nextSearch ? { search: nextSearch } : {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const clearSearch = () => {
+        setSearch('');
+        router.get(
+            notificationsBasePath,
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     const handleMarkRead = (notificationId: string) => {
-        markReadForm.post(`${notificationsBasePath}/${notificationId}/read`);
+        markReadForm.post(`${notificationsBasePath}/${notificationId}/read${querySuffix}`);
     };
 
     const handleMarkAllRead = () => {
-        markAllReadForm.post(`${notificationsBasePath}/mark-all-read`);
+        markAllReadForm.post(`${notificationsBasePath}/mark-all-read${querySuffix}`);
     };
 
     const handleDelete = (notificationId: string) => {
-        deleteForm.delete(`${notificationsBasePath}/${notificationId}`);
+        deleteForm.delete(`${notificationsBasePath}/${notificationId}${querySuffix}`);
     };
 
     const unreadCount = notifications.data.filter(
@@ -87,6 +132,51 @@ export default function NotificationsIndex({ notifications }: Props) {
                         Mark all read
                     </Button>
                 )}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 rounded-xl border border-[color:var(--border-default)] bg-card p-4 md:flex-row md:items-end md:justify-between">
+                <div className="min-w-0 flex-1">
+                    <label
+                        htmlFor="notifications-search"
+                        className="text-xs font-medium uppercase tracking-[0.16em] text-[color:var(--text-muted)]"
+                    >
+                        Search notifications
+                    </label>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <Input
+                            id="notifications-search"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    applySearch();
+                                }
+                            }}
+                            placeholder="Search by title, message, type, or notification ID"
+                            className="sm:max-w-xl"
+                        />
+                        <div className="flex gap-2">
+                            <Button type="button" onClick={applySearch}>
+                                Search
+                            </Button>
+                            {(filters.search || filters.notification) && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={clearSearch}
+                                >
+                                    Clear
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="text-xs text-[color:var(--text-muted)]">
+                    {filters.notification
+                        ? 'Showing the notification selected from the header list.'
+                        : 'Search stays scoped to your current company or platform access.'}
+                </div>
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-xl border">

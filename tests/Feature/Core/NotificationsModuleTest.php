@@ -95,6 +95,42 @@ test('user can view mark read and delete in-app notifications', function () {
     )->toBeFalse();
 });
 
+test('user can filter notifications page to a specific notification from the header context', function () {
+    $user = createCompanyUserForNotifications([
+        'core.notifications.view',
+        'core.notifications.manage',
+    ]);
+
+    $user->notify(new CompanySettingsUpdatedNotification(
+        companyName: 'Acme Corp',
+        updatedBy: 'Admin User'
+    ));
+
+    $user->notify(new CompanySettingsUpdatedNotification(
+        companyName: 'Acme Corp',
+        updatedBy: 'Owner User'
+    ));
+
+    $selected = $user->fresh()
+        ->notifications
+        ->first(fn ($notification) => str_contains(
+            (string) data_get($notification->data, 'message', ''),
+            'Owner User'
+        ));
+
+    expect($selected)->not->toBeNull();
+
+    actingAs($user)
+        ->get(route('core.notifications.index', [
+            'notification' => $selected->id,
+            'search' => 'Company settings updated',
+        ]))
+        ->assertOk()
+        ->assertSee('Company settings updated')
+        ->assertSee('Owner User updated company settings for Acme Corp.')
+        ->assertDontSee('Admin User updated company settings for Acme Corp.');
+});
+
 test('superadmin can view and manage notifications from the platform route', function () {
     Permission::firstOrCreate(
         ['slug' => 'core.notifications.view'],
@@ -135,4 +171,46 @@ test('superadmin can view and manage notifications from the platform route', fun
     expect(
         $superAdmin->fresh()->notifications()->where('id', $notificationId)->exists()
     )->toBeFalse();
+});
+
+test('superadmin can filter notifications page to a specific platform notification', function () {
+    Permission::firstOrCreate(
+        ['slug' => 'core.notifications.view'],
+        ['name' => 'core.notifications.view', 'group' => 'core']
+    );
+
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    $superAdmin->notify(new PlatformNotificationDigestNotification(
+        periodLabel: 'Last hour',
+        totalNotifications: 3,
+        severityCounts: ['low' => 3],
+    ));
+
+    $superAdmin->notify(new PlatformNotificationDigestNotification(
+        periodLabel: 'Last day',
+        totalNotifications: 5,
+        severityCounts: ['medium' => 2, 'low' => 3],
+    ));
+
+    $selected = $superAdmin->fresh()
+        ->notifications
+        ->first(fn ($notification) => str_contains(
+            (string) data_get($notification->data, 'message', ''),
+            'Last day'
+        ));
+
+    expect($selected)->not->toBeNull();
+
+    actingAs($superAdmin)
+        ->get(route('platform.notifications.index', [
+            'notification' => $selected->id,
+            'search' => 'Platform notification digest',
+        ]))
+        ->assertOk()
+        ->assertSee('Platform notification digest')
+        ->assertSee('Summary for Last day: 5 notifications.')
+        ->assertDontSee('Summary for Last hour: 3 notifications.');
 });

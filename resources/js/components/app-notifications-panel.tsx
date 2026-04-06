@@ -60,6 +60,18 @@ export function AppNotificationsPanel() {
         ? '/platform/notifications'
         : '/core/notifications';
 
+    const buildNotificationHref = (notificationId: string, title: string) => {
+        const params = new URLSearchParams({
+            notification: notificationId,
+        });
+
+        if (title.trim() !== '') {
+            params.set('search', title.trim());
+        }
+
+        return `${notificationsIndexHref}?${params.toString()}`;
+    };
+
     if (!canViewNotifications) {
         return null;
     }
@@ -118,7 +130,10 @@ export function AppNotificationsPanel() {
                                 className="rounded-[var(--radius-panel)] p-0 focus:bg-transparent"
                             >
                                 <Link
-                                    href={notification.url ?? notificationsIndexHref}
+                                    href={buildNotificationHref(
+                                        notification.id,
+                                        notification.title ?? 'Notification',
+                                    )}
                                     className="block w-full rounded-[var(--radius-panel)] border border-transparent px-3 py-3 transition-[background-color,border-color] hover:border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-surface-muted)]"
                                 >
                                     <div className="flex items-start gap-3">

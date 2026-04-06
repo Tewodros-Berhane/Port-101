@@ -14,10 +14,30 @@ class NotificationsController extends Controller
     {
         abort_unless($request->user()?->hasPermission('core.notifications.view'), 403);
 
-        $notifications = $request->user()
+        $search = trim((string) $request->query('search', ''));
+        $notificationId = trim((string) $request->query('notification', ''));
+
+        $notificationsQuery = $request->user()
             ?->notifications()
-            ->latest()
-            ->paginate(20)
+            ->latest();
+
+        if ($notificationId !== '') {
+            $notificationsQuery?->where('id', $notificationId);
+        } elseif ($search !== '') {
+            $like = '%'.$search.'%';
+
+            $notificationsQuery?->where(function ($query) use ($search, $like) {
+                $query
+                    ->where('id', $search)
+                    ->orWhere('type', 'like', $like)
+                    ->orWhere('data->title', 'like', $like)
+                    ->orWhere('data->message', 'like', $like)
+                    ->orWhere('data->url', 'like', $like);
+            });
+        }
+
+        $notifications = $notificationsQuery
+            ?->paginate(20)
             ->withQueryString();
 
         return Inertia::render('core/notifications/index', [
@@ -38,6 +58,10 @@ class NotificationsController extends Controller
                     'created_at' => $notification->created_at?->toIso8601String(),
                 ];
             }),
+            'filters' => [
+                'search' => $search,
+                'notification' => $notificationId,
+            ],
         ]);
     }
 
