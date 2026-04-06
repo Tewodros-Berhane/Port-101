@@ -119,8 +119,8 @@ export default function ProductPreviewSection({
                 <div className="max-w-3xl">
                     <PublicSectionHeader
                         eyebrow="Inside the product"
-                        title="The preview uses the same layout language as the actual application."
-                        description="Instead of decorative marketing mockups, this section uses the same record, workflow, and reporting patterns already present in the product."
+                        title="See how Port-101 keeps records, workflows, and reporting connected."
+                        description="Review the same operational context teams use to move work across sales, inventory, finance, projects, HR, and governance."
                     />
                 </div>
 
@@ -328,7 +328,7 @@ export default function ProductPreviewSection({
                                                     Records in this view
                                                 </p>
                                                 <p className="text-xs text-[color:var(--text-secondary)]">
-                                                    Ownership and statuses reflect the way the product surfaces active work.
+                                                    Ownership and statuses keep active work clear at every step.
                                                 </p>
                                             </div>
                                             <Badge variant="outline">

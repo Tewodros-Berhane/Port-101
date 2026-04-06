@@ -91,7 +91,7 @@ const productPreviewTabs: ProductPreviewTab[] = [
         label: 'Operations',
         title: 'Keep sales, purchasing, stock, and delivery in one operational chain.',
         description:
-            'The operational workspace keeps commercial records, stock movement, and procurement activity connected so work does not fragment between teams.',
+            'The operations workspace keeps commercial records, stock movement, and procurement activity connected across teams.',
         bullets: [
             'Move from lead to quote to order without losing operational context.',
             'Track warehouse activity, stock moves, lots, reordering, and counts in the same system.',
@@ -355,7 +355,7 @@ const productPreviewTabs: ProductPreviewTab[] = [
             {
                 label: 'Delivery visibility',
                 value: 'Retry retained',
-                description: 'Failures remain inspectable instead of disappearing into logs.',
+                description: 'Failures remain visible for review, diagnosis, and retry.',
                 tone: 'warning',
             },
             {
@@ -536,17 +536,17 @@ const proofItems: ProofItem[] = [
     {
         title: 'One governed record chain',
         description:
-            'Commercial, inventory, finance, project, HR, and integration records can stay inside one governed operating model instead of being fragmented across point tools.',
+            'Commercial, inventory, finance, project, HR, and integration records stay connected inside one governed operating model.',
     },
     {
         title: 'Ownership stays visible',
         description:
-            'Approval queues, status states, notifications, and reporting surfaces make responsibility explicit instead of relying on informal handoffs.',
+            'Approval queues, status states, notifications, and reporting surfaces keep responsibility explicit across teams.',
     },
     {
         title: 'Rollout can happen in sequence',
         description:
-            'The modular product surface supports phased adoption without forcing every team to change systems at the same time.',
+            'Port-101 supports phased adoption so teams can move in sequence without disrupting the whole business at once.',
     },
 ];
 
@@ -564,7 +564,7 @@ const salesPathProfiles: SalesPathProfile[] = [
     },
     {
         title: 'Multi-team operations',
-        fit: 'Best when finance, operations, projects, and people need aligned records instead of parallel systems.',
+        fit: 'Best when finance, operations, projects, and people need aligned records across the same platform.',
         scope: [
             'Cross-functional records and workflow ownership',
             'Project, HR, and finance handoff visibility',
@@ -591,7 +591,7 @@ const faqs: FaqItem[] = [
     {
         question: 'What does Port-101 cover?',
         answer:
-            'The current product surface includes sales, purchasing, inventory, accounting, projects, HR, approvals, reports, notifications, audit logs, and integration/governance workspaces.',
+            'Port-101 covers sales, purchasing, inventory, accounting, projects, HR, approvals, reports, notifications, audit logs, and integration governance.',
     },
     {
         question: 'Who is Port-101 for?',
@@ -601,7 +601,7 @@ const faqs: FaqItem[] = [
     {
         question: 'Can teams adopt modules gradually?',
         answer:
-            'Yes. The application is modular, and the product structure supports phased rollout by operational area instead of forcing every workflow change at once.',
+            'Yes. Port-101 supports phased rollout by operational area, so teams can adopt the platform in a practical sequence.',
     },
     {
         question: 'Does the product support approvals and reporting?',
@@ -621,7 +621,7 @@ const faqs: FaqItem[] = [
     {
         question: 'Can I book a demo or contact sales from the public site?',
         answer:
-            'Yes. The public site now includes dedicated routes for demo requests and sales requests. Self-serve trial and pricing checkout are still not part of this product surface.',
+            'Yes. You can book a demo or contact sales directly from the public site.',
     },
 ];
 

@@ -15,8 +15,8 @@ export default function ProofSection({
         <PublicSection id="proof">
             <PublicSectionHeader
                 eyebrow="Operational proof"
-                title="The most credible proof available here is the product model itself."
-                description="This page does not invent customer logos, testimonials, or ROI claims. It shows the operational structure already implemented in the application: connected records, visible ownership, governed execution, and phased rollout."
+                title="Port-101 is designed to keep execution, ownership, and oversight in one system."
+                description="The product brings connected records, visible responsibility, governed execution, and phased rollout into the same operating model."
             />
 
             <div className="mt-12 grid gap-6 lg:grid-cols-3">

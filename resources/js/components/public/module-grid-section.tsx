@@ -18,8 +18,8 @@ export default function ModuleGridSection({
             <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr]">
                 <PublicSectionHeader
                     eyebrow="Module coverage"
-                    title="The product breadth reads like an ERP because it is one."
-                    description="Port-101 is organized around actual operating areas already present in the application, not generic marketing categories."
+                    title="Port-101 covers the core operating areas teams manage every day."
+                    description="Each module supports a real part of the business, from commercial flow and stock control to finance, projects, HR, and governance."
                 />
 
                 <div className="grid gap-6 border-t border-[color:var(--border-subtle)] sm:grid-cols-2">

@@ -14,7 +14,7 @@ export default function TrustStrip({
                         Designed for controlled day-to-day work
                     </p>
                     <p className="mt-1 text-sm leading-6 text-[color:var(--text-secondary)]">
-                        Execution, approvals, visibility, and governed records stay in the same ERP model instead of being reconstructed from separate tools.
+                        Execution, approvals, visibility, and governed records stay connected in one operational system.
                     </p>
                 </div>
 

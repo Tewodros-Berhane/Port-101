@@ -30,7 +30,7 @@ export default function SalesPathSection({
             <PublicSectionHeader
                 eyebrow="Deployment paths"
                 title="Adopt Port-101 in the order your operation actually needs."
-                description="Public demo-request and contact-sales routes are available here. Self-serve trial and pricing checkout are not, so this section stays clear about rollout fit instead of pretending there is an instant-buy path."
+                description="Choose the rollout path that matches your operating complexity, team structure, and control requirements."
             />
 
             <div className="mt-12 grid gap-6 lg:grid-cols-3">

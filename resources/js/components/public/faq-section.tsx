@@ -17,7 +17,7 @@ export default function FaqSection({
                 <PublicSectionHeader
                     eyebrow="FAQ"
                     title="Questions a serious ERP buyer will ask early."
-                    description="Answers here are constrained to what the current product surface actually supports."
+                    description="Straight answers on product scope, rollout, controls, and fit."
                 />
 
                 <div className="grid gap-4">

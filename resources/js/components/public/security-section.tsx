@@ -22,8 +22,8 @@ export default function SecuritySection({
                 <div className="space-y-6">
                     <PublicSectionHeader
                         eyebrow="Trust and governance"
-                        title="Credibility comes from control surfaces already in the product."
-                        description="Port-101 already includes permission-aware navigation, approval states, audit visibility, reporting workspaces, notifications, and governed webhook delivery history. This section stays inside those implemented capabilities."
+                        title="Control, visibility, and accountability are built into day-to-day work."
+                        description="Port-101 includes permission-aware access, approval states, audit visibility, reporting workspaces, notifications, and governed webhook delivery history."
                     />
 
                     <Card className="rounded-[var(--radius-hero)] py-0">
@@ -41,7 +41,7 @@ export default function SecuritySection({
                                 ))}
                             </div>
                             <p className="mt-4 text-sm leading-6 text-[color:var(--text-secondary)]">
-                                The page does not claim certifications or compliance programs that are not exposed by the product. It shows the control model that buyers can already see in the application itself.
+                                Buyers can review how access, approvals, reporting, notifications, and delivery oversight are handled inside the product.
                             </p>
                         </CardContent>
                     </Card>
