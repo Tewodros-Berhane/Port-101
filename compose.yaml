@@ -22,7 +22,6 @@ x-app-service: &app-service
     CACHE_STORE: database
     SESSION_DRIVER: database
     QUEUE_CONNECTION: database
-    MAIL_MAILER: log
     SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
   volumes:
     - app-storage:/var/www/html/storage
