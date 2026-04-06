@@ -119,6 +119,7 @@ ARG APP_DIR=/var/www/html
 WORKDIR ${APP_DIR}
 
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/errors/50x.html /usr/share/nginx/html/50x.html
 COPY --from=app /var/www/html/public ./public
 
 RUN ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage \
