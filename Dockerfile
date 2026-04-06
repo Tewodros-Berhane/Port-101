@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM php:8.2-fpm-bookworm AS php-base
+FROM php:8.4-fpm-bookworm AS php-base
 
 ARG APP_DIR=/var/www/html
 
@@ -44,16 +44,36 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-FROM node:22-bookworm-slim AS frontend-builder
+FROM node:22-bookworm-slim AS node-runtime
+
+FROM php-base AS frontend-builder
 
 ARG APP_DIR=/var/www/html
 
 WORKDIR ${APP_DIR}
 
+COPY --from=node-runtime /usr/local/bin /usr/local/bin
+COPY --from=node-runtime /usr/local/include /usr/local/include
+COPY --from=node-runtime /usr/local/lib /usr/local/lib
+COPY --from=node-runtime /usr/local/share /usr/local/share
+
+ENV APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
+COPY composer.json composer.lock ./
+COPY --from=vendor /var/www/html/vendor ./vendor
 COPY . .
+
+RUN mkdir -p \
+        bootstrap/cache \
+        storage/app/private \
+        storage/app/public \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs
 
 RUN npm run build
 
