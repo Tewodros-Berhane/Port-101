@@ -100,3 +100,59 @@ test('superadmin can refresh an expired owner invite from the platform company p
         return $job->inviteId === $invite->id;
     });
 });
+
+test('platform company creation rejects duplicate company names', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    Company::create([
+        'name' => 'Unique Company Name',
+        'slug' => 'unique-company-name-'.Str::lower(Str::random(6)),
+        'timezone' => 'UTC',
+        'is_active' => true,
+        'owner_id' => $superAdmin->id,
+    ]);
+
+    actingAs($superAdmin)
+        ->from(route('platform.companies.create'))
+        ->post(route('platform.companies.store'), [
+            'name' => 'Unique Company Name',
+            'slug' => 'another-slug-'.Str::lower(Str::random(6)),
+            'timezone' => 'UTC',
+            'currency_code' => 'USD',
+            'is_active' => true,
+            'owner_name' => 'Duplicate Name Owner',
+            'owner_email' => 'duplicate-name-owner@example.com',
+        ])
+        ->assertRedirect(route('platform.companies.create'))
+        ->assertSessionHasErrors(['name']);
+});
+
+test('platform company creation rejects duplicate slugs', function () {
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    Company::create([
+        'name' => 'Existing Slug Company',
+        'slug' => 'shared-company-slug',
+        'timezone' => 'UTC',
+        'is_active' => true,
+        'owner_id' => $superAdmin->id,
+    ]);
+
+    actingAs($superAdmin)
+        ->from(route('platform.companies.create'))
+        ->post(route('platform.companies.store'), [
+            'name' => 'Different Company Name',
+            'slug' => 'shared-company-slug',
+            'timezone' => 'UTC',
+            'currency_code' => 'USD',
+            'is_active' => true,
+            'owner_name' => 'Duplicate Slug Owner',
+            'owner_email' => 'duplicate-slug-owner@example.com',
+        ])
+        ->assertRedirect(route('platform.companies.create'))
+        ->assertSessionHasErrors(['slug']);
+});

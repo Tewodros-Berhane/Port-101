@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Platform;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CompanyStoreRequest extends FormRequest
 {
@@ -14,8 +15,18 @@ class CompanyStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('companies', 'name'),
+            ],
+            'slug' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('companies', 'slug'),
+            ],
             'timezone' => ['nullable', 'string', 'max:255'],
             'currency_code' => ['nullable', 'string', 'size:3'],
             'is_active' => ['required', 'boolean'],

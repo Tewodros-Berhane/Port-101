@@ -17,7 +17,12 @@ class CompanyUpdateRequest extends FormRequest
         $companyId = $this->route('company')?->id;
 
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('companies', 'name')->ignore($companyId),
+            ],
             'slug' => [
                 'required',
                 'string',
