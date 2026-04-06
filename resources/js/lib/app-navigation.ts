@@ -191,15 +191,6 @@ const companyGovernanceNavItems: NavItem[] = [
     },
 ];
 
-const platformGovernanceNavItems: NavItem[] = [
-    {
-        title: 'Audit Logs',
-        href: '/core/audit-logs',
-        permission: 'core.audit_logs.view',
-        icon: ShieldCheck,
-    },
-];
-
 const platformNavItems: NavItem[] = [
     {
         title: 'Platform Dashboard',
@@ -238,7 +229,7 @@ const platformNavItems: NavItem[] = [
     },
     {
         title: 'Notifications',
-        href: '/core/notifications',
+        href: '/platform/notifications',
         icon: Bell,
         permission: 'core.notifications.view',
     },
@@ -424,8 +415,6 @@ export function getSidebarSections({
                     unreadNotifications,
                 ),
             },
-            { label: 'Master Data', items: masterDataNavItems },
-            { label: 'Governance', items: platformGovernanceNavItems },
         ];
     }
 

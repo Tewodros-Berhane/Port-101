@@ -50,11 +50,15 @@ const formatNotificationDate = (value?: string | null) => {
 
 export function AppNotificationsPanel() {
     const page = usePage<SharedData>();
+    const isSuperAdmin = Boolean(page.props.auth?.user?.is_super_admin);
     const unreadNotifications = page.props.notifications?.unread_count ?? 0;
     const recentNotifications = page.props.notifications?.recent ?? [];
     const canViewNotifications = (page.props.permissions ?? []).includes(
         'core.notifications.view',
     );
+    const notificationsIndexHref = isSuperAdmin
+        ? '/platform/notifications'
+        : '/core/notifications';
 
     if (!canViewNotifications) {
         return null;
@@ -91,7 +95,7 @@ export function AppNotificationsPanel() {
                             </div>
                         </div>
                         <Link
-                            href="/core/notifications"
+                            href={notificationsIndexHref}
                             className="text-xs font-medium text-primary transition-colors hover:text-[var(--action-primary-hover)]"
                         >
                             View all
@@ -114,7 +118,7 @@ export function AppNotificationsPanel() {
                                 className="rounded-[var(--radius-panel)] p-0 focus:bg-transparent"
                             >
                                 <Link
-                                    href={notification.url ?? '/core/notifications'}
+                                    href={notification.url ?? notificationsIndexHref}
                                     className="block w-full rounded-[var(--radius-panel)] border border-transparent px-3 py-3 transition-[background-color,border-color] hover:border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-surface-muted)]"
                                 >
                                     <div className="flex items-start gap-3">

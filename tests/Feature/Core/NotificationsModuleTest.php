@@ -5,6 +5,7 @@ use App\Core\RBAC\Models\Permission;
 use App\Core\RBAC\Models\Role;
 use App\Models\User;
 use App\Notifications\CompanySettingsUpdatedNotification;
+use App\Notifications\PlatformNotificationDigestNotification;
 use Illuminate\Support\Str;
 use function Pest\Laravel\actingAs;
 
@@ -94,3 +95,44 @@ test('user can view mark read and delete in-app notifications', function () {
     )->toBeFalse();
 });
 
+test('superadmin can view and manage notifications from the platform route', function () {
+    Permission::firstOrCreate(
+        ['slug' => 'core.notifications.view'],
+        ['name' => 'core.notifications.view', 'group' => 'core']
+    );
+    Permission::firstOrCreate(
+        ['slug' => 'core.notifications.manage'],
+        ['name' => 'core.notifications.manage', 'group' => 'core']
+    );
+
+    $superAdmin = User::factory()->create([
+        'is_super_admin' => true,
+    ]);
+
+    $superAdmin->notify(new PlatformNotificationDigestNotification(
+        periodLabel: 'Last hour',
+        totalNotifications: 3,
+        severityCounts: ['low' => 3],
+    ));
+
+    $notificationId = $superAdmin->notifications()->latest('created_at')->first()->id;
+
+    actingAs($superAdmin)
+        ->get(route('platform.notifications.index'))
+        ->assertOk()
+        ->assertSee('Notifications');
+
+    actingAs($superAdmin)
+        ->post(route('platform.notifications.mark-read', ['notificationId' => $notificationId]))
+        ->assertStatus(303);
+
+    expect($superAdmin->fresh()->unreadNotifications()->count())->toBe(0);
+
+    actingAs($superAdmin)
+        ->delete(route('platform.notifications.destroy', ['notificationId' => $notificationId]))
+        ->assertStatus(303);
+
+    expect(
+        $superAdmin->fresh()->notifications()->where('id', $notificationId)->exists()
+    )->toBeFalse();
+});

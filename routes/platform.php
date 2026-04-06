@@ -7,6 +7,7 @@ use App\Http\Controllers\Platform\DashboardController as PlatformDashboardContro
 use App\Http\Controllers\Platform\InvitesController as PlatformInvitesController;
 use App\Http\Controllers\Platform\QueueHealthController as PlatformQueueHealthController;
 use App\Http\Controllers\Platform\ReportsController as PlatformReportsController;
+use App\Http\Controllers\Core\NotificationsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'superadmin'])
@@ -69,6 +70,14 @@ Route::middleware(['auth', 'verified', 'superadmin'])
             ->name('contact-requests.index');
         Route::put('contact-requests/{contactRequest}', [PlatformContactRequestsController::class, 'update'])
             ->name('contact-requests.update');
+        Route::get('notifications', [NotificationsController::class, 'index'])
+            ->name('notifications.index');
+        Route::post('notifications/mark-all-read', [NotificationsController::class, 'markAllRead'])
+            ->name('notifications.mark-all-read');
+        Route::post('notifications/{notificationId}/read', [NotificationsController::class, 'markRead'])
+            ->name('notifications.mark-read');
+        Route::delete('notifications/{notificationId}', [NotificationsController::class, 'destroy'])
+            ->name('notifications.destroy');
         Route::delete('invites/{invite}', [PlatformInvitesController::class, 'destroy'])
             ->whereUuid('invite')
             ->name('invites.destroy');

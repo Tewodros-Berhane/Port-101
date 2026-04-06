@@ -35,7 +35,7 @@ class PlatformNotificationDigestNotification extends Notification
         return [
             'title' => 'Platform notification digest',
             'message' => "Summary for {$this->periodLabel}: {$this->totalNotifications} notifications.",
-            'url' => '/core/notifications',
+            'url' => '/platform/notifications',
             'severity' => 'low',
             'meta' => [
                 'period' => $this->periodLabel,
@@ -45,4 +45,3 @@ class PlatformNotificationDigestNotification extends Notification
         ];
     }
 }
-

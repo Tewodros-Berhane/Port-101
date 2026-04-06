@@ -32,21 +32,24 @@ export default function NotificationsIndex({ notifications }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isSuperAdmin = Boolean(auth?.user?.is_super_admin);
     const canManage = hasPermission('core.notifications.manage');
+    const notificationsBasePath = isSuperAdmin
+        ? '/platform/notifications'
+        : '/core/notifications';
 
     const markReadForm = useForm({});
     const markAllReadForm = useForm({});
     const deleteForm = useForm({});
 
     const handleMarkRead = (notificationId: string) => {
-        markReadForm.post(`/core/notifications/${notificationId}/read`);
+        markReadForm.post(`${notificationsBasePath}/${notificationId}/read`);
     };
 
     const handleMarkAllRead = () => {
-        markAllReadForm.post('/core/notifications/mark-all-read');
+        markAllReadForm.post(`${notificationsBasePath}/mark-all-read`);
     };
 
     const handleDelete = (notificationId: string) => {
-        deleteForm.delete(`/core/notifications/${notificationId}`);
+        deleteForm.delete(`${notificationsBasePath}/${notificationId}`);
     };
 
     const unreadCount = notifications.data.filter(
@@ -62,7 +65,7 @@ export default function NotificationsIndex({ notifications }: Props) {
                         ? '/platform/dashboard'
                         : '/company/dashboard',
                 },
-                { title: 'Notifications', href: '/core/notifications' },
+                { title: 'Notifications', href: notificationsBasePath },
             )}
         >
             <Head title="Notifications" />
