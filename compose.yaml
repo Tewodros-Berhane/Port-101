@@ -7,9 +7,9 @@ x-app-service: &app-service
   env_file:
     - .env
   environment:
-    APP_ENV: production
-    APP_DEBUG: false
-    APP_URL: http://localhost:${APP_PORT:-8000}
+    APP_ENV: ${APP_ENV:-local}
+    APP_DEBUG: ${APP_DEBUG:-true}
+    APP_URL: ${APP_URL:-http://localhost:${APP_PORT:-8000}}
     LOG_CHANNEL: stderr
     LOG_STACK: stderr
     DB_CONNECTION: pgsql
@@ -23,7 +23,7 @@ x-app-service: &app-service
     SESSION_DRIVER: database
     QUEUE_CONNECTION: database
     MAIL_MAILER: log
-    SESSION_SECURE_COOKIE: false
+    SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
   volumes:
     - app-storage:/var/www/html/storage
   depends_on:
