@@ -32,5 +32,5 @@
 - The stack defaults to PostgreSQL and database-backed queue, cache, and session drivers.
 - Frontend assets are built into the app image during `docker build`.
 - Redis is not included because this repo does not require it by default.
-- Local compose defaults to HTTP on `http://localhost:8080`, so `SESSION_SECURE_COOKIE` should stay `false` unless you add TLS in front of the stack.
+- Local compose defaults to HTTP on `http://localhost:8000`, so `SESSION_SECURE_COOKIE` should stay `false` unless you add TLS in front of the stack.
 - Production deployments should provide real secrets, real mail/integration credentials, and a production-safe `APP_URL`.
