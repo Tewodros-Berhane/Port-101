@@ -61,6 +61,9 @@ Route::middleware(['auth', 'verified', 'superadmin'])
 
         Route::resource('companies', PlatformCompaniesController::class)
             ->only(['index', 'create', 'store', 'show', 'update']);
+        Route::post('companies/{company}/owner-invite', [PlatformCompaniesController::class, 'sendOwnerInvite'])
+            ->middleware('throttle:platform-invite-delivery')
+            ->name('companies.owner-invite.send');
         Route::resource('admin-users', PlatformAdminUsersController::class)
             ->only(['index', 'create']);
         Route::post('admin-users', [PlatformAdminUsersController::class, 'store'])

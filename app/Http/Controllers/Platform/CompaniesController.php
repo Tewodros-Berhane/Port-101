@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Platform;
 
+use App\Core\Access\InviteProvisioningService;
+use App\Core\Access\Models\Invite;
 use App\Core\Company\Models\Company;
 use App\Core\Company\Models\CompanyUser;
 use App\Core\Notifications\NotificationGovernanceService;
@@ -9,7 +11,9 @@ use App\Core\RBAC\Models\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\CompanyStoreRequest;
 use App\Http\Requests\Platform\CompanyUpdateRequest;
+use App\Jobs\SendInviteLinkMail;
 use App\Notifications\CompanyStatusChangedNotification;
+use App\Support\Http\Feedback;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +24,10 @@ use Inertia\Response;
 
 class CompaniesController extends Controller
 {
+    public function __construct(
+        private readonly InviteProvisioningService $inviteProvisioningService,
+    ) {}
+
     public function index(Request $request): Response
     {
         $filters = [
@@ -145,9 +153,11 @@ class CompaniesController extends Controller
             ])->save();
         }
 
+        $this->queueOwnerInvite($company, $owner, $request->user()?->id);
+
         return redirect()
             ->route('platform.companies.show', $company)
-            ->with('success', 'Company created.');
+            ->with('success', 'Company created. Owner invite queued for delivery.');
     }
 
     public function show(Company $company): Response
@@ -189,9 +199,29 @@ class CompaniesController extends Controller
                 'owner_email' => $company->owner?->email,
                 'created_at' => $company->created_at?->toIso8601String(),
             ],
+            'ownerInvite' => $this->ownerInvitePayload($company),
             'owners' => $owners,
             'memberships' => $memberships,
         ]);
+    }
+
+    public function sendOwnerInvite(Request $request, Company $company): RedirectResponse
+    {
+        $company->loadMissing('owner:id,name,email');
+
+        $owner = $company->owner;
+
+        if (! $owner?->email) {
+            return redirect()
+                ->route('platform.companies.show', $company)
+                ->with('error', Feedback::flash($request, 'This company does not have an owner email to send an invite to.'));
+        }
+
+        $this->queueOwnerInvite($company, $owner, $request->user()?->id);
+
+        return redirect()
+            ->route('platform.companies.show', $company)
+            ->with('success', Feedback::flash($request, 'Owner invite queued for delivery.'));
     }
 
     public function update(
@@ -264,5 +294,54 @@ class CompaniesController extends Controller
         return redirect()
             ->route('platform.companies.show', $company)
             ->with('success', 'Company updated.');
+    }
+
+    private function queueOwnerInvite(Company $company, User $owner, ?string $actorId): void
+    {
+        $invite = $this->inviteProvisioningService->createOrRefreshPendingInvite(
+            email: (string) $owner->email,
+            name: $owner->name,
+            role: 'company_owner',
+            companyId: (string) $company->id,
+            expiresAt: now()->addDays(14),
+            actorId: $actorId,
+        );
+
+        SendInviteLinkMail::dispatch($invite->id)->afterCommit();
+    }
+
+    private function ownerInvitePayload(Company $company): ?array
+    {
+        $ownerEmail = $company->owner?->email;
+
+        if (! $ownerEmail) {
+            return null;
+        }
+
+        $invite = Invite::query()
+            ->pending()
+            ->forTarget($ownerEmail, 'company_owner', (string) $company->id)
+            ->latest('created_at')
+            ->first();
+
+        if (! $invite) {
+            return null;
+        }
+
+        $status = $invite->expires_at && $invite->expires_at->isPast()
+            ? 'expired'
+            : 'pending';
+
+        return [
+            'id' => $invite->id,
+            'email' => $invite->email,
+            'status' => $status,
+            'invite_url' => rtrim(config('app.url'), '/').'/invites/'.$invite->token,
+            'expires_at' => $invite->expires_at?->toIso8601String(),
+            'delivery_status' => $invite->delivery_status,
+            'delivery_attempts' => (int) $invite->delivery_attempts,
+            'last_delivery_at' => $invite->last_delivery_at?->toIso8601String(),
+            'last_delivery_error' => $invite->last_delivery_error,
+        ];
     }
 }

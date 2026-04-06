@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { BackLinkAction } from '@/components/navigation/back-link-action';
 import { DetailHero } from '@/components/shell/detail-hero';
 import { TabbedDetailShell } from '@/components/shell/tabbed-detail-shell';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -56,8 +57,21 @@ type Membership = {
     is_owner: boolean;
 };
 
+type OwnerInvite = {
+    id: string;
+    email: string;
+    status: 'pending' | 'expired';
+    invite_url: string;
+    expires_at?: string | null;
+    delivery_status?: string | null;
+    delivery_attempts: number;
+    last_delivery_at?: string | null;
+    last_delivery_error?: string | null;
+};
+
 type Props = {
     company: Company;
+    ownerInvite?: OwnerInvite | null;
     owners: OwnerOption[];
     memberships: Membership[];
 };
@@ -67,6 +81,7 @@ const formatDate = (value?: string | null) =>
 
 export default function PlatformCompanyShow({
     company,
+    ownerInvite,
     owners,
     memberships,
 }: Props) {
@@ -78,149 +93,247 @@ export default function PlatformCompanyShow({
         is_active: company.is_active ?? true,
         owner_id: company.owner_id ?? '',
     });
+    const ownerInviteForm = useForm({});
 
     const tabs = [
         {
             id: 'overview',
             label: 'Overview',
             content: (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Company profile</CardTitle>
-                        <CardDescription>
-                            Update the company profile, ownership, and
-                            operational defaults without leaving the detail
-                            record.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form
-                            className="grid gap-6"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                form.put(`/platform/companies/${company.id}`);
-                            }}
-                        >
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Company name</Label>
-                                    <Input
-                                        id="name"
-                                        value={form.data.name}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'name',
-                                                event.target.value,
-                                            )
-                                        }
-                                        required
-                                    />
-                                    <InputError message={form.errors.name} />
+                <div className="grid gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Company profile</CardTitle>
+                            <CardDescription>
+                                Update the company profile, ownership, and
+                                operational defaults without leaving the detail
+                                record.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form
+                                className="grid gap-6"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    form.put(`/platform/companies/${company.id}`);
+                                }}
+                            >
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="name">Company name</Label>
+                                        <Input
+                                            id="name"
+                                            value={form.data.name}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'name',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            required
+                                        />
+                                        <InputError message={form.errors.name} />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="slug">Slug</Label>
+                                        <Input
+                                            id="slug"
+                                            value={form.data.slug}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'slug',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            required
+                                        />
+                                        <InputError message={form.errors.slug} />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="timezone">Timezone</Label>
+                                        <Input
+                                            id="timezone"
+                                            value={form.data.timezone}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'timezone',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError message={form.errors.timezone} />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="currency_code">
+                                            Currency code
+                                        </Label>
+                                        <Input
+                                            id="currency_code"
+                                            value={form.data.currency_code}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'currency_code',
+                                                    event.target.value.toUpperCase(),
+                                                )
+                                            }
+                                            maxLength={3}
+                                        />
+                                        <InputError
+                                            message={form.errors.currency_code}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="owner_id">Owner</Label>
+                                        <select
+                                            id="owner_id"
+                                            className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                                            value={form.data.owner_id}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'owner_id',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <option value="">Select owner</option>
+                                            {owners.map((owner) => (
+                                                <option
+                                                    key={owner.id}
+                                                    value={owner.id}
+                                                >
+                                                    {owner.name} ({owner.email})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError message={form.errors.owner_id} />
+                                    </div>
+
+                                    <div className="flex items-center gap-3 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3">
+                                        <Checkbox
+                                            id="is_active"
+                                            checked={form.data.is_active}
+                                            onCheckedChange={(value) =>
+                                                form.setData(
+                                                    'is_active',
+                                                    Boolean(value),
+                                                )
+                                            }
+                                        />
+                                        <Label htmlFor="is_active">Active</Label>
+                                    </div>
                                 </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="slug">Slug</Label>
-                                    <Input
-                                        id="slug"
-                                        value={form.data.slug}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'slug',
-                                                event.target.value,
-                                            )
-                                        }
-                                        required
-                                    />
-                                    <InputError message={form.errors.slug} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="timezone">Timezone</Label>
-                                    <Input
-                                        id="timezone"
-                                        value={form.data.timezone}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'timezone',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                    <InputError message={form.errors.timezone} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="currency_code">
-                                        Currency code
-                                    </Label>
-                                    <Input
-                                        id="currency_code"
-                                        value={form.data.currency_code}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'currency_code',
-                                                event.target.value.toUpperCase(),
-                                            )
-                                        }
-                                        maxLength={3}
-                                    />
-                                    <InputError
-                                        message={form.errors.currency_code}
-                                    />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="owner_id">Owner</Label>
-                                    <select
-                                        id="owner_id"
-                                        className="h-10 rounded-[var(--radius-control)] border border-input bg-card px-3.5 py-2 text-sm text-foreground shadow-[var(--shadow-xs)] outline-none transition-[border-color,box-shadow,background-color] duration-150 focus-visible:border-[color:var(--border-strong)] focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                                        value={form.data.owner_id}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'owner_id',
-                                                event.target.value,
-                                            )
-                                        }
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        type="submit"
+                                        disabled={form.processing}
                                     >
-                                        <option value="">Select owner</option>
-                                        {owners.map((owner) => (
-                                            <option
-                                                key={owner.id}
-                                                value={owner.id}
-                                            >
-                                                {owner.name} ({owner.email})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={form.errors.owner_id} />
+                                        Save changes
+                                    </Button>
                                 </div>
+                            </form>
+                        </CardContent>
+                    </Card>
 
-                                <div className="flex items-center gap-3 rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3">
-                                    <Checkbox
-                                        id="is_active"
-                                        checked={form.data.is_active}
-                                        onCheckedChange={(value) =>
-                                            form.setData(
-                                                'is_active',
-                                                Boolean(value),
-                                            )
-                                        }
-                                    />
-                                    <Label htmlFor="is_active">Active</Label>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Owner invite</CardTitle>
+                            <CardDescription>
+                                Send or refresh the owner onboarding link from
+                                the platform side when the original invite has
+                                expired or delivery failed.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-4">
+                            <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
+                                <div>
+                                    <div className="text-xs uppercase tracking-wide text-muted-foreground/80">
+                                        Owner email
+                                    </div>
+                                    <div className="mt-1 font-medium text-foreground">
+                                        {company.owner_email ?? 'No owner email'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs uppercase tracking-wide text-muted-foreground/80">
+                                        Invite status
+                                    </div>
+                                    <div className="mt-1">
+                                        {ownerInvite ? (
+                                            <Badge
+                                                variant={
+                                                    ownerInvite.status === 'pending'
+                                                        ? 'secondary'
+                                                        : 'outline'
+                                                }
+                                            >
+                                                {ownerInvite.status === 'pending'
+                                                    ? 'Pending invite'
+                                                    : 'Expired invite'}
+                                            </Badge>
+                                        ) : (
+                                            <span className="text-foreground">
+                                                No active invite
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs uppercase tracking-wide text-muted-foreground/80">
+                                        Delivery
+                                    </div>
+                                    <div className="mt-1 text-foreground">
+                                        {ownerInvite?.delivery_status
+                                            ? ownerInvite.delivery_status.replaceAll('_', ' ')
+                                            : '-'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs uppercase tracking-wide text-muted-foreground/80">
+                                        Expires
+                                    </div>
+                                    <div className="mt-1 text-foreground">
+                                        {formatDate(ownerInvite?.expires_at)}
+                                    </div>
                                 </div>
                             </div>
+
+                            {ownerInvite?.last_delivery_error && (
+                                <div className="rounded-[var(--radius-panel)] border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface-muted)] px-3.5 py-3 text-sm text-muted-foreground">
+                                    Last delivery error: {ownerInvite.last_delivery_error}
+                                </div>
+                            )}
 
                             <div className="flex items-center gap-3">
                                 <Button
-                                    type="submit"
-                                    disabled={form.processing}
+                                    type="button"
+                                    disabled={
+                                        ownerInviteForm.processing
+                                        || !company.owner_email
+                                    }
+                                    onClick={() =>
+                                        ownerInviteForm.post(
+                                            `/platform/companies/${company.id}/owner-invite`,
+                                            {
+                                                preserveScroll: true,
+                                            },
+                                        )
+                                    }
                                 >
-                                    Save changes
+                                    {ownerInvite
+                                        ? ownerInvite.status === 'expired'
+                                            ? 'Send fresh owner invite'
+                                            : 'Resend owner invite'
+                                        : 'Send owner invite'}
                                 </Button>
                             </div>
-                        </form>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </div>
             ),
         },
         {
