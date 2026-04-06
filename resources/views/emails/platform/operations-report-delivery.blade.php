@@ -1,26 +1,51 @@
 <x-mail::message>
-# Scheduled Operations Reports Ready
+<span class="eyebrow">Scheduled Delivery</span>
 
-Preset: **{{ $presetName }}**
+# Operations reports are ready
 
-Window: **{{ $periodLabel }}**
+The latest scheduled export package for **{{ $presetName }}** has been prepared and attached.
 
-Format: **{{ $format }}**
+<x-mail::panel>
+**Reporting window**<br>
+{{ $periodLabel }}
 
-Admin actions: **{{ (int) ($summary['admin_actions'] ?? 0) }}**  
-Invite deliveries: **{{ (int) ($summary['delivery_total'] ?? 0) }}**  
-Failures: **{{ (int) ($summary['failed'] ?? 0) }}**  
-Failure rate: **{{ (float) ($summary['failure_rate'] ?? 0) }}%**
+**Format**<br>
+{{ $format }}
+
+**Attachments**<br>
+Included with this email for direct download.
+</x-mail::panel>
+
+<table class="metric-grid" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+    <tr>
+        <td class="metric-cell" width="25%">
+            <span class="metric-label">Admin actions</span>
+            <span class="metric-value">{{ (int) ($summary['admin_actions'] ?? 0) }}</span>
+        </td>
+        <td class="metric-cell" width="25%">
+            <span class="metric-label">Invite deliveries</span>
+            <span class="metric-value">{{ (int) ($summary['delivery_total'] ?? 0) }}</span>
+        </td>
+        <td class="metric-cell" width="25%">
+            <span class="metric-label">Failures</span>
+            <span class="metric-value">{{ (int) ($summary['failed'] ?? 0) }}</span>
+        </td>
+        <td class="metric-cell" width="25%">
+            <span class="metric-label">Failure rate</span>
+            <span class="metric-value">{{ number_format((float) ($summary['failure_rate'] ?? 0), 1) }}%</span>
+        </td>
+    </tr>
+</table>
 
 <x-mail::button :url="url($links['admin_actions'] ?? '/platform/reports')">
-Open Admin Actions Export
+Open admin actions export
 </x-mail::button>
 
-<x-mail::button :url="url($links['delivery_trends'] ?? '/platform/reports')">
-Open Delivery Trends Export
+<x-mail::button :url="url($links['delivery_trends'] ?? '/platform/reports')" color="success">
+Open delivery trends export
 </x-mail::button>
 
-Attached files are included for direct download.
+Use the platform reports workspace if you need to rerun the preset, review the attachments, or inspect delivery trends in more detail.
 
 Thanks,<br>
 {{ config('app.name') }}

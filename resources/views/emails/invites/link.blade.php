@@ -1,19 +1,28 @@
 <x-mail::message>
+<span class="eyebrow">Workspace Access</span>
+
 # You are invited to Port-101
 
-You have been invited as **{{ str_replace('_', ' ', $invite->role) }}**.
+Your access is ready. Use the secure link below to join the workspace and finish account setup.
+
+<x-mail::panel>
+**Role**<br>
+{{ str_replace('_', ' ', $invite->role) }}
 
 @if($invite->company)
-Company: **{{ $invite->company->name }}**
+**Company**<br>
+{{ $invite->company->name }}
 @endif
 
+**Invite expires**<br>
+{{ optional($invite->expires_at)->toDayDateTimeString() ?? 'N/A' }}
+</x-mail::panel>
+
 <x-mail::button :url="$inviteUrl">
-Accept Invite
+Accept invite
 </x-mail::button>
 
-This invite expires on **{{ optional($invite->expires_at)->toDayDateTimeString() ?? 'N/A' }}**.
-
-If you did not expect this invite, you can ignore this email.
+If you were not expecting this invitation, you can safely ignore this email.
 
 Thanks,<br>
 {{ config('app.name') }}
