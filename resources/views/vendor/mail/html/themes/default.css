@@ -117,35 +117,14 @@ img {
 }
 
 .brand-lockup {
-    align-items: center;
-    display: inline-table;
-    text-align: left;
-}
-
-.brand-mark {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    border-radius: 14px;
-    color: #ffffff;
     display: inline-block;
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    line-height: 1;
-    margin-right: 12px;
-    padding: 15px 12px;
     text-align: center;
-    vertical-align: middle;
-}
-
-.brand-copy {
-    display: inline-block;
-    vertical-align: middle;
 }
 
 .brand-name {
     color: #0f172a;
     display: block;
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 800;
     letter-spacing: -0.02em;
     line-height: 1.1;
@@ -156,7 +135,7 @@ img {
     display: block;
     font-size: 12px;
     line-height: 1.4;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 /* Body */
