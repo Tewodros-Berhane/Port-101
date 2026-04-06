@@ -13,8 +13,8 @@
 2. Set a real `APP_KEY` in `.env`.
 3. Start the stack:
    - `docker compose up --build -d`
-4. Run database migrations:
-   - `docker compose run --rm app php artisan migrate --force`
+4. Run database migrations and seed the baseline data:
+   - `docker compose run --rm app php artisan migrate --seed --force`
 
 ## Common commands
 - Start:
