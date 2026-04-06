@@ -264,7 +264,7 @@ test('api v1 accounting endpoints are company scoped and support invoice and pay
         ->assertOk()
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
 
-    postJson('/api/v1/accounting/invoices/'.$vendorBillId.'/cancel')
+    postJson('/api/v1/accounting/invoices/'.$vendorBillId.'/cancel', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', AccountingInvoice::STATUS_CANCELLED);
 
@@ -553,4 +553,81 @@ test('api v1 accounting idempotency replays payment reconcile and reverse transi
         ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
         ->assertJsonPath('data.id', (string) $firstReverseResponse->json('data.id'))
         ->assertJsonPath('data.status', AccountingPayment::STATUS_REVERSED);
+});
+
+test('api v1 accounting idempotency replays invoice cancellation and does not cache unauthorized attempts', function () {
+    [$financeUser, $company] = makeActiveCompanyMember();
+
+    assignAccountingApiRole($financeUser, $company->id, [
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+    ]);
+
+    $vendor = createAccountingApiPartner($company->id, $financeUser->id, 'Cancellation Replay Vendor', 'vendor');
+
+    Sanctum::actingAs($financeUser);
+
+    $invoiceId = (string) postJson('/api/v1/accounting/invoices', [
+        'partner_id' => $vendor->id,
+        'document_type' => AccountingInvoice::TYPE_VENDOR_BILL,
+        'sales_order_id' => null,
+        'invoice_date' => now()->toDateString(),
+        'due_date' => now()->addDays(14)->toDateString(),
+        'notes' => 'Replay-safe cancellation',
+        'lines' => [
+            [
+                'product_id' => null,
+                'description' => 'Vendor bill line',
+                'quantity' => 1,
+                'unit_price' => 100,
+                'tax_rate' => 0,
+            ],
+        ],
+    ])->json('data.id');
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/post', [], apiIdempotencyHeaders())
+        ->assertOk()
+        ->assertJsonPath('data.status', AccountingInvoice::STATUS_POSTED);
+
+    assignAccountingApiRole($financeUser, $company->id, [
+        'accounting.invoices.view',
+    ]);
+
+    Sanctum::actingAs($financeUser);
+
+    $cancelKey = 'accounting-invoice-cancel';
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/cancel', [], apiIdempotencyHeaders($cancelKey))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    assignAccountingApiRole($financeUser, $company->id, [
+        'accounting.invoices.view',
+        'accounting.invoices.manage',
+        'accounting.invoices.post',
+    ]);
+
+    Sanctum::actingAs($financeUser);
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/cancel')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstCancelResponse = postJson('/api/v1/accounting/invoices/'.$invoiceId.'/cancel', [], apiIdempotencyHeaders($cancelKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $cancelKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', AccountingInvoice::STATUS_CANCELLED);
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/cancel', [], apiIdempotencyHeaders($cancelKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $cancelKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstCancelResponse->json('data.id'))
+        ->assertJsonPath('data.status', AccountingInvoice::STATUS_CANCELLED);
+
+    postJson('/api/v1/accounting/invoices/'.$invoiceId.'/cancel', [], apiIdempotencyHeaders('accounting-invoice-cancel-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
 });

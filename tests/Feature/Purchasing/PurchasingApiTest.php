@@ -230,7 +230,7 @@ test('api v1 purchasing endpoints are company scoped and support rfq to po to re
         ->assertJsonPath('data.0.id', $orderId)
         ->assertJsonPath('meta.filters.external_reference', 'ERP-PO-001');
 
-    $confirmResponse = postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm')
+    $confirmResponse = postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', PurchaseOrder::STATUS_ORDERED);
 
@@ -243,12 +243,12 @@ test('api v1 purchasing endpoints are company scoped and support rfq to po to re
                 'quantity' => 2,
             ],
         ],
-    ])
+    ], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', PurchaseOrder::STATUS_PARTIALLY_RECEIVED)
         ->assertJsonPath('data.lines.0.received_quantity', 2);
 
-    postJson('/api/v1/purchasing/orders/'.$orderId.'/receive', [])
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/receive', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', PurchaseOrder::STATUS_BILLED)
         ->assertJsonPath('data.vendor_bills_count', 1);
@@ -331,19 +331,19 @@ test('api v1 purchasing approval gate and receipt-line validation are enforced',
 
     $orderId = (string) $selectResponse->json('data.order_id');
 
-    postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm')
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonPath('message', 'This purchase order requires approval before placement.');
 
     Sanctum::actingAs($manager);
 
-    postJson('/api/v1/purchasing/orders/'.$orderId.'/approve')
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/approve', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', PurchaseOrder::STATUS_APPROVED);
 
     Sanctum::actingAs($buyer);
 
-    $confirmedOrder = postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm')
+    $confirmedOrder = postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', PurchaseOrder::STATUS_ORDERED);
 
@@ -374,7 +374,7 @@ test('api v1 purchasing approval gate and receipt-line validation are enforced',
                 'quantity' => 1,
             ],
         ],
-    ])
+    ], apiIdempotencyHeaders())
         ->assertUnprocessable()
         ->assertJsonStructure([
             'message',
@@ -388,7 +388,150 @@ test('api v1 purchasing approval gate and receipt-line validation are enforced',
                 'quantity' => 1,
             ],
         ],
-    ])
+    ], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', PurchaseOrder::STATUS_BILLED);
+});
+
+test('api v1 purchasing idempotency replays approval placement and receipt transitions', function () {
+    [$buyer, $company] = makeActiveCompanyMember();
+    $manager = User::factory()->create();
+
+    assignPurchasingApiRole($buyer, $company->id, [
+        'purchasing.rfq.view',
+        'purchasing.rfq.manage',
+        'purchasing.po.view',
+        'purchasing.po.manage',
+    ]);
+    assignPurchasingApiRole($manager, $company->id, [
+        'purchasing.po.view',
+        'purchasing.po.approve',
+    ]);
+
+    $vendor = createPurchasingApiVendor($company->id, $buyer->id, 'Purchasing Replay Vendor');
+    $product = createPurchasingApiProduct($company->id, $buyer->id, 'Purchasing Replay Product');
+
+    /** @var SettingsService $settings */
+    $settings = app(SettingsService::class);
+    $settings->set('company.approvals.enabled', true, $company->id, null, $buyer->id);
+    $settings->set('company.approvals.policy', 'amount_based', $company->id, null, $buyer->id);
+    $settings->set('company.approvals.threshold_amount', 100, $company->id, null, $buyer->id);
+
+    Sanctum::actingAs($buyer);
+
+    $orderId = (string) postJson('/api/v1/purchasing/orders', [
+        'partner_id' => $vendor->id,
+        'order_date' => now()->toDateString(),
+        'notes' => 'Replay-safe purchase order',
+        'lines' => [
+            [
+                'product_id' => $product->id,
+                'description' => 'Replay-safe order line',
+                'quantity' => 1,
+                'unit_cost' => 500,
+                'tax_rate' => 0,
+            ],
+        ],
+    ])->json('data.id');
+
+    $confirmKey = 'purchasing-order-confirm';
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders($confirmKey))
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'This purchase order requires approval before placement.');
+
+    Sanctum::actingAs($manager);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/approve')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $approveKey = 'purchasing-order-approve';
+
+    $firstApproveResponse = postJson('/api/v1/purchasing/orders/'.$orderId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', PurchaseOrder::STATUS_APPROVED);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstApproveResponse->json('data.id'))
+        ->assertJsonPath('data.status', PurchaseOrder::STATUS_APPROVED);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/approve', [], apiIdempotencyHeaders('purchasing-order-approve-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    Sanctum::actingAs($buyer);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstConfirmResponse = postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders($confirmKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $confirmKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', PurchaseOrder::STATUS_ORDERED);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders($confirmKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $confirmKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstConfirmResponse->json('data.id'))
+        ->assertJsonPath('data.status', PurchaseOrder::STATUS_ORDERED);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/confirm', [], apiIdempotencyHeaders('purchasing-order-confirm-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    $lineId = (string) $firstConfirmResponse->json('data.lines.0.id');
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/receive')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $receiveKey = 'purchasing-order-receive';
+
+    $firstReceiveResponse = postJson('/api/v1/purchasing/orders/'.$orderId.'/receive', [
+        'lines' => [
+            [
+                'line_id' => $lineId,
+                'quantity' => 1,
+            ],
+        ],
+    ], apiIdempotencyHeaders($receiveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $receiveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', PurchaseOrder::STATUS_BILLED)
+        ->assertJsonPath('data.vendor_bills_count', 1);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/receive', [
+        'lines' => [
+            [
+                'line_id' => $lineId,
+                'quantity' => 1,
+            ],
+        ],
+    ], apiIdempotencyHeaders($receiveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $receiveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstReceiveResponse->json('data.id'))
+        ->assertJsonPath('data.status', PurchaseOrder::STATUS_BILLED);
+
+    postJson('/api/v1/purchasing/orders/'.$orderId.'/receive', [
+        'lines' => [
+            [
+                'line_id' => $lineId,
+                'quantity' => 1,
+            ],
+        ],
+    ], apiIdempotencyHeaders('purchasing-order-receive-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
 });

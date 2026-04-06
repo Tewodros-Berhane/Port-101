@@ -224,7 +224,7 @@ test('api v1 hr endpoints support profile leave and attendance workflows', funct
 
     Sanctum::actingAs($managerUser);
 
-    postJson('/api/v1/hr/leave/requests/'.$leaveRequestId.'/approve')
+    postJson('/api/v1/hr/leave/requests/'.$leaveRequestId.'/approve', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', HrLeaveRequest::STATUS_APPROVED)
         ->assertJsonPath('data.approved_by_name', $managerUser->name);
@@ -303,13 +303,13 @@ test('api v1 hr reimbursement and payslip endpoints support approval and self-se
 
     Sanctum::actingAs($managerUser);
 
-    postJson('/api/v1/hr/reimbursements/'.$claimId.'/approve')
+    postJson('/api/v1/hr/reimbursements/'.$claimId.'/approve', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_MANAGER_APPROVED);
 
     Sanctum::actingAs($payrollUser);
 
-    postJson('/api/v1/hr/reimbursements/'.$claimId.'/approve')
+    postJson('/api/v1/hr/reimbursements/'.$claimId.'/approve', [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_FINANCE_APPROVED);
 
@@ -471,4 +471,379 @@ test('api v1 hr endpoints enforce permissions and company scoping', function () 
     getJson('/api/v1/hr/payslips/'.$otherPayslip->id)
         ->assertNotFound()
         ->assertJsonPath('message', 'Resource not found.');
+});
+
+test('api v1 hr idempotency replays leave approval and rejection transitions', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$managerUser, $company] = makeActiveCompanyMember();
+    assignHrApiRole($managerUser, $company->id, 'line_manager');
+
+    $employeeUser = User::factory()->create();
+    assignHrApiRole($employeeUser, $company->id, 'employee_self_service');
+
+    $managerEmployee = createHrApiEmployee([
+        'company_id' => $company->id,
+        'user_id' => $managerUser->id,
+        'employee_number' => 'EMP-HR-IDEMP-MGR',
+        'first_name' => 'Ida',
+        'last_name' => 'Manager',
+        'display_name' => 'Ida Manager',
+        'work_email' => 'ida.manager@example.test',
+        'created_by' => $managerUser->id,
+    ]);
+
+    $employee = createHrApiEmployee([
+        'company_id' => $company->id,
+        'user_id' => $employeeUser->id,
+        'employee_number' => 'EMP-HR-IDEMP-001',
+        'first_name' => 'Liam',
+        'last_name' => 'Worker',
+        'display_name' => 'Liam Worker',
+        'work_email' => 'liam.worker@example.test',
+        'manager_employee_id' => $managerEmployee->id,
+        'leave_approver_user_id' => $managerUser->id,
+        'created_by' => $managerUser->id,
+    ]);
+
+    $leaveType = HrLeaveType::create([
+        'company_id' => $company->id,
+        'name' => 'Idempotency Leave',
+        'code' => 'IDL',
+        'unit' => HrLeaveType::UNIT_DAYS,
+        'requires_allocation' => true,
+        'requires_approval' => true,
+        'is_paid' => true,
+        'allow_negative_balance' => false,
+        'created_by' => $managerUser->id,
+        'updated_by' => $managerUser->id,
+    ]);
+
+    $leavePeriod = HrLeavePeriod::create([
+        'company_id' => $company->id,
+        'name' => '2026 Idempotency',
+        'start_date' => now()->startOfYear()->toDateString(),
+        'end_date' => now()->endOfYear()->toDateString(),
+        'is_closed' => false,
+        'created_by' => $managerUser->id,
+        'updated_by' => $managerUser->id,
+    ]);
+
+    HrLeaveAllocation::create([
+        'company_id' => $company->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'leave_period_id' => $leavePeriod->id,
+        'allocated_amount' => 10,
+        'used_amount' => 0,
+        'balance_amount' => 10,
+        'carry_forward_amount' => 0,
+        'created_by' => $managerUser->id,
+        'updated_by' => $managerUser->id,
+    ]);
+
+    Sanctum::actingAs($employeeUser);
+
+    $approveLeaveId = (string) postJson('/api/v1/hr/leave/requests', [
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'leave_period_id' => $leavePeriod->id,
+        'from_date' => now()->addDays(4)->toDateString(),
+        'to_date' => now()->addDays(5)->toDateString(),
+        'duration_amount' => 2,
+        'is_half_day' => false,
+        'reason' => 'Approve replay request',
+        'action' => 'submit',
+    ])->json('data.id');
+
+    Sanctum::actingAs($managerUser);
+
+    assignHrApiRole($managerUser, $company->id, 'member');
+    Sanctum::actingAs($managerUser);
+
+    $approveKey = 'hr-leave-approve';
+
+    postJson('/api/v1/hr/leave/requests/'.$approveLeaveId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    assignHrApiRole($managerUser, $company->id, 'line_manager');
+    Sanctum::actingAs($managerUser);
+
+    postJson('/api/v1/hr/leave/requests/'.$approveLeaveId.'/approve')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstApproveResponse = postJson('/api/v1/hr/leave/requests/'.$approveLeaveId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', HrLeaveRequest::STATUS_APPROVED);
+
+    postJson('/api/v1/hr/leave/requests/'.$approveLeaveId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstApproveResponse->json('data.id'))
+        ->assertJsonPath('data.status', HrLeaveRequest::STATUS_APPROVED);
+
+    postJson('/api/v1/hr/leave/requests/'.$approveLeaveId.'/approve', [], apiIdempotencyHeaders('hr-leave-approve-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    Sanctum::actingAs($employeeUser);
+
+    $rejectLeaveId = (string) postJson('/api/v1/hr/leave/requests', [
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'leave_period_id' => $leavePeriod->id,
+        'from_date' => now()->addDays(7)->toDateString(),
+        'to_date' => now()->addDays(8)->toDateString(),
+        'duration_amount' => 2,
+        'is_half_day' => false,
+        'reason' => 'Reject replay request',
+        'action' => 'submit',
+    ])->json('data.id');
+
+    Sanctum::actingAs($managerUser);
+
+    postJson('/api/v1/hr/leave/requests/'.$rejectLeaveId.'/reject')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $rejectKey = 'hr-leave-reject';
+
+    $firstRejectResponse = postJson('/api/v1/hr/leave/requests/'.$rejectLeaveId.'/reject', [
+        'reason' => 'Leave request rejected for replay testing.',
+    ], apiIdempotencyHeaders($rejectKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $rejectKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', HrLeaveRequest::STATUS_REJECTED);
+
+    postJson('/api/v1/hr/leave/requests/'.$rejectLeaveId.'/reject', [
+        'reason' => 'Leave request rejected for replay testing.',
+    ], apiIdempotencyHeaders($rejectKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $rejectKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstRejectResponse->json('data.id'))
+        ->assertJsonPath('data.status', HrLeaveRequest::STATUS_REJECTED);
+
+    postJson('/api/v1/hr/leave/requests/'.$rejectLeaveId.'/reject', [
+        'reason' => 'Leave request rejected for replay testing.',
+    ], apiIdempotencyHeaders('hr-leave-reject-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+});
+
+test('api v1 hr idempotency replays reimbursement submission approval and rejection transitions', function () {
+    $this->seed(CoreRolesSeeder::class);
+
+    [$managerUser, $company] = makeActiveCompanyMember();
+    assignHrApiRole($managerUser, $company->id, 'line_manager');
+
+    $financeUser = User::factory()->create();
+    assignHrApiRole($financeUser, $company->id, 'payroll_manager');
+
+    $employeeUser = User::factory()->create();
+    assignHrApiRole($employeeUser, $company->id, 'employee_self_service');
+
+    $managerEmployee = createHrApiEmployee([
+        'company_id' => $company->id,
+        'user_id' => $managerUser->id,
+        'employee_number' => 'EMP-HR-RMB-IDEMP-MGR',
+        'first_name' => 'Mila',
+        'last_name' => 'Lead',
+        'display_name' => 'Mila Lead',
+        'work_email' => 'mila.lead@example.test',
+        'created_by' => $managerUser->id,
+    ]);
+
+    $employee = createHrApiEmployee([
+        'company_id' => $company->id,
+        'user_id' => $employeeUser->id,
+        'employee_number' => 'EMP-HR-RMB-IDEMP-001',
+        'first_name' => 'Nia',
+        'last_name' => 'Analyst',
+        'display_name' => 'Nia Analyst',
+        'work_email' => 'nia.analyst@example.test',
+        'manager_employee_id' => $managerEmployee->id,
+        'reimbursement_approver_user_id' => $managerUser->id,
+        'created_by' => $managerUser->id,
+    ]);
+
+    $currency = createHrApiCurrency($company->id, $managerUser->id, 'HRI');
+
+    $category = HrReimbursementCategory::create([
+        'company_id' => $company->id,
+        'name' => 'Replay Travel',
+        'code' => 'RTRAVEL',
+        'requires_receipt' => false,
+        'is_project_rebillable' => false,
+        'created_by' => $managerUser->id,
+        'updated_by' => $managerUser->id,
+    ]);
+
+    $submitClaim = HrReimbursementClaim::create([
+        'company_id' => $company->id,
+        'employee_id' => $employee->id,
+        'currency_id' => $currency->id,
+        'claim_number' => 'CLM-HR-IDEMP-SUBMIT',
+        'status' => HrReimbursementClaim::STATUS_DRAFT,
+        'total_amount' => 0,
+        'requested_by_user_id' => $employeeUser->id,
+        'manager_approver_user_id' => $managerUser->id,
+        'finance_approver_user_id' => $financeUser->id,
+        'notes' => 'Draft claim for replay-safe submit',
+        'created_by' => $employeeUser->id,
+        'updated_by' => $employeeUser->id,
+    ]);
+
+    Sanctum::actingAs($employeeUser);
+
+    $submitKey = 'hr-reimbursement-submit';
+
+    postJson('/api/v1/hr/reimbursements/'.$submitClaim->id.'/submit', [], apiIdempotencyHeaders($submitKey))
+        ->assertUnprocessable()
+        ->assertJsonStructure([
+            'message',
+            'errors' => ['lines'],
+        ]);
+
+    $submitClaim->lines()->create([
+        'company_id' => $company->id,
+        'category_id' => $category->id,
+        'expense_date' => now()->subDay()->toDateString(),
+        'description' => 'Draft taxi',
+        'amount' => 45,
+        'tax_amount' => 0,
+        'project_id' => null,
+        'created_by' => $employeeUser->id,
+        'updated_by' => $employeeUser->id,
+    ]);
+
+    $submitClaim->update([
+        'total_amount' => 45,
+        'updated_by' => $employeeUser->id,
+    ]);
+
+    postJson('/api/v1/hr/reimbursements/'.$submitClaim->id.'/submit')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstSubmitResponse = postJson('/api/v1/hr/reimbursements/'.$submitClaim->id.'/submit', [], apiIdempotencyHeaders($submitKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $submitKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_SUBMITTED);
+
+    postJson('/api/v1/hr/reimbursements/'.$submitClaim->id.'/submit', [], apiIdempotencyHeaders($submitKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $submitKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstSubmitResponse->json('data.id'))
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_SUBMITTED);
+
+    postJson('/api/v1/hr/reimbursements/'.$submitClaim->id.'/submit', [], apiIdempotencyHeaders('hr-reimbursement-submit-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    Sanctum::actingAs($employeeUser);
+
+    $approveClaimId = (string) postJson('/api/v1/hr/reimbursements', [
+        'employee_id' => $employee->id,
+        'currency_id' => $currency->id,
+        'project_id' => '',
+        'notes' => 'Claim for finance approval replay',
+        'action' => 'submit',
+        'lines' => [[
+            'category_id' => $category->id,
+            'expense_date' => now()->subDays(2)->toDateString(),
+            'description' => 'Approved taxi',
+            'amount' => 60,
+            'tax_amount' => 0,
+            'project_id' => '',
+        ]],
+    ])->json('data.id');
+
+    Sanctum::actingAs($managerUser);
+
+    postJson('/api/v1/hr/reimbursements/'.$approveClaimId.'/approve', [], apiIdempotencyHeaders())
+        ->assertOk()
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_MANAGER_APPROVED);
+
+    Sanctum::actingAs($financeUser);
+
+    postJson('/api/v1/hr/reimbursements/'.$approveClaimId.'/approve')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $approveKey = 'hr-reimbursement-approve';
+
+    $firstApproveResponse = postJson('/api/v1/hr/reimbursements/'.$approveClaimId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_FINANCE_APPROVED);
+
+    postJson('/api/v1/hr/reimbursements/'.$approveClaimId.'/approve', [], apiIdempotencyHeaders($approveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $approveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstApproveResponse->json('data.id'))
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_FINANCE_APPROVED);
+
+    postJson('/api/v1/hr/reimbursements/'.$approveClaimId.'/approve', [], apiIdempotencyHeaders('hr-reimbursement-approve-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    Sanctum::actingAs($employeeUser);
+
+    $rejectClaimId = (string) postJson('/api/v1/hr/reimbursements', [
+        'employee_id' => $employee->id,
+        'currency_id' => $currency->id,
+        'project_id' => '',
+        'notes' => 'Claim for reject replay',
+        'action' => 'submit',
+        'lines' => [[
+            'category_id' => $category->id,
+            'expense_date' => now()->subDays(3)->toDateString(),
+            'description' => 'Rejected taxi',
+            'amount' => 30,
+            'tax_amount' => 0,
+            'project_id' => '',
+        ]],
+    ])->json('data.id');
+
+    Sanctum::actingAs($managerUser);
+
+    postJson('/api/v1/hr/reimbursements/'.$rejectClaimId.'/reject')
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $rejectKey = 'hr-reimbursement-reject';
+
+    $firstRejectResponse = postJson('/api/v1/hr/reimbursements/'.$rejectClaimId.'/reject', [
+        'reason' => 'Rejected for replay testing.',
+    ], apiIdempotencyHeaders($rejectKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $rejectKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_REJECTED);
+
+    postJson('/api/v1/hr/reimbursements/'.$rejectClaimId.'/reject', [
+        'reason' => 'Rejected for replay testing.',
+    ], apiIdempotencyHeaders($rejectKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $rejectKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstRejectResponse->json('data.id'))
+        ->assertJsonPath('data.status', HrReimbursementClaim::STATUS_REJECTED);
+
+    postJson('/api/v1/hr/reimbursements/'.$rejectClaimId.'/reject', [
+        'reason' => 'Rejected for replay testing.',
+    ], apiIdempotencyHeaders('hr-reimbursement-reject-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
 });

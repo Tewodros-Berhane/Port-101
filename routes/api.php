@@ -41,7 +41,8 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
                 ->parameters(['invoices' => 'invoice']);
             Route::post('invoices/{invoice}/post', [ApiAccountingInvoicesController::class, 'post'])
                 ->middleware('api.idempotency');
-            Route::post('invoices/{invoice}/cancel', [ApiAccountingInvoicesController::class, 'cancel']);
+            Route::post('invoices/{invoice}/cancel', [ApiAccountingInvoicesController::class, 'cancel'])
+                ->middleware('api.idempotency');
 
             Route::apiResource('payments', ApiAccountingPaymentsController::class)
                 ->parameters(['payments' => 'payment']);
@@ -66,8 +67,10 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::prefix('leave')->group(function () {
                 Route::get('requests', [ApiHrLeaveRequestsController::class, 'index']);
                 Route::post('requests', [ApiHrLeaveRequestsController::class, 'store']);
-                Route::post('requests/{leaveRequest}/approve', [ApiHrLeaveRequestsController::class, 'approve']);
-                Route::post('requests/{leaveRequest}/reject', [ApiHrLeaveRequestsController::class, 'reject']);
+                Route::post('requests/{leaveRequest}/approve', [ApiHrLeaveRequestsController::class, 'approve'])
+                    ->middleware('api.idempotency');
+                Route::post('requests/{leaveRequest}/reject', [ApiHrLeaveRequestsController::class, 'reject'])
+                    ->middleware('api.idempotency');
             });
 
             Route::prefix('attendance')->group(function () {
@@ -80,9 +83,12 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::prefix('reimbursements')->group(function () {
                 Route::get('', [ApiHrReimbursementsController::class, 'index']);
                 Route::post('', [ApiHrReimbursementsController::class, 'store']);
-                Route::post('{claim}/submit', [ApiHrReimbursementsController::class, 'submit']);
-                Route::post('{claim}/approve', [ApiHrReimbursementsController::class, 'approve']);
-                Route::post('{claim}/reject', [ApiHrReimbursementsController::class, 'reject']);
+                Route::post('{claim}/submit', [ApiHrReimbursementsController::class, 'submit'])
+                    ->middleware('api.idempotency');
+                Route::post('{claim}/approve', [ApiHrReimbursementsController::class, 'approve'])
+                    ->middleware('api.idempotency');
+                Route::post('{claim}/reject', [ApiHrReimbursementsController::class, 'reject'])
+                    ->middleware('api.idempotency');
             });
 
             Route::get('payslips', [ApiHrPayslipsController::class, 'index']);
@@ -114,7 +120,8 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::get('stock-balances', [ApiInventoryStockBalancesController::class, 'index']);
             Route::apiResource('stock-moves', ApiInventoryStockMovesController::class)
                 ->parameters(['stock-moves' => 'move']);
-            Route::post('stock-moves/{move}/reserve', [ApiInventoryStockMovesController::class, 'reserve']);
+            Route::post('stock-moves/{move}/reserve', [ApiInventoryStockMovesController::class, 'reserve'])
+                ->middleware('api.idempotency');
             Route::post('stock-moves/{move}/dispatch', [ApiInventoryStockMovesController::class, 'dispatch'])
                 ->middleware('api.idempotency');
             Route::post('stock-moves/{move}/receive', [ApiInventoryStockMovesController::class, 'receive'])
@@ -132,9 +139,12 @@ Route::prefix('v1')->middleware('api.version.headers')->group(function () {
             Route::post('rfqs/{rfq}/select', [ApiPurchaseRfqsController::class, 'select']);
             Route::apiResource('orders', ApiPurchaseOrdersController::class)
                 ->parameters(['orders' => 'order']);
-            Route::post('orders/{order}/approve', [ApiPurchaseOrdersController::class, 'approve']);
-            Route::post('orders/{order}/confirm', [ApiPurchaseOrdersController::class, 'confirm']);
-            Route::post('orders/{order}/receive', [ApiPurchaseOrdersController::class, 'receive']);
+            Route::post('orders/{order}/approve', [ApiPurchaseOrdersController::class, 'approve'])
+                ->middleware('api.idempotency');
+            Route::post('orders/{order}/confirm', [ApiPurchaseOrdersController::class, 'confirm'])
+                ->middleware('api.idempotency');
+            Route::post('orders/{order}/receive', [ApiPurchaseOrdersController::class, 'receive'])
+                ->middleware('api.idempotency');
         });
         Route::prefix('sales')->group(function () {
             Route::apiResource('leads', ApiSalesLeadsController::class)

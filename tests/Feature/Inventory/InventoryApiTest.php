@@ -201,7 +201,7 @@ test('api v1 inventory endpoints are company scoped and support stock move workf
         ->assertNotFound()
         ->assertJsonPath('message', 'Resource not found.');
 
-    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve")
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED)
         ->assertJsonPath('data.can_reserve', false);
@@ -257,7 +257,7 @@ test('api v1 inventory endpoints are company scoped and support stock move workf
         ->assertJsonPath('data.reference', 'TRF-API-001A')
         ->assertJsonPath('data.quantity', 3);
 
-    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/reserve")
+    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/reserve", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
 
@@ -422,7 +422,7 @@ test('api v1 inventory supports tracked lot and serial move lines', function () 
 
     $deliveryMoveId = (string) $deliveryMove->json('data.id');
 
-    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve")
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonCount(2, 'data.lines');
 });
@@ -510,7 +510,7 @@ test('api v1 inventory idempotency replays terminal stock move transitions and d
         ->assertUnprocessable()
         ->assertJsonPath('message', 'Delivery moves must be reserved before completion.');
 
-    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve")
+    postJson("/api/v1/inventory/stock-moves/{$deliveryMoveId}/reserve", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
 
@@ -548,7 +548,7 @@ test('api v1 inventory idempotency replays terminal stock move transitions and d
         'notes' => 'Replay-safe completion',
     ])->json('data.id');
 
-    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/reserve")
+    postJson("/api/v1/inventory/stock-moves/{$transferMoveId}/reserve", [], apiIdempotencyHeaders())
         ->assertOk()
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
 
@@ -591,4 +591,91 @@ test('api v1 inventory idempotency replays terminal stock move transitions and d
         ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
         ->assertJsonPath('data.id', (string) $firstCancelResponse->json('data.id'))
         ->assertJsonPath('data.status', InventoryStockMove::STATUS_CANCELLED);
+});
+
+test('api v1 inventory idempotency replays reserve and does not cache unauthorized attempts', function () {
+    [$manager, $company] = makeActiveCompanyMember();
+
+    assignInventoryApiRole($manager, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+        'inventory.moves.manage',
+    ]);
+
+    app(InventorySetupService::class)->ensureDefaults($company->id, $manager->id);
+
+    $stockLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'STOCK')
+        ->firstOrFail();
+    $customerLocation = InventoryLocation::query()
+        ->where('company_id', $company->id)
+        ->where('code', 'CUSTOMERS')
+        ->firstOrFail();
+
+    $product = createInventoryApiProduct($company->id, $manager->id, 'Inventory Reserve Replay Widget');
+
+    InventoryStockLevel::create([
+        'company_id' => $company->id,
+        'location_id' => $stockLocation->id,
+        'product_id' => $product->id,
+        'on_hand_quantity' => 8,
+        'reserved_quantity' => 0,
+        'created_by' => $manager->id,
+        'updated_by' => $manager->id,
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    $moveId = (string) postJson('/api/v1/inventory/stock-moves', [
+        'reference' => 'RSV-REPLAY-001',
+        'move_type' => InventoryStockMove::TYPE_DELIVERY,
+        'source_location_id' => $stockLocation->id,
+        'destination_location_id' => $customerLocation->id,
+        'product_id' => $product->id,
+        'quantity' => 3,
+        'notes' => 'Replay-safe reservation',
+    ])->json('data.id');
+
+    assignInventoryApiRole($manager, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    $reserveKey = 'inventory-reserve-replay';
+
+    postJson("/api/v1/inventory/stock-moves/{$moveId}/reserve", [], apiIdempotencyHeaders($reserveKey))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
+
+    assignInventoryApiRole($manager, $company->id, [
+        'inventory.stock.view',
+        'inventory.moves.view',
+        'inventory.moves.manage',
+    ]);
+
+    Sanctum::actingAs($manager);
+
+    postJson("/api/v1/inventory/stock-moves/{$moveId}/reserve")
+        ->assertBadRequest()
+        ->assertJsonPath('message', 'Idempotency-Key header is required for this endpoint.');
+
+    $firstReserveResponse = postJson("/api/v1/inventory/stock-moves/{$moveId}/reserve", [], apiIdempotencyHeaders($reserveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $reserveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'false')
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
+
+    postJson("/api/v1/inventory/stock-moves/{$moveId}/reserve", [], apiIdempotencyHeaders($reserveKey))
+        ->assertOk()
+        ->assertHeader('Idempotency-Key', $reserveKey)
+        ->assertHeader('X-Port101-Idempotency-Replayed', 'true')
+        ->assertJsonPath('data.id', (string) $firstReserveResponse->json('data.id'))
+        ->assertJsonPath('data.status', InventoryStockMove::STATUS_RESERVED);
+
+    postJson("/api/v1/inventory/stock-moves/{$moveId}/reserve", [], apiIdempotencyHeaders('inventory-reserve-replay-second-key'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'This action is unauthorized.');
 });
