@@ -45,7 +45,6 @@ The application is built for teams that want commercial records, stock movement,
 - Mail: configured from `.env`
 - App URL in Docker: `http://localhost:8000`
 
-Redis is supported by Laravel, but this repository does not require Redis for the default stack.
 
 ## Getting started with Docker
 
